@@ -1,0 +1,150 @@
+# Changelog
+
+All notable changes to ThemeForge will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [Unreleased]
+
+### Added
+
+- **Gallery: card view with thumbnails.** Toggle between dense list
+  and 220×190 cards with project thumbnails (200×120). Thumbnails are
+  cached at `~/.cache/themeforge/thumbnails/<slug>.png` and generated
+  either from screenshots captured with 📸 or as branded placeholders
+  (vertical gradient with stack colour + project initials).
+- **Gallery: custom tags per project.** Edit with **🏷️ Tags…**.
+  Stored in `~/.config/themeforge/projects-meta.json`. Filter the
+  gallery with `tag:<name>` in the search bar (chainable:
+  `tag:venta tag:aurora`).
+- **Gallery: last AI session indicator.** Each project row shows the
+  time since the latest Claude Code conversation, by inspecting
+  `~/.claude/projects/<encoded-path>/*.jsonl` mtimes.
+- **Gallery: project archive.** Move projects to
+  `~/Proyectos/themes-archive/` with **📦 Archivar**, reversible via
+  **↩️ Restaurar**. Toggle **📦 Archivados** to switch views.
+- **Command palette (Ctrl+K).** Spotlight-style fuzzy-finder over
+  tabs, projects (active + archived), and quick actions. Multi-word
+  queries, positional scoring, keyboard-only navigation.
+- **🔬 Pre-flight checker.** Toolbar button in ProjectWindow that
+  runs 13 automated checks against ThemeForest requirements + best
+  practices: README, LICENSE, documentation/, screenshots/, jQuery
+  legacy, Bootstrap legacy, hardcoded tracking, prefers-reduced-motion,
+  .env tracked in git, project size + large files, unresolved scaffold
+  placeholders, lighthouse / html-validate availability. Results grouped
+  by severity with actionable hints.
+- **📦 Marketplace ZIP builder.** Toolbar button in ProjectWindow that
+  packages the project ready for upload to ThemeForest / CodeCanyon /
+  Gumroad / Creative Market. Excludes node_modules, .git, .next, dist,
+  .env, .cache, .vscode, .claude, CLAUDE.md, AGENTS.md, MEMORY.md,
+  *.log, .DS_Store, vendor, target, etc. Dialog opt-in for
+  documentation/, screenshots/, source/. Output:
+  `~/Proyectos/themes-builds/<slug>-<ts>.zip`.
+- **Plugin system.** User-defined plugins at
+  `~/.config/themeforge/plugins/*.py` can register custom stacks,
+  template types and AI agents without forking. Files starting with
+  `_` are ignored (convention for disabled). Examples shipped in
+  `examples/plugins/`.
+- **💰 AI cost tracker.** New main-window tab "Coste IA" that scans
+  local AI session stores (`~/.claude/projects/*.jsonl` for Claude
+  Code, `~/.codex/logs_2.sqlite` for Codex) and reports cost / tokens
+  by provider, model, project and day. Three QtCharts visualizations
+  (donut by provider, horizontal bar for top 10 projects, stacked bar
+  for last 30 days) with consistent provider colors, dark theme,
+  animations, native tooltips. Pricing hard-coded for common Claude
+  3.x/4.x, GPT-5.x, o3 and Gemini 2.x models in `cost_tracker.PRICING`;
+  unknown models fall back to Opus rates marked with ⚠. No external
+  API calls — entirely local.
+- **🚀 Demo deploy.** Toolbar button in ProjectWindow that builds
+  the project and deploys to **Netlify**, **Vercel**, **Cloudflare
+  Pages** or **Surge.sh**, then copies the public URL to the clipboard
+  and offers to open it in the browser. Auto-detects build command and
+  dist directory for Next.js, Astro, Vite, SvelteKit, Gatsby, Nuxt,
+  CRA, Angular, Hugo, Jekyll and plain HTML; user can override both in
+  the dialog. CLI availability check with install hint, build → deploy
+  chain runs in QProcess (UI remains responsive), logs streamed live to
+  the project log panel.
+- **🖥️ Cross-platform refactor + macOS alpha.** New
+  `platform_compat.py` module centralises every OS-specific call
+  (file manager, terminal launcher, shell exec, VS Code launcher,
+  config/cache dirs). All previously-Linux-only call sites
+  (`bash -lc`, `konsole`, `dolphin`, `xdg-open`) now dispatch by OS.
+  GitHub Actions workflow `.github/workflows/build-macos.yml`
+  builds a `.app` bundle on every tagged release using a
+  GitHub-hosted `macos-latest` runner — no Apple Developer ID
+  required for distribution as alpha (Gatekeeper warning expected
+  on first launch). Local build script: `scripts/build-macos.sh`.
+- **🎨 App icon + desktop launcher.** ThemeForge ships an app icon in
+  `assets/themeforge.png` (anvil + hammer + code/screens — branded for
+  the project) plus pre-rendered sizes (16/32/48/64/128/256). The icon
+  is loaded at startup and propagates to titlebar / taskbar / alt-tab
+  / dock. A `scripts/install-desktop-entry.sh` script installs a
+  user-local `.desktop` entry so ThemeForge shows up in the DE app
+  menu (run with `--uninstall` to remove).
+- **🤝 Multi-agent compare.** New main-window tab that runs the same
+  prompt across multiple AI CLIs (Claude Code, Codex, Gemini, OpenCode)
+  in parallel and displays the outputs side-by-side in resizable panes.
+  Each agent shows live status (idle → running → done/error), TTFT
+  (time-to-first-token) and total wall time. Agents not installed are
+  shown disabled with the install hint. Per-pane **📋 Copiar** action
+  copies the output to clipboard. Useful for: choosing the best agent
+  for a task, debugging which model has the right take on a problem,
+  or generating multiple competing solutions for a manual merge.
+- Initial public release of ThemeForge.
+- GUI builder (PyQt6) for scaffolding template projects across 60+
+  stacks (Next.js, Astro, Laravel, WordPress, Shopify, Flutter, Tauri,
+  Spring, Ktor, Phaser, R3F, …).
+- Four creation modes: scratch, recreate-from-reference, adopt-local,
+  existing-GitHub-repo.
+- Conversational reference analysis dialog with multi-turn history,
+  streaming, TTFT/token/cost metrics, and CLAUDE.md injection.
+- Per-project window with embedded multi-tab preview, embedded
+  terminal (xterm.js + node-pty), live dev-server logs, GitHub
+  push/create with `.gitignore` sanitisation.
+- Pixel Office visualizer integration (auto-install + auto-launch +
+  embedded tab) using a fork of `neomatrix25/pixel-office-openclaw`
+  (MIT) with Claude Code session reader added.
+- Optional licensing system scaffolding for Next.js, Laravel,
+  WordPress and Express stacks (verify-license route, setup wizard,
+  middleware) driven by a configurable verify endpoint.
+- Settings panel with diagnostic info, AI provider key management,
+  Pixel Office install/launch/stop, default stack picker.
+- Comprehensive English user guide (`docs/USER_GUIDE.md`) + styled
+  HTML version (`docs/user-guide.html`) generated from the Markdown.
+- AI agent support: Claude Code, Codex (OpenAI), Gemini (Google),
+  OpenCode (with OpenRouter).
+- Multi-stack mono-repo detection with sub-project dropdown.
+- Stderr secret redactor (sk-…, gho_…, AIza…, glpat-…) so AI keys
+  never reach the log panel.
+- Context override system: `~/.config/themeforge/context-private/`
+  takes precedence over the repo's `context/` so per-user private
+  research / strategy can be injected into every project without
+  touching the repo.
+
+## Versioning policy
+
+Until v1.0.0 the API is unstable. Breaking changes may happen between
+0.x.y versions; the changelog will call them out under **Changed** or
+**Removed**.
+
+<!--
+TEMPLATE for future releases (delete this comment when filling):
+
+## [0.2.0] - YYYY-MM-DD
+
+### Added
+- …
+
+### Changed
+- …
+
+### Fixed
+- …
+
+### Removed
+- …
+
+### Security
+- …
+-->

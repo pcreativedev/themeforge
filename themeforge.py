@@ -1,0 +1,4332 @@
+#!/usr/bin/env python3
+"""
+ThemeForge — builder de plantillas para ThemeForest.
+
+GUI PyQt6 con tres modos:
+
+  1) Desde cero            : scaffolding del stack + agente AI.
+  2) Recrear referencia    : el usuario aporta una referencia (carpeta local,
+                             .zip o URL); el builder la prepara en `reference/`
+                             e indica al agente que la estudie y reimplemente
+                             en el stack elegido.
+  3) Trabajar sobre repo   : clona un repo existente de GitHub y abre el
+                             agente sobre él para actualizar/añadir funciones.
+
+Además permite crear un repo nuevo privado en GitHub al terminar el setup.
+"""
+from __future__ import annotations
+
+import html as _html
+import json
+import os
+import re
+import secrets
+import shlex
+import shutil
+import subprocess
+import sys
+import time
+from datetime import datetime
+from pathlib import Path
+
+# IMPORTANTE: QtWebEngineWidgets debe importarse ANTES de crear QApplication,
+# si no, falla con "QtWebEngineWidgets must be imported... before a
+# QCoreApplication instance is created". Lo hacemos aquí aunque solo lo use
+# project_window.py más adelante.
+try:
+    from PyQt6 import QtWebEngineWidgets  # noqa: F401
+except Exception:
+    QtWebEngineWidgets = None
+
+from PyQt6.QtCore import Qt, QProcess
+from PyQt6.QtGui import QFont
+from PyQt6.QtWidgets import (
+    QApplication,
+    QButtonGroup,
+    QCheckBox,
+    QComboBox,
+    QDialog,
+    QDialogButtonBox,
+    QFileDialog,
+    QFormLayout,
+    QGroupBox,
+    QHBoxLayout,
+    QLabel,
+    QLineEdit,
+    QListWidget,
+    QListWidgetItem,
+    QMessageBox,
+    QPlainTextEdit,
+    QPushButton,
+    QRadioButton,
+    QSplitter,
+    QTabWidget,
+    QTextEdit,
+    QVBoxLayout,
+    QWidget,
+)
+
+from stacks import AGENTS, STACKS, TEMPLATE_TYPES
+from stack_picker import StackPickerDialog
+import ai_providers as aip
+import platform_compat as pc
+from provider_picker import ProviderPicker
+
+# Mantenemos referencias vivas a las ProjectWindow abiertas para que Qt no las
+# recolecte mientras el user las usa.
+_OPEN_PROJECT_WINDOWS: list = []
+
+
+def open_project_window(project_path: Path, initial_cmd: str | None = None,
+                        provider_key: str | None = None) -> None:
+    """Abre una ProjectWindow para el proyecto dado. Importa lazy para
+    no cargar QtWebEngine si nadie la usa. Si se pasa `initial_cmd`,
+    se ejecuta en la primera pestaña de la terminal embebida. Si se
+    pasa `provider_key`, solo se abre la tab del CLI de ese provider."""
+    try:
+        from project_window import ProjectWindow
+    except Exception as e:
+        QMessageBox.critical(None, "ThemeForge", f"No se pudo cargar ProjectWindow:\n{e}")
+        return
+    w = ProjectWindow(project_path, initial_cmd=initial_cmd, provider_key=provider_key)
+    _OPEN_PROJECT_WINDOWS.append(w)
+    w.destroyed.connect(lambda *_: _OPEN_PROJECT_WINDOWS.remove(w) if w in _OPEN_PROJECT_WINDOWS else None)
+    w.show()
+    w.raise_()
+    w.activateWindow()
+
+HOME = Path.home()
+BUILDER_DIR = HOME / "Proyectos" / "themeforge"
+PROJECTS_DIR = HOME / "Proyectos" / "themes"
+CONTEXT_DIR = BUILDER_DIR / "context"
+CONFIG_DIR = HOME / ".config" / "themeforge"
+THUMBNAILS_DIR = HOME / ".cache" / "themeforge" / "thumbnails"
+# Carpeta opcional con versiones privadas de los MDs de context/.
+# Si un MD existe aquí, ThemeForge lo prefiere sobre el del repo. Útil
+# para que el usuario tenga su versión REAL (con secrets, estrategia,
+# análisis de mercado real) fuera del repo público.
+CONTEXT_PRIVATE_DIR = CONFIG_DIR / "context-private"
+FAVORITES_FILE = CONFIG_DIR / "favorites.json"
+
+
+# Patrones de API keys conocidas — para redactar de stderr antes de
+# mostrarlos en el UI (defensa en profundidad, no debería pasar pero).
+_SECRET_PATTERNS = [
+    re.compile(r"sk-ant-[a-zA-Z0-9_\-]{20,}"),     # Anthropic
+    re.compile(r"sk-proj-[a-zA-Z0-9_\-]{20,}"),    # OpenAI proj
+    re.compile(r"sk-[a-zA-Z0-9_\-]{40,}"),         # OpenAI clásica + genéricas
+    re.compile(r"sk-or-v\d+-[a-zA-Z0-9_\-]{40,}"), # OpenRouter
+    re.compile(r"AIza[0-9A-Za-z_\-]{35}"),         # Google API keys
+    re.compile(r"gho_[A-Za-z0-9]{36}"),            # GitHub OAuth
+    re.compile(r"ghp_[A-Za-z0-9]{36}"),            # GitHub PAT
+    re.compile(r"glpat-[A-Za-z0-9_\-]{20,}"),      # GitLab PAT
+]
+
+
+def _redact_secrets(text: str) -> str:
+    """Reemplaza cualquier API key conocida con un placeholder.
+    Usado al pintar stderr/logs del subproceso de IA en la UI."""
+    for pat in _SECRET_PATTERNS:
+        text = pat.sub("<REDACTED-API-KEY>", text)
+    return text
+
+
+def collect_context_mds() -> list[Path]:
+    """Devuelve los .md a copiar al proyecto generado.
+
+    Discovery dinámico (no hay nombres hardcoded en el código público):
+
+    1. Recoge todos los `*.md` de `~/.config/themeforge/context-private/`
+       (versiones REALES del usuario con secrets / estrategia / etc.).
+    2. Completa con los `*.md` y `*.template.md` del repo `context/`
+       que NO tengan ya equivalente privado.
+
+    Comparación por stem (sin extensión y sin `.template`). Eso permite
+    que `MARKET-RESEARCH.md` privado oculte `MARKET-RESEARCH.template.md`
+    público.
+    """
+    def _canon_stem(name: str) -> str:
+        if name.endswith(".template.md"):
+            return name[:-len(".template.md")]
+        if name.endswith(".md"):
+            return name[:-3]
+        return name
+
+    seen_stems: set[str] = set()
+    out: list[Path] = []
+
+    if CONTEXT_PRIVATE_DIR.is_dir():
+        for f in sorted(CONTEXT_PRIVATE_DIR.glob("*.md")):
+            seen_stems.add(_canon_stem(f.name))
+            out.append(f)
+
+    if CONTEXT_DIR.is_dir():
+        for f in sorted(CONTEXT_DIR.glob("*.md")):
+            stem = _canon_stem(f.name)
+            if stem in seen_stems:
+                continue
+            seen_stems.add(stem)
+            out.append(f)
+    return out
+
+
+def load_favorites() -> set[str]:
+    try:
+        return set(json.loads(FAVORITES_FILE.read_text()))
+    except Exception:
+        return set()
+
+
+def save_favorites(favs: set[str]) -> None:
+    try:
+        CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+        FAVORITES_FILE.write_text(json.dumps(sorted(favs), indent=2))
+    except Exception:
+        pass
+
+
+# ── Metadata por proyecto (tags, archived, etc.) ─────────────────────
+# Persistido en ~/.config/themeforge/projects-meta.json. Estructura:
+#   { "<slug>": { "tags": ["foo","bar"], "archived": bool, ... } }
+PROJECTS_META_FILE = CONFIG_DIR / "projects-meta.json"
+
+
+def load_projects_meta() -> dict[str, dict]:
+    try:
+        data = json.loads(PROJECTS_META_FILE.read_text())
+        return data if isinstance(data, dict) else {}
+    except Exception:
+        return {}
+
+
+def save_projects_meta(meta: dict[str, dict]) -> None:
+    try:
+        CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+        PROJECTS_META_FILE.write_text(json.dumps(meta, indent=2, sort_keys=True))
+    except Exception:
+        pass
+
+
+def get_project_tags(slug: str) -> list[str]:
+    return list((load_projects_meta().get(slug) or {}).get("tags") or [])
+
+
+def set_project_tags(slug: str, tags: list[str]) -> None:
+    meta = load_projects_meta()
+    entry = meta.get(slug) or {}
+    # Normalizar: lowercase, sin espacios extra, sin duplicados, ordenado.
+    norm = sorted({t.strip().lower().lstrip("#") for t in tags if t.strip()})
+    if norm:
+        entry["tags"] = norm
+    else:
+        entry.pop("tags", None)
+    if entry:
+        meta[slug] = entry
+    else:
+        meta.pop(slug, None)
+    save_projects_meta(meta)
+
+
+# ── Thumbnails de proyectos (cards de la galería) ────────────────────
+# Tamaño objetivo: 200×120 (ratio ~5:3 que combina bien con cards
+# 220×180). Si hay screenshot real cacheado lo usamos; si no,
+# generamos un placeholder dibujado con QPainter (gradient + iniciales
+# del proyecto + abbreviation del stack). El propio ProjectWindow
+# hookea el botón 📸 para guardar copia como thumbnail del proyecto.
+
+THUMB_WIDTH = 200
+THUMB_HEIGHT = 120
+
+# Paleta determinista por stack — colores marca-friendly que no chocan
+# con el dark theme de KDE. Si el stack no está aquí, se calcula un
+# color por hash del nombre.
+_STACK_COLORS: dict[str, tuple[int, int, int]] = {
+    "nextjs-tailwind":     (0, 0, 0),
+    "nextjs-shadcn":       (24, 24, 27),
+    "nextjs-mantine":      (51, 154, 240),
+    "nextjs-heroui":       (236, 72, 153),
+    "astro-tailwind":      (255, 90, 30),
+    "astro-shadcn":        (255, 117, 64),
+    "wordpress-block":     (33, 117, 155),
+    "wordpress-plugin":    (33, 117, 155),
+    "shopify-liquid":      (149, 191, 71),
+    "html-tailwind":       (56, 189, 248),
+    "html-bootstrap":      (124, 58, 237),
+    "react-vite-tailwind": (97, 218, 251),
+    "vue3-vite-tailwind":  (65, 184, 131),
+    "angular-tailwind":    (221, 0, 49),
+    "laravel-inertia":     (255, 45, 32),
+    "sveltekit-tailwind":  (255, 62, 0),
+    "nuxt-tailwind":       (0, 220, 130),
+    "remix-tailwind":      (227, 90, 64),
+    "qwik-tailwind":       (172, 113, 234),
+    "solidstart-tailwind": (43, 138, 218),
+    "flutter":             (66, 165, 245),
+    "tauri-react":         (255, 192, 30),
+    "electron-react":      (51, 153, 255),
+    "expo-rn-nativewind":  (0, 0, 0),
+    "expo-rn-router":      (28, 28, 28),
+    "ionic-capacitor":     (54, 138, 247),
+    "kotlin-compose":      (123, 31, 162),
+    "phoenix-liveview":    (252, 89, 70),
+    "rails-tailwind":      (204, 33, 30),
+    "go-fiber":            (0, 173, 216),
+    "rust-axum":           (255, 137, 36),
+    "spring-boot":         (109, 179, 63),
+    "ktor-server":         (74, 60, 144),
+    "fastapi":             (5, 153, 138),
+    "django-tailwind":     (9, 88, 67),
+    "hono-bun":            (251, 240, 218),
+    "hono-cloudflare":     (244, 145, 28),
+    "nestjs-prisma":       (224, 35, 77),
+    "bun-elysia":          (251, 240, 218),
+    "deno-fresh":          (255, 255, 255),
+    "t3-stack":            (104, 51, 162),
+    "docusaurus":          (62, 90, 184),
+    "vitepress":           (89, 211, 154),
+    "starlight":           (190, 117, 226),
+    "hugo":                (255, 64, 129),
+    "eleventy":            (255, 209, 60),
+    "payload-cms":         (0, 0, 0),
+    "strapi":              (74, 33, 255),
+    "medusa":              (50, 50, 50),
+    "storybook-react":     (255, 80, 130),
+    "react-email":         (37, 99, 235),
+    "phaser-vite-ts":      (252, 132, 23),
+    "pixijs-vite-ts":      (232, 31, 99),
+    "r3f-vite-ts":         (255, 161, 0),
+    "sanity-studio":       (242, 49, 73),
+    "directus":            (100, 70, 255),
+    "plasmo":              (245, 102, 116),
+    "wxt":                 (123, 207, 88),
+}
+
+
+def _color_for_stack(stack_key: str) -> tuple[int, int, int]:
+    if stack_key in _STACK_COLORS:
+        return _STACK_COLORS[stack_key]
+    # Fallback determinista por hash: HSL → RGB sencillo (saturación
+    # media, lightness oscuro para que el texto blanco se vea bien).
+    h = abs(hash(stack_key)) % 360
+    s, l = 0.55, 0.35
+    import colorsys
+    r, g, b = colorsys.hls_to_rgb(h / 360, l, s)
+    return int(r * 255), int(g * 255), int(b * 255)
+
+
+def get_or_make_thumbnail(slug: str, stack_key: str, project_name: str):
+    """Devuelve un QPixmap THUMB_WIDTH×THUMB_HEIGHT.
+
+    1. Si existe `~/.cache/themeforge/thumbnails/<slug>.png` → lo carga.
+    2. Si no → genera un placeholder dibujado: gradient con el color
+       del stack + iniciales del proyecto centradas + label del stack
+       abajo.
+    """
+    from PyQt6.QtGui import QPixmap, QPainter, QColor, QLinearGradient, QFont, QPen
+    from PyQt6.QtCore import Qt as _Qt, QRect
+
+    THUMBNAILS_DIR.mkdir(parents=True, exist_ok=True)
+    cached = THUMBNAILS_DIR / f"{slug}.png"
+    if cached.is_file():
+        pm = QPixmap(str(cached))
+        if not pm.isNull():
+            return pm.scaled(
+                THUMB_WIDTH, THUMB_HEIGHT,
+                _Qt.AspectRatioMode.KeepAspectRatioByExpanding,
+                _Qt.TransformationMode.SmoothTransformation,
+            )
+
+    # Placeholder dibujado
+    pm = QPixmap(THUMB_WIDTH, THUMB_HEIGHT)
+    r, g, b = _color_for_stack(stack_key)
+    color_top = QColor(r, g, b)
+    color_bottom = QColor(max(0, r - 40), max(0, g - 40), max(0, b - 40))
+    p = QPainter(pm)
+    try:
+        p.setRenderHint(QPainter.RenderHint.Antialiasing, True)
+        grad = QLinearGradient(0, 0, 0, THUMB_HEIGHT)
+        grad.setColorAt(0, color_top)
+        grad.setColorAt(1, color_bottom)
+        p.fillRect(0, 0, THUMB_WIDTH, THUMB_HEIGHT, grad)
+
+        # Iniciales del proyecto (1-2 letras grandes en el centro)
+        words = re.split(r"[-_\s]+", project_name or slug)
+        initials = "".join(w[:1].upper() for w in words[:2] if w) or "?"
+        if len(initials) == 1:
+            initials = (project_name or slug)[:2].upper()
+        font = QFont()
+        font.setPointSize(48)
+        font.setBold(True)
+        p.setFont(font)
+        p.setPen(QPen(QColor(255, 255, 255, 220)))
+        p.drawText(QRect(0, 0, THUMB_WIDTH, THUMB_HEIGHT - 18),
+                   _Qt.AlignmentFlag.AlignCenter, initials)
+
+        # Label del stack abajo
+        stack_label = stack_key.replace("-", " ") if stack_key and stack_key != "none" else "no stack"
+        font.setPointSize(9)
+        font.setBold(False)
+        p.setFont(font)
+        p.setPen(QPen(QColor(255, 255, 255, 160)))
+        p.drawText(QRect(0, THUMB_HEIGHT - 20, THUMB_WIDTH, 18),
+                   _Qt.AlignmentFlag.AlignCenter, stack_label[:30])
+    finally:
+        p.end()
+    return pm
+
+
+def save_project_thumbnail(slug: str, source_pixmap) -> None:
+    """Guarda `source_pixmap` (cualquier tamaño) como thumbnail del
+    proyecto. Lo redimensiona a THUMB_WIDTH×THUMB_HEIGHT manteniendo
+    aspect ratio (crop). Útil para hookear desde el botón 📸 del
+    ProjectWindow."""
+    from PyQt6.QtCore import Qt as _Qt
+    if source_pixmap is None or source_pixmap.isNull():
+        return
+    THUMBNAILS_DIR.mkdir(parents=True, exist_ok=True)
+    out = source_pixmap.scaled(
+        THUMB_WIDTH, THUMB_HEIGHT,
+        _Qt.AspectRatioMode.KeepAspectRatioByExpanding,
+        _Qt.TransformationMode.SmoothTransformation,
+    )
+    # Crop centrado si quedó más grande que el target
+    if out.width() > THUMB_WIDTH or out.height() > THUMB_HEIGHT:
+        x = max(0, (out.width() - THUMB_WIDTH) // 2)
+        y = max(0, (out.height() - THUMB_HEIGHT) // 2)
+        out = out.copy(x, y, THUMB_WIDTH, THUMB_HEIGHT)
+    out.save(str(THUMBNAILS_DIR / f"{slug}.png"), "PNG", 92)
+
+
+def last_ai_activity(project_path: Path) -> float | None:
+    """Devuelve el unix timestamp (segundos) de la última sesión de
+    IA en este proyecto, o None si no hay sesiones detectables.
+
+    Hoy busca en:
+      ~/.claude/projects/<encoded-path>/*.jsonl
+    donde `encoded-path` es el path absoluto del proyecto con `/`
+    reemplazados por `-`. Es el formato que usa Claude Code.
+
+    En el futuro se puede ampliar a Codex / Gemini / OpenCode cuando
+    se conozcan sus rutas equivalentes.
+    """
+    encoded = str(project_path.resolve()).replace("/", "-")
+    claude_dir = Path.home() / ".claude" / "projects" / encoded
+    if not claude_dir.is_dir():
+        return None
+    best = 0.0
+    try:
+        for f in claude_dir.iterdir():
+            if f.is_file() and f.name.endswith(".jsonl"):
+                m = f.stat().st_mtime
+                if m > best:
+                    best = m
+    except Exception:
+        return None
+    return best or None
+
+
+def format_relative_time(ts: float | None) -> str:
+    """Formato 'hace X min/h/d' a partir de un unix timestamp."""
+    if ts is None:
+        return "—"
+    import time
+    diff = time.time() - ts
+    if diff < 0:
+        return "en el futuro?"
+    if diff < 60:
+        return "hace un momento"
+    if diff < 3600:
+        return f"hace {int(diff // 60)} min"
+    if diff < 86400:
+        return f"hace {int(diff // 3600)} h"
+    if diff < 86400 * 30:
+        return f"hace {int(diff // 86400)} d"
+    if diff < 86400 * 365:
+        return f"hace {int(diff // (86400 * 30))} meses"
+    return f"hace {int(diff // (86400 * 365))} años"
+
+
+def slugify(name: str) -> str:
+    s = name.strip().lower()
+    s = re.sub(r"[^a-z0-9]+", "-", s)
+    s = s.strip("-")
+    return s or "untitled"
+
+
+def shell_quote(s: str) -> str:
+    return "'" + s.replace("'", "'\\''") + "'"
+
+
+def _stop_containers_using_path(target_path) -> list[str]:
+    """Detecta containers Docker con bind-mounts dentro de target_path
+    y los elimina con docker rm -f. Devuelve la lista de IDs eliminados.
+
+    Útil para borrar proyectos que tienen docker-compose con servicios
+    que escribieron archivos como root (meilisearch, mysql, postgres
+    no-themeforge, etc.) — necesario antes de rmtree.
+    """
+    if not shutil.which("docker"):
+        return []
+    target = str(target_path).rstrip("/")
+    try:
+        r = subprocess.run(
+            ["docker", "ps", "-aq"],
+            capture_output=True, text=True, timeout=10,
+        )
+        if r.returncode != 0:
+            return []
+        ids = r.stdout.split()
+        killed = []
+        for cid in ids:
+            ins = subprocess.run(
+                ["docker", "inspect", "--format", "{{range .Mounts}}{{.Source}}\n{{end}}", cid],
+                capture_output=True, text=True, timeout=10,
+            )
+            if ins.returncode != 0:
+                continue
+            mounts = [m.strip() for m in ins.stdout.splitlines() if m.strip()]
+            if any(m == target or m.startswith(target + "/") for m in mounts):
+                subprocess.run(
+                    ["docker", "rm", "-f", cid],
+                    capture_output=True, text=True, timeout=30,
+                )
+                killed.append(cid)
+        return killed
+    except Exception:
+        return []
+
+
+def gh_username() -> str | None:
+    """Devuelve el usuario activo de GitHub CLI, o None."""
+    try:
+        out = subprocess.check_output(
+            ["gh", "api", "user", "--jq", ".login"],
+            stderr=subprocess.DEVNULL, timeout=5,
+        ).decode().strip()
+        return out or None
+    except Exception:
+        return None
+
+
+def detect_stack(path: Path) -> str:
+    """Heurística rápida para identificar el stack de un proyecto."""
+    # PRIORIDAD: Laravel (artisan + composer.json) — antes que cualquier
+    # check de package.json, porque muchos Laravel modernos traen Vite.
+    if (path / "artisan").is_file() and (path / "composer.json").is_file():
+        try:
+            data = json.loads((path / "composer.json").read_text(errors="ignore"))
+            req = {**(data.get("require") or {}), **(data.get("require-dev") or {})}
+            if "laravel/framework" in req or "laravel/laravel" in req:
+                return "Laravel"
+        except Exception:
+            pass
+
+    pkg = path / "package.json"
+    if pkg.exists():
+        try:
+            data = json.loads(pkg.read_text(errors="ignore"))
+            deps = {**(data.get("dependencies") or {}), **(data.get("devDependencies") or {})}
+            # Móviles primero (más específicos)
+            if "expo" in deps: return "Expo (React Native)"
+            if any(k in deps for k in ("@ionic/react", "@ionic/angular", "@ionic/vue")):
+                return "Ionic + Capacitor"
+            if "react-native" in deps: return "React Native"
+            # Web
+            if "next" in deps: return "Next.js"
+            if "astro" in deps: return "Astro"
+            if "nuxt" in deps: return "Nuxt"
+            if "@angular/core" in deps: return "Angular"
+            if "vue" in deps: return "Vue 3"
+            if "react" in deps: return "React"
+            if "vite" in deps: return "Vite (genérico)"
+        except Exception:
+            pass
+    # Flutter
+    if (path / "pubspec.yaml").is_file():
+        return "Flutter"
+    # Android nativo
+    if (path / "build.gradle").is_file() or (path / "build.gradle.kts").is_file():
+        return "Android (Kotlin)"
+    # iOS (Xcode project) — solo identificar, no podemos buildear en Linux
+    if (path / "Package.swift").is_file() or list(path.glob("*.xcodeproj")):
+        return "iOS (Swift)"
+    if (path / "composer.json").exists():
+        try:
+            data = json.loads((path / "composer.json").read_text(errors="ignore"))
+            req = {**(data.get("require") or {}), **(data.get("require-dev") or {})}
+            if "laravel/framework" in req or "laravel/laravel" in req:
+                return "Laravel"
+            if "symfony/framework-bundle" in req:
+                return "Symfony"
+            return "PHP"
+        except Exception:
+            return "PHP"
+    if (path / "theme.json").exists() and (path / "style.css").exists():
+        return "WordPress (Block Theme)"
+    if (path / "config" / "settings_schema.json").exists():
+        return "Shopify Liquid"
+    if (path / "angular.json").exists():
+        return "Angular"
+    if (path / "index.html").exists():
+        return "HTML estático"
+    return "?"
+
+
+def detected_stack_to_key(label: str) -> str:
+    """Convierte el string de detect_stack() al key usado en STACKS."""
+    m = {
+        # Web
+        "Next.js":              "nextjs-tailwind",
+        "Astro":                "astro-tailwind",
+        "Nuxt":                 "none",
+        "Angular":              "angular-tailwind",
+        "Vue 3":                "vue3-vite-tailwind",
+        "React":                "react-vite-tailwind",
+        "Vite (genérico)":      "html-tailwind",
+        "Laravel":              "laravel-inertia",
+        "Symfony":              "none",
+        "PHP":                  "none",
+        "WordPress (Block Theme)": "wordpress-block",
+        "Shopify Liquid":       "shopify-liquid",
+        "HTML estático":        "html-bootstrap",
+        # Móvil
+        "Expo (React Native)":  "expo-rn-nativewind",
+        "React Native":         "expo-rn-nativewind",
+        "Ionic + Capacitor":    "ionic-capacitor",
+        "Flutter":              "flutter",
+        "Android (Kotlin)":     "kotlin-compose",
+        "iOS (Swift)":          "none",
+    }
+    return m.get(label, "none")
+
+
+ARCHIVE_DIR = HOME / "Proyectos" / "themes-archive"
+BUILDS_DIR = HOME / "Proyectos" / "themes-builds"
+
+
+# ── Build de ZIP para marketplaces ───────────────────────────────────
+# Dirs y archivos que NUNCA deben entrar al ZIP final.
+_ZIP_EXCLUDE_DIRS: frozenset[str] = frozenset({
+    "node_modules", ".git", ".next", ".nuxt", "out", "dist", "build",
+    ".cache", "__pycache__", ".venv", "venv", "env", "ENV",
+    ".pytest_cache", ".mypy_cache", ".ruff_cache", "coverage",
+    ".turbo", ".vercel", ".netlify",
+    ".vscode", ".idea", ".cursor", ".windsurf", ".claude", ".aider",
+    "target", "vendor", ".gradle", ".dart_tool",
+    "screenshots-private", "tmp", ".tmp",
+})
+_ZIP_EXCLUDE_FILES: frozenset[str] = frozenset({
+    ".env", ".env.local", ".env.development", ".env.production",
+    ".env.test",
+    ".DS_Store", "Thumbs.db", "desktop.ini",
+    "CLAUDE.md", "AGENTS.md", "GEMINI.md", "MEMORY.md",
+    ".eslintcache",
+})
+_ZIP_EXCLUDE_SUFFIXES: tuple[str, ...] = (
+    ".log", ".pyc", ".pyo", ".swp", ".swo", ".bak", ".tmp",
+)
+
+
+def build_marketplace_zip(
+    project_dir: Path,
+    *,
+    include_screenshots: bool = True,
+    include_documentation: bool = True,
+    include_source: bool = True,
+    output_path: Path | None = None,
+) -> tuple[bool, str, Path | None]:
+    """Empaqueta el proyecto en un ZIP listo para subir a un marketplace.
+
+    Args:
+        project_dir: raíz del proyecto.
+        include_screenshots: incluir `screenshots/` si existe.
+        include_documentation: incluir `documentation/` si existe.
+        include_source: incluir `source/` (PSDs, Figma exports) si existe.
+        output_path: si None, usa BUILDS_DIR/<slug>-<timestamp>.zip.
+
+    Returns:
+        (ok, message, output_path_real)
+    """
+    import zipfile
+
+    if not project_dir.is_dir():
+        return False, f"No existe: {project_dir}", None
+
+    slug = project_dir.name
+    if output_path is None:
+        BUILDS_DIR.mkdir(parents=True, exist_ok=True)
+        ts = datetime.now().strftime("%Y%m%d-%H%M%S")
+        output_path = BUILDS_DIR / f"{slug}-{ts}.zip"
+    else:
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    files_added = 0
+    bytes_raw = 0
+
+    def should_include_dir(name: str) -> bool:
+        if name in _ZIP_EXCLUDE_DIRS:
+            return False
+        # Carpetas opcionales según flags
+        if name == "screenshots" and not include_screenshots:
+            return False
+        if name == "documentation" and not include_documentation:
+            return False
+        if name == "source" and not include_source:
+            return False
+        return True
+
+    def should_include_file(name: str) -> bool:
+        if name in _ZIP_EXCLUDE_FILES:
+            return False
+        if name.startswith(".env."):  # cualquier .env.<algo>
+            return False
+        if any(name.endswith(s) for s in _ZIP_EXCLUDE_SUFFIXES):
+            return False
+        return True
+
+    try:
+        with zipfile.ZipFile(
+            str(output_path), "w",
+            compression=zipfile.ZIP_DEFLATED, compresslevel=6,
+        ) as zf:
+            for root, dirs, files in os.walk(project_dir):
+                # Pruning in-place de dirs excluidos
+                dirs[:] = [d for d in dirs if should_include_dir(d)]
+                for f in files:
+                    if not should_include_file(f):
+                        continue
+                    src = Path(root) / f
+                    try:
+                        rel = src.relative_to(project_dir)
+                    except ValueError:
+                        continue
+                    # arcname incluye el slug como dir raíz para que al
+                    # descomprimir quede `<slug>/...` (estándar marketplace)
+                    arcname = str(Path(slug) / rel)
+                    try:
+                        zf.write(str(src), arcname)
+                        st = src.stat()
+                        bytes_raw += st.st_size
+                        files_added += 1
+                    except (OSError, PermissionError):
+                        continue
+    except Exception as e:
+        return False, f"Error empaquetando: {e}", output_path
+
+    size_zip = output_path.stat().st_size
+    msg = (
+        f"ZIP creado: {output_path}\n"
+        f"{files_added} archivos · {bytes_raw // 1024} KB sin comprimir → "
+        f"{size_zip // 1024} KB comprimido "
+        f"({100 - int(size_zip * 100 / max(bytes_raw, 1))}% reducción)"
+    )
+    return True, msg, output_path
+
+
+def list_projects(archived: bool = False) -> list[dict]:
+    """Metadatos de cada subcarpeta de PROJECTS_DIR (o ARCHIVE_DIR si
+    archived=True), ordenados por mtime desc."""
+    root = ARCHIVE_DIR if archived else PROJECTS_DIR
+    if not root.exists():
+        return []
+    items = []
+    for d in root.iterdir():
+        if not d.is_dir() or d.name.startswith("."):
+            continue
+        try:
+            mtime = d.stat().st_mtime
+            for sub in ("src", "src_v2", "app", "templates", "package.json", "CLAUDE.md"):
+                p = d / sub
+                if p.exists():
+                    mtime = max(mtime, p.stat().st_mtime)
+        except Exception:
+            mtime = 0
+        items.append({
+            "path": d,
+            "name": d.name,
+            "stack": detect_stack(d),
+            "mtime": mtime,
+            "has_git": (d / ".git").is_dir(),
+            "has_claude": (d / "CLAUDE.md").exists(),
+            "has_agents": (d / "AGENTS.md").exists(),
+            "archived": archived,
+        })
+    return sorted(items, key=lambda x: x["mtime"], reverse=True)
+
+
+def archive_project(slug: str) -> tuple[bool, str]:
+    """Mueve PROJECTS_DIR/<slug> → ARCHIVE_DIR/<slug>. No borra nada."""
+    src = PROJECTS_DIR / slug
+    if not src.is_dir():
+        return False, f"No existe {src}"
+    ARCHIVE_DIR.mkdir(parents=True, exist_ok=True)
+    dst = ARCHIVE_DIR / slug
+    if dst.exists():
+        return False, f"Ya existe en archivo: {dst} — renómbralo o bórralo antes."
+    try:
+        shutil.move(str(src), str(dst))
+        return True, f"Archivado en {dst}"
+    except Exception as e:
+        return False, f"Error al archivar: {e}"
+
+
+def unarchive_project(slug: str) -> tuple[bool, str]:
+    """Mueve ARCHIVE_DIR/<slug> → PROJECTS_DIR/<slug>."""
+    src = ARCHIVE_DIR / slug
+    if not src.is_dir():
+        return False, f"No existe en archivo: {src}"
+    PROJECTS_DIR.mkdir(parents=True, exist_ok=True)
+    dst = PROJECTS_DIR / slug
+    if dst.exists():
+        return False, f"Ya hay un proyecto activo con ese nombre: {dst}"
+    try:
+        shutil.move(str(src), str(dst))
+        return True, f"Restaurado en {dst}"
+    except Exception as e:
+        return False, f"Error al restaurar: {e}"
+
+
+def gh_list_repos(limit: int = 200) -> list[dict]:
+    """Lista repos del usuario autenticado (vacío si gh falla)."""
+    try:
+        out = subprocess.check_output(
+            ["gh", "repo", "list", "--limit", str(limit),
+             "--json", "nameWithOwner,visibility,description,updatedAt,isArchived"],
+            stderr=subprocess.DEVNULL, timeout=15,
+        )
+        data = json.loads(out.decode())
+        return [r for r in data if not r.get("isArchived")]
+    except Exception:
+        return []
+
+
+def _read_context(name: str) -> str:
+    """Lee un MD de context/ del builder y lo devuelve como string."""
+    p = CONTEXT_DIR / name
+    try:
+        return p.read_text(encoding="utf-8")
+    except Exception:
+        return f"_(no se pudo leer {name})_"
+
+
+def render_context(
+    stack_key: str,
+    template_type: str,
+    project_name: str,
+    mode: str,
+    reference_kind: str | None,
+    reference_value: str | None,
+    existing_repo: str | None,
+    ai_analysis: str | None = None,
+) -> str:
+    stack = STACKS[stack_key]
+    type_unspecified = template_type.startswith("(Sin tipo")
+    stack_unspecified = stack_key == "none"
+    sistema_licencias = _read_context("LICENSING-SYSTEM.md")
+    requisitos_envato = _read_context("REQUISITOS-THEMEFOREST.md")
+
+    if mode == "scratch":
+        mode_block = (
+            "## Modo: desde cero\n\n"
+            "No hay template de referencia. Diseña la plantilla desde cero apuntando a\n"
+            "lo que mejor vende según los MDs de mercado en `context/`.\n"
+        )
+    elif mode == "recreate":
+        if reference_kind == "url":
+            ref_descr = f"Web demo descargada con wget desde: {reference_value}"
+        elif reference_kind == "zip":
+            ref_descr = f"Template extraído de un .zip local: {reference_value}"
+        else:
+            ref_descr = f"Carpeta local con el template referencia: {reference_value}"
+        mode_block = f"""## Modo: recrear referencia (reverse-engineer)
+
+En `reference/` tienes el material de referencia.
+
+- Origen: {ref_descr}
+
+### Tu tarea
+
+1. **Estudia** la referencia: estructura de páginas, layout, paleta, tipografía,
+   componentes, animaciones, copy, sectores objetivo.
+2. **Documenta** un análisis breve en `ANALYSIS.md`: qué está bien, qué hay
+   que mejorar, qué incumple los REQUISITOS-THEMEFOREST.
+3. **Reimplementa desde cero** usando el stack del proyecto, sin copiar
+   código. Renombra clases, reorganiza componentes, mejora a11y/SEO/perf.
+4. **Mejora** sobre la referencia: variantes de color, modo oscuro, mejor
+   Lighthouse, micro-interacciones, demos adicionales.
+
+### 🚨 REGLA INNEGOCIABLE — Anti-copia
+
+**`reference/` es SOLO para estudio.** Está en `.gitignore` y NO va al
+paquete final. De ahí **NO se copia NADA**:
+
+- ❌ **NADA de código** (HTML, CSS, JS, TS, PHP, Dart, Vue, Blade…).
+   Si necesitas un patrón visual, mira la referencia, **cierra el archivo
+   y reescribe desde cero** con tus convenciones (naming, indentación,
+   estructura de carpetas).
+- ❌ **NADA de assets propietarios** (imágenes, iconos, fuentes con
+   licencia restrictiva, vídeos). Usa Unsplash/Pexels/Heroicons/Lucide.
+- ❌ **NADA de copy textual** ni branding (logos, nombres, eslóganes).
+- ❌ **NADA de configuración propietaria** (claves API ajenas, IDs de
+   Stripe del autor original, webhooks externos, tokens).
+
+✅ **Solo se copian IDEAS Y FUNCIONALIDADES**: qué features tiene la
+referencia, cómo estructura los flujos de usuario, qué integraciones
+plantea, qué problemas resuelve. Todo eso se **reimplementa desde cero
+con tu propio código y tus propios assets**.
+
+Si dudas si algo "se puede copiar", la respuesta por defecto es **NO**.
+En `licensing.txt` del paquete final cita patrones genéricos de
+inspiración, jamás marcas ni nombres del template original.
+
+### Autoskills (lanza tú cuando proceda)
+
+ThemeForge no ha podido ejecutar `npx autoskills` durante el setup porque
+la raíz aún estaba vacía. **En cuanto hayas hecho el scaffold del stack
+elegido** (típicamente `create-next-app`, `composer create-project laravel/laravel`,
+`flutter create`, etc.) y tengas `package.json`/`composer.json`/`pubspec.yaml`
+en la raíz, ejecuta:
+
+```bash
+npx --yes autoskills -a claude
+```
+
+Esto auto-instala las skills relevantes según las dependencias detectadas.
+
+**Mono-repo (apps/web, apps/admin, etc.)**: si trabajas con un mono-repo,
+ejecuta `autoskills` **dentro de cada sub-app** para que detecte el stack
+de cada una. Las skills se instalan en `apps/<app>/.agents/skills/` y
+autoskills crea automáticamente los symlinks `apps/<app>/.claude/skills/`
+que Claude Code escanea.
+
+**Importante para auto-trigger**: Claude Code solo ve las skills del
+`.claude/skills/` del directorio donde **lo lances**. Por eso:
+
+- **Para skills cross-cutting** (accessibility, seo, frontend-design,
+  tailwind-css-patterns): ThemeForge las agrega automáticamente a la
+  raíz `<repo>/.claude/skills/`. Disponibles desde cualquier cwd.
+- **Para skills stack-specific** (laravel, next, flutter, react…):
+  `cd apps/<app> && claude` para verlas en auto-trigger sin que las de
+  otras apps contaminen el contexto.
+"""
+    elif mode == "adopt":
+        mode_block = """## Modo: adoptar template local (mono-repo posible)
+
+El contenido completo del template original se copió tal cual a la raíz del
+proyecto. **NO está en `reference/`** — trabajamos directamente con estos
+archivos.
+
+### Tu tarea
+
+1. **Explora la estructura**: si hay varios subdirectorios con stack propio
+   (Laravel, Next.js, Flutter, etc.), trátalo como mono-repo y documenta
+   en `ANALYSIS.md` cuántas piezas hay y qué hace cada una.
+2. **Identifica dependencias compartidas**: BD, API, autenticación. Si hay
+   un backend Laravel/Node y clientes que lo consumen, deja documentado el
+   contrato (rutas, payloads, auth).
+3. **Define el plan de modernización**: actualización de versiones, refactor
+   de capas obsoletas, mejoras según `context/REQUISITOS-THEMEFOREST.md`.
+4. **Mantén coherencia entre piezas**: cualquier cambio en el modelo de
+   datos o las rutas se propaga a todos los clientes (web + mobile +
+   admin).
+5. **Postgres compartido**: si el proyecto tiene BD provisionada
+   automáticamente por ThemeForge, comparte la misma instancia entre los
+   sub-proyectos que la necesiten (admin Laravel + web Next + apps).
+"""
+    else:  # existing
+        mode_block = f"""## Modo: trabajar sobre repo existente
+
+Este proyecto es un clone de `{existing_repo}` con su historial git intacto.
+
+### Tu tarea
+
+1. **Explora** el repo: árbol de archivos, dependencias, stack real, scripts.
+2. **Documenta** estado actual en `ANALYSIS.md`: qué hace, su arquitectura,
+   bugs aparentes, deuda técnica, oportunidades de mejora.
+3. **Pregunta al usuario** sus objetivos concretos para este sprint:
+   actualización de versiones, añadir feature X, refactor Y, mejor doc, etc.
+4. Trabaja **manteniendo coherencia** con el código y convenciones existentes.
+   No reescribas a tu gusto componentes que ya funcionan.
+5. Verifica que el resultado sigue cumpliendo los REQUISITOS-THEMEFOREST.
+
+Los commits que hagas se añaden encima del historial existente.
+"""
+
+    is_mobile = stack_key in ("expo-rn-nativewind", "expo-rn-router", "flutter", "ionic-capacitor", "kotlin-compose")
+    product_kind = "app móvil" if is_mobile else "plantilla web"
+    marketplaces = "CodeCanyon (Envato), Apptopia, marketplaces de Flutter, GitHub" if is_mobile \
+                   else "ThemeForest, TemplateMonster, Creative Market, Gumroad"
+
+    return f"""# Contexto del proyecto: {project_name}
+
+> **LECTURA OBLIGATORIA**
+>
+> Antes de cualquier otra acción en este proyecto, asimila TODO el contenido
+> de las secciones **§A "LICENSING SYSTEM"** y **§B "REQUISITOS THEMEFOREST"**
+> que vienen al final de este archivo. Son requisitos no negociables:
+>
+> - §A define cómo este theme conecta al sistema de licencias (si lo hay).
+>   Si vas a publicar el theme bajo el sistema configurado en
+>   `~/.config/themeforge/licensing.json`, sigue el patrón al pie de la letra.
+> - §B es el checklist de Envato. No empieces a entregar nada sin haberlo
+>   validado contra esa lista.
+>
+> Los demás archivos en `context/` (research de mercado, ideas de templates,
+> análisis de competencia, etc.) están como referencia y los puedes leer
+> con la tool Read cuando los necesites. Listado completo con `ls context/`.
+
+{product_kind.capitalize()} destinada a {marketplaces}.
+
+## Stack
+
+{('- **Stack**: no fijado a priori. Antes de empezar, analiza la referencia '
+  '(si la hay) y propón el stack más adecuado en `ANALYSIS.md`.') if stack_unspecified else (
+    f"- **Stack**: {stack['name']}\n"
+    f"- **Categoría**: {stack['category']}\n"
+    f"- **Lenguaje principal**: {stack['language']}\n"
+    f"- **Versión mínima requerida**: {stack['min_version']}\n"
+    f"- **Notas técnicas**: {stack['notes']}"
+)}
+
+## Tipo de template
+
+{('- **Tipo**: ' + template_type) if not type_unspecified else (
+    '- **Tipo**: no fijado a priori. Detéctalo de la referencia/repo y '
+    'propónlo en `ANALYSIS.md`.'
+)}
+
+{mode_block}
+
+{('## Análisis IA previo de la referencia\n\n> Generado automáticamente por ThemeForge antes de crear el proyecto. **Léelo antes de tocar nada** — contiene la lectura técnica del template original, análisis de mercado y recomendación de stack para tu reimplementación.\n>\n> ⚠️ **Recordatorio crítico**: este análisis se hace para INSPIRARTE en funcionalidades. NO copies código, assets ni branding del template original (`reference/`). Reimplementa todo desde cero con código propio. Mira las "🚨 Reglas Anti-copia" más abajo.\n\n' + ai_analysis.strip() + '\n') if ai_analysis else ''}
+## 🛠️ Estás trabajando DENTRO de ThemeForge
+
+Este proyecto fue creado por **ThemeForge** (un builder GUI Python/PyQt6
+que vive en `~/Proyectos/themeforge/`). Antes de tomar decisiones técnicas
+que afecten al setup del proyecto, ten en cuenta:
+
+### Lo que ThemeForge gestiona POR TI
+
+- **Preview embebido**: hay una `QWebEngineView` que carga la URL del
+  dev server. Cuando el usuario te diga "lanza el preview" o "arranca
+  el dev server", **NO inicies `npm run dev` tú mismo en una terminal
+  paralela** — eso crea procesos duplicados. Avísale al usuario que
+  pulse el botón **▶ Start preview** del ProjectWindow (o equivalente
+  para su sub-app en mono-repos).
+- **Terminal embebida**: hay un xterm.js vivo en el ProjectWindow donde
+  ya estás corriendo. Cuando ejecutes comandos `Bash`, salen ahí.
+- **Puerto único asignado** persistido en `~/.config/themeforge/ports.json`.
+  Para este proyecto se le asignó un puerto específico — si lanzas el
+  dev server manualmente con otro puerto, el preview embebido no lo
+  detectará.
+- **Postgres del proyecto**: si está provisionado, el container vive en
+  `themeforge-pg-<slug>` con su volumen propio. La URL está en `.env`
+  como `DATABASE_URL`.
+- **Re-detectar perfil**: si el stack cambia (instalas un framework,
+  haces scaffold, etc.) el usuario tiene un botón **🔄 Re-detectar**
+  arriba de su ProjectWindow para que ThemeForge actualice el perfil.
+
+### Mono-repos (apps/* y packages/*)
+
+Si trabajas en un mono-repo, ThemeForge detecta sub-apps automáticamente
+y muestra un dropdown "Sub-proyecto" arriba del preview. Lanzar el dev
+server de la sub-app correcta es responsabilidad del usuario (al elegir
+en el dropdown). Tú no tienes que tocar nada.
+
+### Cosas que es seguro que hagas
+
+- Editar/crear código en el filesystem.
+- Ejecutar comandos puntuales (`tsc --noEmit`, tests, lint, migraciones).
+- Instalar dependencias (`npm install`, `composer install`).
+- Hacer `git add/commit`.
+
+### Cosas que ThemeForge prefiere que NO hagas
+
+- Lanzar `npm run dev` / `vite` / `php artisan serve` en background si
+  el usuario ya tiene el botón Start del preview. Duplica procesos y
+  ocupa el puerto asignado.
+- Modificar `.claude/settings.json` ni `.claude/skills/` arbitrariamente
+  — ThemeForge ya cableó las skills correctamente al crear el proyecto.
+- Cambiar el `DATABASE_URL` del `.env` si la BD viene de ThemeForge —
+  el container Postgres asociado deja de mapear correctamente.
+
+### Cómo reportar problemas del setup al usuario
+
+Si detectas que el detector de preview no encajó (lanza puerto incorrecto,
+el stack real es otro, etc.), dile al usuario:
+> "El detector de ThemeForge no pillaron este caso. Si quieres lo arreglo
+> editando `~/Proyectos/themeforge/preview.py` o `themeforge.py` y se lo
+> reportas para futuros proyectos."
+
+ThemeForge es código del propio usuario, no es propietario — todo es
+editable y los bug fixes se aplican a futuros proyectos creados.
+
+## Archivos de contexto
+
+Discovery dinámico: ThemeForge copia al proyecto cualquier `*.md` que
+encuentre en `~/.config/themeforge/context-private/` (versiones reales
+del usuario) y los `*.template.md` del repo `context/` que no tengan
+equivalente privado.
+
+Archivos típicamente presentes en `context/`:
+
+- `REQUISITOS-THEMEFOREST.md` — **checklist obligatorio Envato**.
+- `LICENSING-SYSTEM.md` — arquitectura del sistema de licencias
+  configurado en `~/.config/themeforge/licensing.json` (verify endpoint,
+  panel admin, integración en el theme). Léelo si vas a publicar este
+  theme bajo licencia.
+- `MARKET-RESEARCH.md`, `IDEAS.md`, `COMPETITORS.md` — research del
+  autor sobre el mercado y la competencia (opcional, contenido libre).
+
+## Objetivos finales
+
+1. Cumplir `REQUISITOS-THEMEFOREST.md` al 100%.
+2. Lighthouse ≥ 90 Performance / SEO / Accessibility / Best Practices.
+3. Documentación HTML estática en `documentation/`.
+4. Variantes/demos competitivos en el nicho.
+
+## Restricciones
+
+- HTML/CSS válido (W3C).
+- Responsive 360/768/1024/1280/1440/1920.
+- WCAG AA: contraste, ARIA, navegación teclado.
+- `prefers-reduced-motion` respetado.
+- Assets libres de derechos (Unsplash/Pexels).
+
+---
+
+# §A. LICENSING SYSTEM (lectura obligatoria si el theme se publica con licencia)
+
+{sistema_licencias}
+
+---
+
+# §B. REQUISITOS THEMEFOREST (lectura obligatoria)
+
+{requisitos_envato}
+"""
+
+
+def write_setup_script(
+    project_dir: Path,
+    stack_key: str,
+    template_type: str,
+    project_name: str,
+    agent_key: str,
+    run_autoskills: bool,
+    mode: str,
+    reference_kind: str | None,
+    reference_value: str | None,
+    existing_repo: str | None,
+    create_github_repo: bool,
+    github_user: str | None,
+    embedded: bool = True,
+    db_provision: dict | None = None,
+    force_postgres: bool = False,
+    adopt_src: str | None = None,
+    ai_analysis: str | None = None,
+    is_licensed_product: bool = False,
+    licensing_create_gh_repo: bool = False,
+    licensing_force_all_modes: bool = False,
+) -> Path:
+    """Si embedded=True, el script se ejecuta dentro de la terminal
+    embebida del ProjectWindow (no necesita `read` final ni dejar la
+    ventana abierta — eso lo gestiona el wrapper del ProjectWindow)."""
+    stack = STACKS[stack_key]
+    agent = AGENTS[agent_key]
+    ctx_md = render_context(
+        stack_key, template_type, project_name, mode,
+        reference_kind, reference_value, existing_repo,
+        ai_analysis=ai_analysis,
+    )
+
+    parts = []
+    parts.append("#!/usr/bin/env bash")
+    parts.append("set -e")
+    if embedded:
+        parts.append('trap \'EC=$?; echo ""; echo "❌ ERROR en línea $LINENO (exit $EC). La shell sigue activa para que puedas inspeccionar."\' ERR')
+    else:
+        parts.append('trap \'EC=$?; echo ""; echo "❌ ERROR en línea $LINENO (exit $EC)."; echo "(la ventana queda abierta — pulsa Enter para cerrar)"; read\' ERR')
+    parts.append(f'echo "════ ThemeForge: {project_name} ════"')
+
+    if mode == "existing":
+        # Clonamos en una carpeta nueva. project_dir aún no debe existir
+        # porque gh repo clone lo crea.
+        parts.append(f"mkdir -p {shell_quote(str(project_dir.parent))}")
+        parts.append(f"cd {shell_quote(str(project_dir.parent))}")
+        parts.append(f'echo "→ Clonando {existing_repo} en {project_dir.name}/…"')
+        # Si la carpeta existe vacía la borramos para que gh clone trabaje limpio
+        parts.append(f"[ -d {shell_quote(project_dir.name)} ] && rmdir {shell_quote(project_dir.name)} 2>/dev/null || true")
+        parts.append(f"gh repo clone {shell_quote(existing_repo)} {shell_quote(project_dir.name)}")
+        parts.append(f"cd {shell_quote(str(project_dir))}")
+    elif mode == "adopt":
+        # Adoptamos un template local: copia tal cual a project_dir.
+        # No hay scaffold porque el código ya existe.
+        parts.append(f"mkdir -p {shell_quote(str(project_dir))}")
+        parts.append(f"cd {shell_quote(str(project_dir))}")
+        parts.append('echo ""')
+        parts.append(f'echo "→ Adoptando template desde: {adopt_src}"')
+        # cp -a preserva permisos/timestamps. El /. al final fuerza copiar
+        # el contenido, no la carpeta misma.
+        parts.append(f"cp -a {shell_quote(adopt_src + '/.')} .")
+        parts.append('echo "  Template copiado."')
+    else:
+        parts.append(f"mkdir -p {shell_quote(str(project_dir))}")
+        parts.append(f"cd {shell_quote(str(project_dir))}")
+        if stack["scaffold"]:
+            parts.append('echo ""')
+            parts.append(f'echo "→ Scaffolding {stack["name"]}…"')
+            # PascalCase del slug: "my-cool-plugin" → "MyCoolPlugin"
+            pascal = "".join(p.capitalize() for p in re.split(r"[-_\s]+", project_dir.name) if p)
+            # ORG_ID se lee de licensing.json (campo `org_id`) — sirve
+            # para Java/Kotlin/Flutter/Tauri/Spring/Ktor (estilo
+            # com.empresa.app). Default "com.example" si no hay config.
+            try:
+                from licensing_config import load as _load_lic
+                org_id = _load_lic().get("org_id", "com.example")
+            except Exception:
+                org_id = "com.example"
+            for cmd in stack["scaffold"]:
+                substituted = (
+                    cmd.replace("__PROJECT__", project_name)
+                       .replace("__SLUG__", project_dir.name)
+                       .replace("__PASCAL__", pascal)
+                       .replace("__ORG_ID__", org_id)
+                )
+                parts.append(substituted)
+        else:
+            parts.append('echo "→ Sin scaffolding (stack: Sin stack)."')
+
+    if mode == "recreate":
+        parts.append('echo ""')
+        parts.append('echo "→ Preparando reference/…"')
+        parts.append("mkdir -p reference")
+        if reference_kind == "zip":
+            parts.append(f"unzip -q -o {shell_quote(reference_value)} -d reference/")
+        elif reference_kind == "folder":
+            parts.append(f"cp -r {shell_quote(reference_value)}/. reference/")
+        elif reference_kind == "url":
+            parts.append(
+                "wget --mirror --convert-links --adjust-extension --page-requisites "
+                "--no-parent --no-host-directories --cut-dirs=0 "
+                f"-P reference {shell_quote(reference_value)} || "
+                'echo "(wget falló parcialmente — revisa reference/)"'
+            )
+
+    parts.append('echo ""')
+    parts.append('echo "→ Copiando contexto al proyecto…"')
+    parts.append("mkdir -p context")
+    # Discovery dinámico: prioriza ~/.config/themeforge/context-private/
+    # (versiones reales del usuario) sobre context/ del repo (stubs).
+    # NO hay nombres de archivos hardcoded en el código público.
+    for src in collect_context_mds():
+        # Normaliza el destino quitando ".template" si lo trae el
+        # stub público — así el agente IA del proyecto siempre encuentra
+        # `MARKET-RESEARCH.md` independientemente de si es la versión
+        # privada o el stub.
+        dst_name = src.name
+        if dst_name.endswith(".template.md"):
+            dst_name = dst_name[:-len(".template.md")] + ".md"
+        parts.append(
+            f"cp {shell_quote(str(src))} context/{shell_quote(dst_name)}"
+        )
+
+    # ── licensing scaffold (Phase 1) ─────────────────────────────────
+    # Por defecto solo en scratch/recreate (en existing/adopt el proyecto
+    # ya tiene estructura propia y el drop podría chocar). Si el usuario
+    # marca "Forzar también en adopt/existing" se aplica en todos los
+    # modos — el risk es del usuario.
+    allowed_modes = ("scratch", "recreate", "existing", "adopt") if licensing_force_all_modes \
+        else ("scratch", "recreate")
+    if is_licensed_product and mode in allowed_modes:
+        try:
+            from licensing_scaffold import scaffold as _pcre_scaffold
+            parts.extend(_pcre_scaffold(
+                stack_key=stack_key,
+                slug=project_dir.name,
+                project_name=project_name,
+                create_gh_repo_under_org=licensing_create_gh_repo,
+            ))
+        except Exception as e:
+            parts.append(f'echo "[licensing_scaffold error: {e}]"')
+
+    parts.append('echo ""')
+    parts.append(f'echo "→ Generando {agent["context_file"]}…"')
+    parts.append(f"cat > {agent['context_file']} <<'THEMEFORGE_EOF'\n{ctx_md}\nTHEMEFORGE_EOF")
+
+    if mode == "recreate":
+        parts.append('grep -q "^reference/" .gitignore 2>/dev/null || echo "reference/" >> .gitignore')
+
+    # Skills predeclaradas — solo si el provider soporta autoskills (claude/codex).
+    # gemini/opencode/openrouter aún no son soportados por skills/autoskills.
+    skills_flag = agent.get("autoskills_flag")
+    if stack["skills"] and skills_flag:
+        parts.append('echo ""')
+        parts.append('echo "→ Instalando skills predeclaradas del stack…"')
+        for skill in stack["skills"]:
+            parts.append(
+                f"npx --yes skills add {shell_quote(skill)} -a {skills_flag} "
+                f'|| echo "(skill {skill} no se pudo añadir, continuamos)"'
+            )
+    elif stack["skills"]:
+        parts.append('echo ""')
+        parts.append(f'echo "→ Saltando skills predeclaradas (provider {agent["name"]} no soportado por autoskills)."')
+
+    # autoskills:
+    #   - Si el provider no soporta autoskills → skip silencioso.
+    #   - Si el stack es "none" Y el modo es scratch/recreate → el
+    #     scaffold real lo hará el agente; no hay nada que detectar.
+    #     Skip con mensaje y dejar la instrucción en CLAUDE.md.
+    #   - En el resto de casos: guard de detección recursivo (hasta
+    #     depth 3) que cubra Node/PHP/Flutter/Rust/Go/Python/Ruby/Java/
+    #     Hugo/WordPress block (theme.json) / Astro / Vite. Mono-repos
+    #     con stack en apps/*/, packages/*/, Files/*/ se detectan
+    #     correctamente.
+    autoskills_will_skip_no_stack = (
+        run_autoskills and skills_flag
+        and stack_key == "none"
+        and mode in ("scratch", "recreate")
+    )
+    if autoskills_will_skip_no_stack:
+        parts.append('echo ""')
+        parts.append(
+            'echo "→ Saltando autoskills: stack=none. Tras el primer '
+            'scaffold real, el agente puede ejecutar `npx --yes autoskills '
+            f'-a {skills_flag}` manualmente (ver CLAUDE.md)."'
+        )
+    elif run_autoskills and skills_flag:
+        parts.append('echo ""')
+        parts.append(
+            'if find . -maxdepth 3 -type f \\( '
+            '-name "package.json" -o -name "composer.json" '
+            '-o -name "pubspec.yaml" -o -name "Cargo.toml" '
+            '-o -name "go.mod" -o -name "pyproject.toml" '
+            '-o -name "Gemfile" -o -name "theme.json" '
+            '-o -name "style.css" -o -name "config.toml" '
+            '-o -name "config.yaml" -o -name "config.yml" '
+            '-o -name "build.gradle" -o -name "build.gradle.kts" '
+            '\\) -not -path "*/node_modules/*" -not -path "*/vendor/*" '
+            '-not -path "*/.git/*" -not -path "*/reference/*" '
+            '2>/dev/null | head -1 | grep -q .; then'
+        )
+        parts.append('  echo "→ Ejecutando autoskills…"')
+        parts.append(f'  npx --yes autoskills -a {skills_flag} || echo "(autoskills falló — sigue sin él)"')
+        parts.append('else')
+        parts.append(
+            '  echo "→ Saltando autoskills (sin stack detectable hasta 3 '
+            'niveles). Lánzalo a mano cuando el scaffold esté completo: '
+            f'npx --yes autoskills -a {skills_flag}"'
+        )
+        parts.append('fi')
+
+    # ── Skills cross-cutting → raíz (solo necesario en mono-repos) ──
+    # autoskills YA crea symlinks en `.claude/skills/` del cwd donde se
+    # ejecutó (apps/<app>/.claude/skills/ → apps/<app>/.agents/skills/).
+    # En mono-repos eso significa que el Claude lanzado desde RAÍZ no
+    # ve ninguna skill, porque solo escanea `<repo>/.claude/skills/`.
+    # Aquí agregamos solo las skills "cross-cutting" (agnósticas de
+    # stack) a la raíz para que estén disponibles desde cualquier cwd.
+    # Las stack-specific (laravel/next/flutter/react/php/dart) quedan
+    # solo per-app para evitar contaminación.
+    parts.append('echo ""')
+    parts.append('echo "→ Agregando skills cross-cutting a la raíz (solo aplica a mono-repos)…"')
+    parts.append("python3 - <<'PY_WIREUP_EOF'")
+    parts.append("import json, os")
+    parts.append("from pathlib import Path")
+    parts.append("")
+    parts.append("CROSS_CUTTING = {")
+    parts.append("    'accessibility', 'seo', 'frontend-design', 'tailwind-css-patterns',")
+    parts.append("    'bash-defensive-patterns', 'typescript-advanced-types',")
+    parts.append("}")
+    parts.append("")
+    parts.append("root = Path('.').resolve()")
+    parts.append("cross_found = {}  # name -> canonical Path")
+    parts.append("for sub_pattern in ['apps/*', 'packages/*']:")
+    parts.append("    for sub in sorted(root.glob(sub_pattern)):")
+    parts.append("        if not sub.is_dir(): continue")
+    parts.append("        skills_dir = sub / '.agents' / 'skills'")
+    parts.append("        if not skills_dir.is_dir(): continue")
+    parts.append("        for skill in skills_dir.iterdir():")
+    parts.append("            if skill.is_dir() and skill.name in CROSS_CUTTING and skill.name not in cross_found:")
+    parts.append("                cross_found[skill.name] = skill")
+    parts.append("")
+    parts.append("if not cross_found:")
+    parts.append("    print('  (no es mono-repo o sin cross-cutting detectadas — autoskills ya cableó las que aplican)')")
+    parts.append("else:")
+    parts.append("    root_skills = root / '.claude' / 'skills'")
+    parts.append("    root_skills.mkdir(parents=True, exist_ok=True)")
+    parts.append("    # Crear settings.json vacío en raíz si no existe (señaliza a Claude Code)")
+    parts.append("    settings_path = root / '.claude' / 'settings.json'")
+    parts.append("    if not settings_path.exists():")
+    parts.append("        settings_path.write_text('{}\\n')")
+    parts.append("    for name, canonical in cross_found.items():")
+    parts.append("        link = root_skills / name")
+    parts.append("        target = os.path.relpath(canonical, root_skills)")
+    parts.append("        if link.is_symlink() or link.exists():")
+    parts.append("            try: link.unlink()")
+    parts.append("            except: pass")
+    parts.append("        try:")
+    parts.append("            link.symlink_to(target)")
+    parts.append("            print(f'  ✓ {name} agregada a raíz')")
+    parts.append("        except Exception as e:")
+    parts.append("            print(f'  ✗ {name} falló: {e}')")
+    parts.append("PY_WIREUP_EOF")
+
+    # ── BD: aprovisionamiento automático post-clone/scaffold ──
+    # El propio script detecta si el proyecto necesita Postgres (drizzle/
+    # prisma) y, en su caso, levanta el container, inyecta DATABASE_URL en
+    # .env y ejecuta db:push + db:seed.
+    builder_dir = Path(__file__).resolve().parent
+    secret = secrets.token_urlsafe(32)
+    slug = project_dir.name
+    parts.append('echo ""')
+    parts.append('echo "→ Detectando BD requerida por el proyecto…"')
+    parts.append(f'export PYTHONPATH={shell_quote(str(builder_dir))}')
+    parts.append('DB_KIND=$(python3 -m db_provisioner detect "$(pwd)" 2>/dev/null || true)')
+    if force_postgres:
+        parts.append('# Override: el usuario marcó "Provisionar Postgres" en la UI')
+        parts.append('if [ -z "$DB_KIND" ]; then')
+        parts.append('  echo "  (No detectada en archivos, pero forzada por checkbox UI)"')
+        parts.append('  DB_KIND=postgres')
+        parts.append('fi')
+    parts.append('if [ "$DB_KIND" = "postgres" ]; then')
+    parts.append(f'  echo "→ Postgres requerido — provisionando container (slug: {slug})…"')
+    parts.append(f'  PROV_JSON=$(python3 -m db_provisioner provision {shell_quote(slug)})')
+    parts.append('  if [ -n "$PROV_JSON" ]; then')
+    parts.append('    DATABASE_URL=$(echo "$PROV_JSON" | python3 -c "import json,sys; print(json.load(sys.stdin)[\\"url\\"])")')
+    parts.append('    PG_PORT=$(echo "$PROV_JSON" | python3 -c "import json,sys; print(json.load(sys.stdin)[\\"port\\"])")')
+    parts.append('    echo "  Container listo en puerto $PG_PORT"')
+    parts.append('    # Generar/actualizar .env conservando entradas previas que no sean DATABASE_URL/AUTH_SECRET')
+    parts.append('    touch .env')
+    parts.append('    grep -v -E "^(DATABASE_URL|AUTH_SECRET)=" .env > .env.tmp 2>/dev/null || true')
+    parts.append('    mv .env.tmp .env 2>/dev/null || true')
+    parts.append('    echo "DATABASE_URL=$DATABASE_URL" >> .env')
+    parts.append(f'    echo "AUTH_SECRET={secret}" >> .env')
+    parts.append('    grep -q "NUXT_PUBLIC_DEMO_MODE" .env || echo "NUXT_PUBLIC_DEMO_MODE=true" >> .env')
+    parts.append('    echo "  .env actualizado"')
+    parts.append('    if [ -f package.json ]; then')
+    parts.append('      echo "→ Instalando dependencias (npm install)…"')
+    parts.append('      npm install --legacy-peer-deps')
+    parts.append('      if npm run 2>/dev/null | grep -qE "^  db:push$"; then')
+    parts.append('        echo "→ Empujando schema (db:push)…"')
+    parts.append('        npm run db:push || echo "(db:push falló — revisa drizzle.config / prisma)"')
+    parts.append('      fi')
+    parts.append('      if npm run 2>/dev/null | grep -qE "^  db:seed$"; then')
+    parts.append('        echo "→ Sembrando datos (db:seed)…"')
+    parts.append('        npm run db:seed || echo "(db:seed falló — revisa el seed)"')
+    parts.append('      fi')
+    parts.append('    fi')
+    parts.append('  else')
+    parts.append('    echo "(provision_postgres_for falló — revisa que docker funciona sin sudo: \\"docker info\\")"')
+    parts.append('  fi')
+    parts.append('else')
+    parts.append('  echo "  Sin BD detectada — saltando aprovisionamiento."')
+    parts.append('fi')
+
+    if mode != "existing":
+        parts.append('echo ""')
+        parts.append('echo "→ Inicializando git + commit inicial…"')
+        parts.append("[ -d .git ] || git init -q")
+        parts.append("git add -A && git commit -m 'init: scaffold por ThemeForge' -q || true")
+    else:
+        parts.append('echo ""')
+        parts.append('echo "→ Añadiendo MDs y CLAUDE.md/AGENTS.md como commit nuevo…"')
+        parts.append("git add -A && git commit -m 'chore: contexto ThemeForge' -q || true")
+
+    # El repo de GitHub se crea bajo demanda desde el botón "📦 GitHub"
+    # de la ProjectWindow para evitar publicar accidentalmente código
+    # sensible durante el scaffold automático.
+
+    parts.append('echo ""')
+    parts.append(f'echo "════ Listo. Lanzando {agent["name"]}… ════"')
+    parts.append('echo ""')
+
+    # ── Prompt inicial automático ─────────────────────────────────
+    # Cuando arranca el agente, le pasamos como primer mensaje una
+    # instrucción para que LEA el CLAUDE.md/AGENTS.md generado, asuma
+    # el análisis IA previo (si lo hay) y CONFIRME al usuario qué
+    # entiende que tiene que hacer antes de empezar a tocar código.
+    has_analysis = ai_analysis is not None
+    if has_analysis:
+        initial_prompt = (
+            f"Acabas de arrancar en un proyecto recién scaffoldeado por ThemeForge. "
+            f"Lee COMPLETAMENTE {agent['context_file']} (especialmente la sección "
+            f"'## Análisis IA previo de la referencia' que ya contiene un análisis "
+            f"hecho por otra IA sobre el template original). Luego lee context/ si necesitas. "
+            f"\n\nAntes de tocar NADA del código:\n"
+            f"1. Resume en 4-6 líneas qué entiendes que tienes que hacer en este sprint.\n"
+            f"2. Confirma si estás de acuerdo con el stack recomendado o si propones otro.\n"
+            f"3. Lista los primeros 3-5 pasos concretos que vas a dar.\n"
+            f"4. Espera mi OK antes de ejecutar nada."
+        )
+    else:
+        initial_prompt = (
+            f"Acabas de arrancar en un proyecto recién scaffoldeado por ThemeForge. "
+            f"Lee COMPLETAMENTE {agent['context_file']} y todo lo que haya en context/. "
+            f"\n\nAntes de tocar NADA del código:\n"
+            f"1. Resume en 4-6 líneas qué entiendes que tienes que hacer.\n"
+            f"2. Lista los primeros 3-5 pasos concretos que vas a dar.\n"
+            f"3. Espera mi OK antes de ejecutar nada."
+        )
+
+    # Escribir el prompt a un fichero temporal del proyecto (.themeforge-init-prompt)
+    # y pasarlo al agente como argumento posicional. Así evitamos problemas
+    # de escape de comillas y mantenemos el agente interactivo después.
+    parts.append(
+        f"cat > .themeforge-init-prompt <<'THEMEFORGE_PROMPT_EOF'\n"
+        f"{initial_prompt}\n"
+        f"THEMEFORGE_PROMPT_EOF"
+    )
+    # No queremos versionar ese archivo
+    parts.append('grep -q "^\\.themeforge-init-prompt$" .gitignore 2>/dev/null || echo ".themeforge-init-prompt" >> .gitignore')
+
+    # Comando interactivo del provider + prompt inicial. Las API keys
+    # se cargan en os.environ al startup de ThemeForge (apply_all_known_keys),
+    # así que la terminal embebida ya las hereda.
+    cmd, extra_args = aip.interactive_cmd_args(agent_key)
+    extra = (" " + " ".join(shell_quote(a) for a in extra_args)) if extra_args else ""
+    parts.append(f'{cmd}{extra} "$(cat .themeforge-init-prompt)"')
+
+    parts.append('echo ""')
+    if embedded:
+        # En modo embebido el wrapper hará `exec bash -i` para dejar
+        # shell viva — no necesitamos `read` que pida Enter dos veces.
+        parts.append('echo "════ Sesión del agente cerrada. Shell embebida lista. ════"')
+    else:
+        parts.append('echo "════ Sesión del agente cerrada. Pulsa Enter para cerrar. ════"')
+        parts.append("read")
+
+    cache_dir = HOME / ".cache" / "themeforge"
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    setup = cache_dir / f"setup-{project_dir.name}.sh"
+    setup.write_text("\n".join(parts))
+    setup.chmod(0o755)
+    return setup
+
+
+class _ReferenceAnalysisDialog(QDialog):
+    """Diálogo modal que ejecuta el agente CLI con un prompt sobre la
+    referencia y muestra el resultado en streaming token-a-token.
+
+    Para Claude usamos `--output-format=stream-json --include-partial-messages
+    --verbose` y parseamos los eventos para tener cronómetro, contador de
+    tokens, TTFT, coste y respuesta en vivo.
+    """
+
+    def __init__(self, parent, agent_label: str, facts: dict, use_stream_json: bool):
+        super().__init__(parent)
+        self.setWindowTitle(f"🔍 Análisis de referencia con {agent_label}")
+        self.resize(960, 820)
+        self.proc: QProcess | None = None
+        self._use_stream_json = use_stream_json
+        self._stdout_buffer = ""
+        # Métricas en vivo
+        self._t0 = None
+        self._ttft_ms = None
+        self._input_tokens = 0
+        self._output_tokens = 0
+        self._cost_usd = 0.0
+        self._model_name = ""
+        # Conversación multi-turno
+        self._original_argv: list[str] = []
+        self._original_env: dict = {}
+        self._original_prompt: str = ""
+        # Historial: [{"role": "user"|"assistant", "content": "..."}]
+        self._messages: list[dict] = []
+        # Buffer del texto que va llegando del turno actual del assistant
+        self._current_assistant_buf: list[str] = []
+        self._final_banner_inserted = False
+
+        header = QLabel(
+            f"<b>Pidiendo a {agent_label}</b> que analice la referencia "
+            f"y recomiende un stack moderno para tu reimplementación."
+        )
+        header.setWordWrap(True)
+
+        # Mini-resumen de facts (lo que se manda)
+        kind = facts.get("kind", "?")
+        if kind == "mono-repo":
+            summary = f"Detectado mono-repo con {len(facts.get('subprojects', []))} sub-proyectos:\n"
+            for s in facts.get("subprojects", []):
+                fw = s.get("framework") or s.get("preview_profile") or "?"
+                summary += f"  • {s.get('name')} — {fw}\n"
+        elif kind == "single":
+            summary = f"Detectado proyecto único — {facts.get('framework') or facts.get('preview_profile') or '?'}"
+        elif kind == "zip":
+            summary = (
+                f"Detectado .zip ({facts.get('size_mb','?')} MB, "
+                f"{facts.get('entries','?')} entradas).\nMarcadores: "
+                f"{list((facts.get('markers') or {}).keys())}"
+            )
+        else:
+            summary = f"Detectado: {kind}"
+
+        facts_lbl = QLabel(f"<pre style='color:#888'>{summary}</pre>")
+        facts_lbl.setTextFormat(Qt.TextFormat.RichText)
+        facts_lbl.setWordWrap(True)
+
+        # Etiqueta del comando que se ejecuta (para depurar)
+        self.cmd_lbl = QLabel("")
+        self.cmd_lbl.setTextFormat(Qt.TextFormat.RichText)
+        self.cmd_lbl.setStyleSheet("color:#62b4ff;font-family:monospace;font-size:9pt;")
+        self.cmd_lbl.setWordWrap(True)
+
+        # Panel de stderr / diagnóstico (siempre visible)
+        self.err_box = QTextEdit()
+        self.err_box.setReadOnly(True)
+        self.err_box.setMaximumHeight(120)
+        self.err_box.setStyleSheet(
+            "background:#2a1a1a;color:#ff8a8a;font-family:'DejaVu Sans Mono',monospace;font-size:10pt;"
+        )
+        self.err_box.setPlaceholderText("stderr del agente (vacío si no hay errores)")
+
+        self.out = QTextEdit()
+        self.out.setReadOnly(True)
+        self.out.setStyleSheet(
+            "background:#1e1e1e;color:#e6e6e6;font-family:'DejaVu Sans Mono',monospace;"
+        )
+        self.out.setPlaceholderText("Esperando respuesta del agente…")
+
+        # Barra de status con cronómetro + tokens
+        self.elapsed_lbl = QLabel("⏱️  00:00")
+        self.elapsed_lbl.setStyleSheet("color:#62b4ff;font-family:monospace;")
+        self.tokens_lbl = QLabel("")
+        self.tokens_lbl.setStyleSheet("color:#888;font-family:monospace;")
+        self.status_lbl = QLabel("⏳ Lanzando agente…")
+        self.status_lbl.setStyleSheet("color:#cfcfcf;")
+
+        status_row = QHBoxLayout()
+        status_row.addWidget(self.elapsed_lbl)
+        status_row.addWidget(self.tokens_lbl)
+        status_row.addStretch()
+        status_row.addWidget(self.status_lbl)
+
+        # Input de respuesta multi-turno (oculto hasta que el primer
+        # turno del agente termine)
+        self.reply_input = QTextEdit()
+        self.reply_input.setPlaceholderText(
+            "Responde al agente para iterar la conversación, o cierra "
+            "para guardar el análisis actual…"
+        )
+        self.reply_input.setMaximumHeight(110)
+        self.reply_input.setStyleSheet(
+            "background:#1a1a1a;color:#e6e6e6;"
+            "font-family:'DejaVu Sans Mono',monospace;"
+            "border:1px solid #444;"
+        )
+        self.reply_input.setEnabled(False)
+        self.send_btn = QPushButton("➡ Enviar respuesta")
+        self.send_btn.setEnabled(False)
+        self.send_btn.clicked.connect(self._send_reply)
+        self.send_btn.setStyleSheet("font-weight:bold;")
+
+        reply_row = QHBoxLayout()
+        reply_row.addWidget(self.reply_input, 1)
+        reply_row.addWidget(self.send_btn)
+
+        # Botonera
+        self.cancel_btn = QPushButton("✖ Cancelar")
+        self.cancel_btn.clicked.connect(self._cancel)
+        self.copy_btn = QPushButton("📋 Copiar todo")
+        self.copy_btn.clicked.connect(self._copy_output)
+        self.close_btn = QPushButton("💾 Guardar y cerrar")
+        self.close_btn.clicked.connect(self.accept)
+
+        btn_row = QHBoxLayout()
+        btn_row.addWidget(self.cancel_btn)
+        btn_row.addStretch()
+        btn_row.addWidget(self.copy_btn)
+        btn_row.addWidget(self.close_btn)
+
+        lay = QVBoxLayout()
+        lay.addWidget(header)
+        lay.addWidget(facts_lbl)
+        lay.addWidget(self.cmd_lbl)
+        lay.addWidget(self.out, 1)
+        lay.addLayout(reply_row)
+        lay.addWidget(QLabel("<i>stderr del proceso:</i>"))
+        lay.addWidget(self.err_box)
+        lay.addLayout(status_row)
+        lay.addLayout(btn_row)
+        self.setLayout(lay)
+
+        # Cronómetro
+        from PyQt6.QtCore import QTimer, QTime
+        self._QTime = QTime
+        self._timer = QTimer(self)
+        self._timer.setInterval(500)
+        self._timer.timeout.connect(self._tick_elapsed)
+
+    def run(self, prompt: str, argv: list[str], extra_env: dict | None = None):
+        # Persistimos para poder relanzar en turnos sucesivos.
+        self._original_argv = list(argv)
+        self._original_env = dict(extra_env or {})
+        self._original_prompt = prompt
+        self._messages = [{"role": "user", "content": prompt}]
+        self._launch_turn(prompt)
+
+    def _launch_turn(self, full_prompt: str):
+        """Lanza un turno del agente con el prompt dado. Reutiliza argv y
+        env del primer turno (`run`). Reinicia métricas del turno actual
+        pero conserva el cronómetro acumulado."""
+        from PyQt6.QtCore import QTime, QProcessEnvironment
+        if self._t0 is None:
+            self._t0 = QTime.currentTime()
+        self._timer.start()
+        self._current_assistant_buf = []
+        self._stdout_buffer = ""
+        self._ttft_ms = None
+        argv = self._original_argv
+        cmd_txt = " ".join(argv) + "  &lt;  &lt;prompt&gt;"
+        self.cmd_lbl.setText(f"<b>cmd:</b> <code>{cmd_txt}</code>")
+        self._pending_prompt = full_prompt
+        self.proc = QProcess(self)
+        self.proc.setProgram(argv[0])
+        self.proc.setArguments(argv[1:])
+        if self._original_env:
+            penv = QProcessEnvironment.systemEnvironment()
+            for k, v in self._original_env.items():
+                penv.insert(k, v)
+            self.proc.setProcessEnvironment(penv)
+        self.proc.setProcessChannelMode(QProcess.ProcessChannelMode.SeparateChannels)
+        self.proc.readyReadStandardOutput.connect(self._on_output)
+        self.proc.readyReadStandardError.connect(self._on_stderr)
+        self.proc.finished.connect(self._on_finished)
+        self.proc.started.connect(self._on_started)
+        self.proc.errorOccurred.connect(self._on_error)
+        self.status_lbl.setText("⏳ Arrancando agente…")
+        self.cancel_btn.setEnabled(True)
+        self.proc.start()
+
+    def _tick_elapsed(self):
+        if self._t0 is None:
+            return
+        ms = self._t0.msecsTo(self._QTime.currentTime())
+        s = ms // 1000
+        m, s = divmod(s, 60)
+        ttft_txt = f"  · TTFT {self._ttft_ms/1000:.1f}s" if self._ttft_ms else ""
+        self.elapsed_lbl.setText(f"⏱️  {m:02d}:{s:02d}{ttft_txt}")
+
+    def _update_tokens_lbl(self):
+        parts = []
+        if self._model_name:
+            parts.append(self._model_name)
+        if self._input_tokens:
+            parts.append(f"in: {self._input_tokens}")
+        if self._output_tokens:
+            parts.append(f"out: {self._output_tokens}")
+        if self._cost_usd:
+            parts.append(f"${self._cost_usd:.4f}")
+        self.tokens_lbl.setText("  ·  ".join(parts))
+
+    def _on_started(self):
+        """Cuando el proceso ya está vivo, le pasamos el prompt por stdin."""
+        if not self.proc:
+            return
+        prompt = getattr(self, "_pending_prompt", "")
+        data = (prompt + "\n").encode("utf-8")
+        self.proc.write(data)
+        self.proc.waitForBytesWritten(3000)
+        self.proc.closeWriteChannel()
+        kb = len(data) // 1024
+        self.status_lbl.setText(
+            f"⏳ Esperando respuesta… (prompt: {kb} KB enviados)"
+        )
+
+    def _on_error(self, err):
+        from PyQt6.QtCore import QProcess as _QP
+        names = {
+            _QP.ProcessError.FailedToStart: "FailedToStart (binario no encontrado o sin permisos)",
+            _QP.ProcessError.Crashed: "Crashed",
+            _QP.ProcessError.Timedout: "Timedout",
+            _QP.ProcessError.WriteError: "WriteError (no se pudo escribir a stdin)",
+            _QP.ProcessError.ReadError: "ReadError",
+            _QP.ProcessError.UnknownError: "UnknownError",
+        }
+        self.status_lbl.setText(f"❌ {names.get(err, err)}")
+
+    def _on_stderr(self):
+        if not self.proc:
+            return
+        err = self.proc.readAllStandardError().data().decode(errors="replace")
+        if err:
+            # Defensa-en-profundidad: si algún CLI imprime su API key
+            # accidentalmente en stderr, la redactamos antes de mostrar.
+            err = _redact_secrets(err)
+            self.err_box.moveCursor(self.err_box.textCursor().MoveOperation.End)
+            self.err_box.insertPlainText(err)
+            self.err_box.moveCursor(self.err_box.textCursor().MoveOperation.End)
+
+    def _on_output(self):
+        if not self.proc:
+            return
+        chunk = self.proc.readAllStandardOutput().data().decode(errors="replace")
+        if not chunk:
+            return
+        if not self._use_stream_json:
+            # Modo texto plano (codex o fallback): append directo
+            self.out.moveCursor(self.out.textCursor().MoveOperation.End)
+            self.out.insertPlainText(chunk)
+            self.out.moveCursor(self.out.textCursor().MoveOperation.End)
+            self._current_assistant_buf.append(chunk)
+            return
+        # Modo stream-json: parsear líneas completas
+        self._stdout_buffer += chunk
+        while "\n" in self._stdout_buffer:
+            line, self._stdout_buffer = self._stdout_buffer.split("\n", 1)
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                evt = json.loads(line)
+            except Exception:
+                continue
+            self._handle_event(evt)
+
+    def _handle_event(self, evt: dict):
+        t = evt.get("type")
+        if t == "system":
+            sub = evt.get("subtype")
+            if sub == "init":
+                self._model_name = evt.get("model", "")
+                self._update_tokens_lbl()
+                self.status_lbl.setText("🔌 Conectado al modelo · esperando primer token…")
+            elif sub == "status":
+                st = evt.get("status", "")
+                self.status_lbl.setText(f"⏳ {st}…")
+        elif t == "rate_limit_event":
+            info = evt.get("rate_limit_info", {})
+            if info.get("status") and info["status"] != "allowed":
+                self.status_lbl.setText(f"⚠️ Rate limit: {info.get('status')}")
+        elif t == "stream_event":
+            ev = evt.get("event") or {}
+            ev_t = ev.get("type")
+            if ev_t == "message_start":
+                self._ttft_ms = evt.get("ttft_ms")
+                usage = (ev.get("message") or {}).get("usage") or {}
+                self._input_tokens = usage.get("input_tokens", self._input_tokens)
+                self.status_lbl.setText("✏️ Generando respuesta…")
+                self._update_tokens_lbl()
+            elif ev_t == "content_block_start":
+                # Detectar inicio de tool_use (WebSearch / WebFetch) y
+                # mostrar feedback en el status para que el user vea que
+                # claude está buscando en internet.
+                block = ev.get("content_block") or {}
+                if block.get("type") == "tool_use":
+                    tool_name = block.get("name", "tool")
+                    if tool_name == "WebSearch":
+                        self.status_lbl.setText("🔎 Buscando en internet…")
+                    elif tool_name == "WebFetch":
+                        self.status_lbl.setText("🌐 Descargando página web…")
+                    else:
+                        self.status_lbl.setText(f"🔧 Usando {tool_name}…")
+            elif ev_t == "content_block_delta":
+                delta_obj = ev.get("delta") or {}
+                delta_type = delta_obj.get("type")
+                if delta_type == "input_json_delta":
+                    # Es la query que está escribiendo a WebSearch — ignorar
+                    # (acumular no aporta valor al user).
+                    pass
+                else:
+                    delta = delta_obj.get("text", "")
+                    if delta:
+                        self.out.moveCursor(self.out.textCursor().MoveOperation.End)
+                        self.out.insertPlainText(delta)
+                        self.out.moveCursor(self.out.textCursor().MoveOperation.End)
+                        self._current_assistant_buf.append(delta)
+            elif ev_t == "content_block_stop":
+                # Al terminar un bloque tool_use, volver a "Generando…"
+                # para que el status no se quede en "Buscando…" si claude
+                # ya pasó al siguiente bloque de texto.
+                self.status_lbl.setText("✏️ Generando respuesta…")
+            elif ev_t == "message_delta":
+                usage = ev.get("usage") or {}
+                if "output_tokens" in usage:
+                    self._output_tokens = usage["output_tokens"]
+                    self._update_tokens_lbl()
+        elif t == "user":
+            # Bloque "user" con tool_result — claude acaba de recibir
+            # los resultados de WebSearch. Reflejamos brevemente.
+            self.status_lbl.setText("📥 Resultado recibido · procesando…")
+        elif t == "result":
+            self._cost_usd = evt.get("total_cost_usd", self._cost_usd) or 0.0
+            self._update_tokens_lbl()
+
+    def _on_finished(self, code, exit_status):
+        self._timer.stop()
+        # Vuelco residual de stdout
+        if self.proc:
+            rest = self.proc.readAllStandardOutput().data().decode(errors="replace")
+            if rest:
+                if self._use_stream_json:
+                    self._stdout_buffer += rest
+                    while "\n" in self._stdout_buffer:
+                        line, self._stdout_buffer = self._stdout_buffer.split("\n", 1)
+                        line = line.strip()
+                        if not line:
+                            continue
+                        try:
+                            self._handle_event(json.loads(line))
+                        except Exception:
+                            pass
+                else:
+                    self.out.moveCursor(self.out.textCursor().MoveOperation.End)
+                    self.out.insertPlainText(rest)
+            # Vuelco residual de stderr
+            err_rest = self.proc.readAllStandardError().data().decode(errors="replace")
+            if err_rest:
+                self.err_box.moveCursor(self.err_box.textCursor().MoveOperation.End)
+                self.err_box.insertPlainText(err_rest)
+
+        from PyQt6.QtCore import QProcess as _QP
+        crash_str = "" if exit_status == _QP.ExitStatus.NormalExit else "  (crash)"
+        if code == 0:
+            # Persistir el turno del assistant en el historial
+            assistant_text = "".join(self._current_assistant_buf).strip()
+            if assistant_text:
+                self._messages.append({
+                    "role": "assistant",
+                    "content": assistant_text,
+                })
+            n_assistant = sum(1 for m in self._messages if m["role"] == "assistant")
+            self.status_lbl.setText(
+                f"✅ Turno {n_assistant} completado{crash_str}. "
+                "Responde para iterar o pulsa 💾 Guardar y cerrar."
+            )
+            # Habilitar input de respuesta para multi-turno
+            self.reply_input.setEnabled(True)
+            self.send_btn.setEnabled(True)
+            self.reply_input.setFocus()
+        else:
+            # Mostramos primera línea de stderr si la hay
+            err_txt = self.err_box.toPlainText().strip().splitlines()
+            first = err_txt[0] if err_txt else "(stderr vacío)"
+            self.status_lbl.setText(f"⚠️ exit {code}{crash_str}  ·  {first[:120]}")
+        self.cancel_btn.setEnabled(False)
+
+    def _cancel(self):
+        if self.proc and self.proc.state() != QProcess.ProcessState.NotRunning:
+            self.proc.kill()
+            self.status_lbl.setText("❌ Cancelado por el usuario")
+
+    def _send_reply(self):
+        """Envía la respuesta del usuario al agente: pinta separador en
+        el output, añade el reply al historial y relanza el agente con
+        el prompt multi-turno reconstruido."""
+        reply = self.reply_input.toPlainText().strip()
+        if not reply:
+            return
+        # Pintar el reply del usuario en el panel
+        self.out.moveCursor(self.out.textCursor().MoveOperation.End)
+        self.out.insertHtml(
+            "<br><br>"
+            "<div style='border-top:1px solid #4ade80; margin:10px 0; "
+            "padding-top:10px;'>"
+            f"<b style='color:#62b4ff;'>👤 Tú:</b>"
+            f"<pre style='color:#cfcfcf; margin:4px 0;'>"
+            f"{_html.escape(reply)}</pre>"
+            "<b style='color:#86efac;'>🤖 Agente:</b>"
+            "</div><br>"
+        )
+        self.out.moveCursor(self.out.textCursor().MoveOperation.End)
+        # Persistir y lanzar
+        self._messages.append({"role": "user", "content": reply})
+        self.reply_input.clear()
+        self.reply_input.setEnabled(False)
+        self.send_btn.setEnabled(False)
+        self.status_lbl.setText("⏳ Procesando tu respuesta…")
+        self._launch_turn(self._build_multi_turn_prompt())
+
+    def _build_multi_turn_prompt(self) -> str:
+        """Reconstruye el prompt completo a enviar al agente incluyendo
+        el prompt original (con sus facts y reglas) + el historial de
+        la conversación hasta el último mensaje del usuario.
+
+        Esto funciona con cualquier CLI tipo `claude --print`, `codex`,
+        etc., porque no asumimos sesión persistente: cada turno se manda
+        todo el contexto vía stdin.
+        """
+        parts = [self._original_prompt]
+        # Si solo tenemos el primer user (el original) no hay nada que
+        # añadir — sería el primer turno y _launch_turn se llamaría con
+        # el prompt original directamente.
+        if len(self._messages) <= 1:
+            return self._original_prompt
+        parts.append(
+            "\n\n────────────────────────────────────────\n"
+            "## Historial de la conversación previa\n"
+            "(El usuario y tú habéis intercambiado los siguientes "
+            "mensajes en este mismo análisis. No los repitas; continúa "
+            "desde el último mensaje del usuario.)\n"
+        )
+        # Saltamos el primer user (es el prompt original ya incluido arriba).
+        for msg in self._messages[1:]:
+            if msg["role"] == "assistant":
+                parts.append(f"\n### 🤖 Tu respuesta anterior:\n{msg['content']}\n")
+            elif msg["role"] == "user":
+                parts.append(f"\n### 👤 El usuario te respondió:\n{msg['content']}\n")
+        parts.append(
+            "\n────────────────────────────────────────\n"
+            "Continúa la conversación respondiendo al ÚLTIMO mensaje "
+            "del usuario. Sé directo, técnico, en español. NO repitas "
+            "información de turnos previos — añade solo lo nuevo."
+        )
+        return "\n".join(parts)
+
+    def accept(self):
+        """Override: al cerrar el diálogo con 💾 Guardar y cerrar,
+        insertamos el banner verde de confirmación (una sola vez) para
+        que el texto que el caller toma de `self.out` incluya el aviso
+        de que está guardado."""
+        if (
+            not self._final_banner_inserted
+            and any(m["role"] == "assistant" for m in self._messages)
+        ):
+            self._final_banner_inserted = True
+            self.out.moveCursor(self.out.textCursor().MoveOperation.End)
+            n_turns = sum(1 for m in self._messages if m["role"] == "assistant")
+            self.out.insertHtml(
+                "<br><br>"
+                "<div style='background:#1e3a23; border:1px solid #4ade80; "
+                "border-radius:8px; padding:12px; margin:12px 0; "
+                "color:#86efac;'>"
+                f"<b>📋 Análisis guardado en ThemeForge ({n_turns} "
+                "turno"
+                + ("s" if n_turns != 1 else "")
+                + ").</b><br>"
+                "Cuando pulses <b>Crear proyecto</b>, este texto se "
+                "inyectará automáticamente en el <code>CLAUDE.md</code> "
+                "del proyecto y será lo PRIMERO que el agente IA lea al "
+                "arrancar.</div>"
+            )
+            self.out.moveCursor(self.out.textCursor().MoveOperation.End)
+        super().accept()
+
+    def _copy_output(self):
+        QApplication.clipboard().setText(self.out.toPlainText())
+        self.status_lbl.setText("📋 Copiado al portapapeles.")
+
+    def closeEvent(self, e):
+        self._timer.stop()
+        if self.proc and self.proc.state() != QProcess.ProcessState.NotRunning:
+            self.proc.kill()
+        super().closeEvent(e)
+
+
+class ThemeForge(QWidget):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("ThemeForge — ThemeForest builder")
+        self.setMinimumWidth(760)
+        self._github_user = gh_username()
+        self._build_ui()
+        self._update_preview()
+
+    def _build_ui(self):
+        title = QLabel("ThemeForge")
+        f = QFont(); f.setPointSize(20); f.setBold(True)
+        title.setFont(f)
+        subtitle = QLabel(
+            f"Builder de templates ThemeForest"
+            + (f" — GitHub: @{self._github_user}" if self._github_user else " — (sin gh login)")
+        )
+        subtitle.setStyleSheet("color: #888;")
+
+        # ── Datos básicos ────────────────────────────────────────────
+        self.name_edit = QLineEdit()
+        self.name_edit.setPlaceholderText("ej. Aurora SaaS Landing")
+        self.name_edit.textChanged.connect(self._update_preview)
+        self.name_edit.textChanged.connect(self._maybe_autodetect_licensing)
+
+        # En vez de combo: botón que abre el picker modal categorizado
+        self._stack_key = "nextjs-tailwind"  # default
+        self.stack_button = QPushButton()
+        self.stack_button.setMinimumHeight(36)
+        self.stack_button.clicked.connect(self._open_stack_picker)
+        self._refresh_stack_button()
+
+        self.type_combo = QComboBox()
+        for t in TEMPLATE_TYPES:
+            self.type_combo.addItem(t)
+
+        self.provider_picker = ProviderPicker(self, label="Provider IA:")
+
+        self.autoskills_check = QCheckBox("npx autoskills (auto-instalar skills del stack)")
+        self.autoskills_check.setChecked(True)
+
+        form = QFormLayout()
+        form.addRow("Nombre:", self.name_edit)
+        form.addRow("Stack:", self.stack_button)
+        form.addRow("Tipo:", self.type_combo)
+        form.addRow("Provider:", self.provider_picker)
+        form.addRow("", self.autoskills_check)
+
+        # ── Modo ─────────────────────────────────────────────────────
+        mode_box = QGroupBox("Modo")
+        self.mode_scratch = QRadioButton("Desde cero — solo scaffolding + agente")
+        self.mode_recreate = QRadioButton("Recrear referencia — estudiar y reimplementar")
+        self.mode_adopt = QRadioButton("Adoptar template local — copiar tal cual y trabajar in-place (soporta mono-repos)")
+        self.mode_existing = QRadioButton("Trabajar sobre repo existente de GitHub")
+        self.mode_scratch.setChecked(True)
+        self.mode_group = QButtonGroup(self)
+        self.mode_group.addButton(self.mode_scratch, 0)
+        self.mode_group.addButton(self.mode_recreate, 1)
+        self.mode_group.addButton(self.mode_adopt, 2)
+        self.mode_group.addButton(self.mode_existing, 3)
+
+        # — Sub-form recreate
+        self.ref_kind_combo = QComboBox()
+        self.ref_kind_combo.addItem("Carpeta local", userData="folder")
+        self.ref_kind_combo.addItem("Archivo .zip", userData="zip")
+        self.ref_kind_combo.addItem("URL de demo", userData="url")
+        self.ref_path_edit = QLineEdit()
+        self.ref_path_edit.setPlaceholderText("Ruta o URL de la referencia…")
+        self.ref_browse_btn = QPushButton("Examinar…")
+        self.ref_browse_btn.clicked.connect(self._browse_reference)
+        ref_row = QHBoxLayout()
+        ref_row.addWidget(self.ref_path_edit, 1)
+        ref_row.addWidget(self.ref_browse_btn)
+        # Botón análisis IA
+        self.ref_analyze_btn = QPushButton("🔍 Analizar referencia con IA")
+        self.ref_analyze_btn.setToolTip(
+            "Detecta el stack del template y pide a la IA (Claude/Codex) "
+            "una recomendación de qué stack moderno usar para tu reimplementación."
+        )
+        self.ref_analyze_btn.clicked.connect(self._analyze_reference)
+        # Estado del análisis (QProcess vivo + label + último resultado)
+        self._analyze_proc: QProcess | None = None
+        self._last_analysis: tuple[str, str] | None = None
+        self.analysis_status_lbl = QLabel("")
+        self.analysis_status_lbl.setWordWrap(True)
+        self.analysis_status_lbl.setStyleSheet(
+            "color:#86efac; font-size:11pt; font-weight:bold; "
+            "padding:8px 12px; background:#1e3a23; border:1px solid #4ade80; "
+            "border-radius:6px;"
+        )
+        self.analysis_status_lbl.setVisible(False)
+        ref_form = QFormLayout()
+        ref_form.addRow("Tipo de referencia:", self.ref_kind_combo)
+        ref_form.addRow("Origen:", ref_row)
+        ref_form.addRow("", self.ref_analyze_btn)
+        ref_form.addRow("", self.analysis_status_lbl)
+        self.ref_widget = QWidget(); self.ref_widget.setLayout(ref_form); self.ref_widget.setEnabled(False)
+
+        # — Sub-form adopt
+        self.adopt_path_edit = QLineEdit()
+        self.adopt_path_edit.setPlaceholderText("Ruta a la carpeta del template (se copiará a project_dir)…")
+        self.adopt_browse_btn = QPushButton("Examinar…")
+        self.adopt_browse_btn.clicked.connect(self._browse_adopt)
+        adopt_row = QHBoxLayout()
+        adopt_row.addWidget(self.adopt_path_edit, 1)
+        adopt_row.addWidget(self.adopt_browse_btn)
+        # Botón de análisis IA: útil sobre todo para design-exports de
+        # claude.ai/design o v0.dev donde la IA sugerirá stack moderno.
+        self.adopt_analyze_btn = QPushButton("🔍 Analizar con IA (sugiere stack)")
+        self.adopt_analyze_btn.setToolTip(
+            "Si la carpeta es un export de claude.ai/design / v0.dev / Figma Make "
+            "(HTML/JSX/CSS sin package.json), la IA te recomienda qué stack "
+            "moderno usar para construir el producto real sobre tu diseño. "
+            "Si es un mono-repo o proyecto existente, hace análisis técnico + "
+            "estrategia de mercado."
+        )
+        self.adopt_analyze_btn.clicked.connect(self._analyze_adopt)
+        # Label de status para el análisis adopt (sugerencia de stack)
+        self.adopt_analysis_status_lbl = QLabel("")
+        self.adopt_analysis_status_lbl.setWordWrap(True)
+        self.adopt_analysis_status_lbl.setStyleSheet(
+            "color:#86efac; font-size:11pt; font-weight:bold; "
+            "padding:8px 12px; background:#1e3a23; border:1px solid #4ade80; "
+            "border-radius:6px;"
+        )
+        self.adopt_analysis_status_lbl.setVisible(False)
+        adopt_form = QFormLayout()
+        adopt_form.addRow("Carpeta origen:", adopt_row)
+        adopt_hint = QLabel(
+            "<span style='color:#888;font-size:9pt'>Se copia tal cual al proyecto. "
+            "Soporta: (1) mono-repos CodeCanyon con varios stacks que ThemeForge "
+            "detectará automáticamente, (2) proyectos existentes que quieres "
+            "adoptar, (3) exports de diseño tipo claude.ai/design / v0.dev / "
+            "Figma Make — pulsa <b>Analizar con IA</b> y te sugerirá stack moderno.</span>"
+        )
+        adopt_hint.setWordWrap(True)
+        adopt_form.addRow("", adopt_hint)
+        adopt_form.addRow("", self.adopt_analyze_btn)
+        adopt_form.addRow("", self.adopt_analysis_status_lbl)
+        self.adopt_widget = QWidget(); self.adopt_widget.setLayout(adopt_form); self.adopt_widget.setEnabled(False)
+
+        # — Sub-form existing
+        self.repo_combo = QComboBox()
+        self.repo_combo.setEditable(True)
+        self.repo_combo.setPlaceholderText("owner/repo o selecciona de la lista…")
+        self.repo_load_btn = QPushButton("↻ Cargar mis repos")
+        self.repo_load_btn.clicked.connect(self._load_repos)
+        repo_row = QHBoxLayout()
+        repo_row.addWidget(self.repo_combo, 1)
+        repo_row.addWidget(self.repo_load_btn)
+        existing_form = QFormLayout()
+        existing_form.addRow("Repo:", repo_row)
+        self.existing_widget = QWidget(); self.existing_widget.setLayout(existing_form); self.existing_widget.setEnabled(False)
+
+        mode_layout = QVBoxLayout()
+        mode_layout.addWidget(self.mode_scratch)
+        mode_layout.addWidget(self.mode_recreate)
+        mode_layout.addWidget(self.ref_widget)
+        mode_layout.addWidget(self.mode_adopt)
+        mode_layout.addWidget(self.adopt_widget)
+        mode_layout.addWidget(self.mode_existing)
+        mode_layout.addWidget(self.existing_widget)
+        mode_box.setLayout(mode_layout)
+        self.mode_group.idToggled.connect(self._mode_changed)
+
+        # ── GitHub repo crear (deshabilitado en wizard) ──────────────
+        # El repo se crea bajo demanda desde el botón "📦 GitHub" del
+        # ProjectWindow, no automáticamente al crear el proyecto.
+        # Mantenemos el atributo para no romper el resto del código,
+        # pero como QCheckBox oculto.
+        self.github_create_check = QCheckBox()
+        self.github_create_check.setChecked(False)
+        self.github_create_check.setVisible(False)
+
+        # ── Postgres opcional ────────────────────────────────────────
+        self.postgres_check = QCheckBox(
+            "🐘 Provisionar Postgres (container Docker dedicado + DATABASE_URL en .env)"
+        )
+        self.postgres_check.setToolTip(
+            "Levanta un container postgres:17-alpine con puerto único para este "
+            "proyecto e inyecta DATABASE_URL en .env. Útil para stacks que no "
+            "vienen con BD por defecto pero que la vas a usar (Next, Nuxt, "
+            "Express, Laravel, Rails…). Requiere docker accesible sin sudo."
+        )
+        self.postgres_check.setChecked(False)
+
+        # ── licensing integration ────────────────────────────────────
+        self.licensing_check = QCheckBox(
+            "🔑 Activar sistema de licencias (genera verify-license + setup wizard según el stack)"
+        )
+        self.licensing_check.setToolTip(
+            "Marca esto si vas a vender el theme bajo tu sistema de licencias "
+            "configurado (ver `~/.config/themeforge/licensing.json`). "
+            "Drops automáticos según la familia del stack:\n"
+            "  · Next.js → /api/verify-license + /setup wizard + Zustand store + middleware\n"
+            "  · Laravel → SetupWizardController + middleware + model + migration + Blade view\n"
+            "  · WordPress → clase License + página admin de licencia\n"
+            "  · Hono/Nest/Bun-Elysia → route stub de verificación\n"
+            "Spec en context/LICENSING-SYSTEM.template.md. Versión real "
+            "del usuario en ~/.config/themeforge/context-private/."
+        )
+        # Auto-check si el slug aparece en la lista privada del usuario
+        # (~/.config/themeforge/known-product-slugs.txt). Si la lista no
+        # existe no se preselecciona.
+        self.licensing_check.setChecked(False)
+
+        self.licensing_gh_check = QCheckBox(
+            "    └─ Crear repo gh `<your-gh-org>/<slug>` (Phase 3)"
+        )
+        self.licensing_gh_check.setToolTip(
+            "Tras el scaffold, ejecuta `gh repo create <your-gh-org>/<slug> "
+            "--private --source . --remote origin`. Requiere `gh` autenticado "
+            "con permisos sobre la org GitHub configurada en `licensing.json` (campo `github_org`)."
+        )
+        self.licensing_gh_check.setChecked(False)
+        self.licensing_gh_check.setEnabled(False)
+
+        self.licensing_force_check = QCheckBox(
+            "    └─ Forzar también en modos `adopt` / `existing`"
+        )
+        self.licensing_force_check.setToolTip(
+            "Por defecto el licensing scaffold SOLO corre en `scratch` y "
+            "`recreate` para no chocar con proyectos que ya tienen estructura. "
+            "Marca esto si adoptas o clonas un theme y SABES que no tiene aún "
+            "la integración de licencias."
+        )
+        self.licensing_force_check.setChecked(False)
+        self.licensing_force_check.setEnabled(False)
+
+        # Solo habilitamos los sub-checkboxes si el padre está activo
+        self.licensing_check.toggled.connect(self.licensing_gh_check.setEnabled)
+        self.licensing_check.toggled.connect(self.licensing_force_check.setEnabled)
+
+        # ── Vista previa ─────────────────────────────────────────────
+        self.preview = QTextEdit()
+        self.preview.setReadOnly(True)
+        self.preview.setMaximumHeight(170)
+        self.preview.setStyleSheet("background:#1e1e1e;color:#cfcfcf;font-family:monospace;")
+
+        # ── Botones ──────────────────────────────────────────────────
+        self.create_btn = QPushButton("Crear proyecto y lanzar agente")
+        self.create_btn.clicked.connect(self.create_project)
+        self.create_btn.setMinimumHeight(40)
+        self.create_btn.setStyleSheet("font-weight:bold;")
+        self.cancel_btn = QPushButton("Salir")
+        self.cancel_btn.clicked.connect(self.close)
+        btns = QHBoxLayout()
+        btns.addWidget(self.cancel_btn); btns.addStretch(); btns.addWidget(self.create_btn)
+
+        # ── Root ─────────────────────────────────────────────────────
+        root = QVBoxLayout()
+        root.addWidget(title); root.addWidget(subtitle); root.addSpacing(6)
+        root.addLayout(form)
+        root.addWidget(mode_box)
+        root.addWidget(self.postgres_check)
+        root.addWidget(self.licensing_check)
+        root.addWidget(self.licensing_gh_check)
+        root.addWidget(self.licensing_force_check)
+        root.addWidget(QLabel("Vista previa:")); root.addWidget(self.preview)
+        root.addLayout(btns)
+        self.setLayout(root)
+
+        # señales para preview
+        for w in (self.type_combo, self.ref_kind_combo, self.repo_combo):
+            w.currentIndexChanged.connect(self._update_preview)
+        self.provider_picker.providerChanged.connect(lambda _k: self._update_preview())
+        self.ref_path_edit.textChanged.connect(self._update_preview)
+        self.ref_path_edit.textChanged.connect(self._invalidate_analysis_if_path_changed)
+        self.adopt_path_edit.textChanged.connect(self._update_preview)
+        self.repo_combo.editTextChanged.connect(self._update_preview)
+        self.github_create_check.toggled.connect(self._update_preview)
+        self.licensing_check.toggled.connect(self._update_preview)
+        self.ref_kind_combo.currentIndexChanged.connect(self._ref_kind_changed)
+        self._ref_kind_changed()
+
+    def _refresh_stack_button(self):
+        s = STACKS.get(self._stack_key) or STACKS["none"]
+        self.stack_button.setText(f"  {s['name']}   —   {s['category']}     (click para cambiar)")
+        self.stack_button.setStyleSheet(
+            "text-align:left; padding:6px 10px; font-weight:bold;"
+        )
+
+    def _open_stack_picker(self):
+        dlg = StackPickerDialog(self, initial=self._stack_key)
+        if dlg.exec() == StackPickerDialog.DialogCode.Accepted and dlg.selected_key:
+            self._stack_key = dlg.selected_key
+            self._refresh_stack_button()
+            self._update_preview()
+
+    def _mode_changed(self, _id, checked):
+        is_recreate = self.mode_recreate.isChecked()
+        is_adopt = self.mode_adopt.isChecked()
+        is_existing = self.mode_existing.isChecked()
+        self.ref_widget.setEnabled(is_recreate)
+        self.adopt_widget.setEnabled(is_adopt)
+        self.existing_widget.setEnabled(is_existing)
+        # En modo existing o adopt el scaffolding no aplica (ya hay código).
+        self.stack_button.setEnabled(not (is_existing or is_adopt))
+        # En modo existing/adopt no creamos repo nuevo en GitHub por defecto
+        if is_existing or is_adopt:
+            self.github_create_check.setChecked(False)
+        self.github_create_check.setEnabled(
+            not is_existing and bool(self._github_user)
+        )
+        self._update_preview()
+
+    def _ref_kind_changed(self):
+        kind = self.ref_kind_combo.currentData()
+        if kind == "url":
+            self.ref_browse_btn.setVisible(False)
+            self.ref_path_edit.setPlaceholderText("https://demo.tema.com/")
+        else:
+            self.ref_browse_btn.setVisible(True)
+            self.ref_path_edit.setPlaceholderText(
+                "Selecciona la carpeta…" if kind == "folder" else "Selecciona el .zip…"
+            )
+
+    def _browse_reference(self):
+        kind = self.ref_kind_combo.currentData()
+        if kind == "folder":
+            p = QFileDialog.getExistingDirectory(self, "Carpeta de referencia", str(HOME))
+        elif kind == "zip":
+            p, _ = QFileDialog.getOpenFileName(self, "Archivo .zip", str(HOME), "ZIP (*.zip)")
+        else:
+            return
+        if p:
+            self.ref_path_edit.setText(p)
+
+    def _browse_adopt(self):
+        p = QFileDialog.getExistingDirectory(self, "Carpeta del template a adoptar", str(HOME))
+        if p:
+            self.adopt_path_edit.setText(p)
+
+    def _analyze_adopt(self):
+        """Mismo flujo que _analyze_reference pero sobre la ruta del modo
+        adopt. Útil sobre todo para design-exports (claude.ai/design,
+        v0.dev, Figma Make) donde el detector reconocerá HTML/JSX sin
+        package.json y la IA recomendará stack moderno."""
+        path_str = self.adopt_path_edit.text().strip()
+        if not path_str:
+            QMessageBox.warning(self, "ThemeForge", "Indica primero la carpeta a adoptar.")
+            return
+        path = Path(path_str)
+        if not path.is_dir():
+            QMessageBox.warning(self, "ThemeForge", f"La carpeta no existe:\n{path}")
+            return
+        try:
+            from reference_analyzer import gather_facts, build_prompt
+        except Exception as e:
+            QMessageBox.critical(self, "Análisis IA", f"No se pudo cargar el analizador:\n{e}")
+            return
+
+        facts = gather_facts(path)
+        prompt = build_prompt(facts)
+        agent_key = self.provider_picker.current_key()
+        agent_meta = AGENTS.get(agent_key) or AGENTS["claude"]
+
+        state, info = aip.detect_status(agent_key)
+        if state != "ok":
+            QMessageBox.critical(
+                self, "Análisis IA",
+                f"Provider {agent_meta['name']} no listo: {info}",
+            )
+            return
+
+        argv = aip.oneshot_argv(agent_key, allow_web=True)
+        use_stream_json = (aip.PROVIDERS[agent_key]["command"] == "claude")
+
+        # Env vars del provider (API keys) heredadas por el subproceso
+        extra_env = aip.get_env(agent_key)
+
+        dlg = _ReferenceAnalysisDialog(self, agent_meta["name"], facts, use_stream_json)
+        dlg.run(prompt, argv, extra_env=extra_env)
+        dlg.exec()
+        result_text = dlg.out.toPlainText().strip()
+        if result_text:
+            # Guardamos el análisis para inyectarlo en CLAUDE.md igual que
+            # el de modo recreate. Reutilizamos _last_analysis con (path, text).
+            self._last_analysis = (path_str, result_text)
+            kind = facts.get("kind", "")
+            if kind == "design-export":
+                self.adopt_analysis_status_lbl.setText(
+                    "✓ Stack recomendado por IA — se inyectará en CLAUDE.md al crear el proyecto. "
+                    "El agente leerá la recomendación y propondrá el plan de migración del diseño."
+                )
+            else:
+                self.adopt_analysis_status_lbl.setText(
+                    "✓ Análisis IA listo — se inyectará en CLAUDE.md al crear el proyecto."
+                )
+            self.adopt_analysis_status_lbl.setVisible(True)
+        else:
+            self._last_analysis = None
+            self.adopt_analysis_status_lbl.setVisible(False)
+
+    def _analyze_reference(self):
+        """Recopila facts del path de referencia y los manda a la IA
+        (claude/codex CLI) en una llamada one-shot. Muestra el resultado
+        en un diálogo modal."""
+        path_str = self.ref_path_edit.text().strip()
+        if not path_str:
+            QMessageBox.warning(self, "ThemeForge", "Indica primero la ruta de la referencia.")
+            return
+        path = Path(path_str)
+        kind = self.ref_kind_combo.currentData()
+        if kind == "url":
+            QMessageBox.information(
+                self, "Análisis IA",
+                "El análisis automático funciona con carpetas y archivos .zip. "
+                "Para una URL, primero descárgala (modo recreate la baja a "
+                "reference/) y luego ejecuta el análisis sobre esa carpeta.",
+            )
+            return
+        if kind == "folder" and not path.is_dir():
+            QMessageBox.warning(self, "ThemeForge", f"La carpeta no existe:\n{path}")
+            return
+        if kind == "zip" and not (path.is_file() and path_str.lower().endswith(".zip")):
+            QMessageBox.warning(self, "ThemeForge", "El .zip no existe o no es un .zip.")
+            return
+
+        # Carga lazy del analyzer
+        try:
+            from reference_analyzer import gather_facts, build_prompt
+        except Exception as e:
+            QMessageBox.critical(self, "Análisis IA", f"No se pudo cargar el analizador:\n{e}")
+            return
+
+        facts = gather_facts(path)
+        prompt = build_prompt(facts)
+
+        agent_key = self.provider_picker.current_key()
+        agent_meta = AGENTS.get(agent_key) or AGENTS["claude"]
+
+        state, info = aip.detect_status(agent_key)
+        if state != "ok":
+            QMessageBox.critical(
+                self, "Análisis IA",
+                f"Provider {agent_meta['name']} no listo: {info}",
+            )
+            return
+
+        argv = aip.oneshot_argv(agent_key, allow_web=True)
+        use_stream_json = (aip.PROVIDERS[agent_key]["command"] == "claude")
+        extra_env = aip.get_env(agent_key)
+
+        dlg = _ReferenceAnalysisDialog(self, agent_meta["name"], facts, use_stream_json)
+        dlg.run(prompt, argv, extra_env=extra_env)
+        dlg.exec()
+        # Tras cerrar el diálogo, guardar el resultado si se obtuvo respuesta
+        result_text = dlg.out.toPlainText().strip()
+        if result_text:
+            self._last_analysis = (path_str, result_text)
+            self.analysis_status_lbl.setText(
+                "✓ Análisis IA listo — se inyectará en CLAUDE.md al crear el proyecto. "
+                "Claude lo leerá nada más arrancar y te confirmará qué entiende que tiene que hacer."
+            )
+            self.analysis_status_lbl.setVisible(True)
+        else:
+            self._last_analysis = None
+            self.analysis_status_lbl.setText("")
+            self.analysis_status_lbl.setVisible(False)
+
+    def _maybe_autodetect_licensing(self, _text: str):
+        """Pre-marca el checkbox del sistema de licencias si el slug aparece en la
+        lista privada del usuario (`~/.config/themeforge/known-product-slugs.txt`).
+        Si esa lista no existe no hay auto-detección. El usuario siempre
+        puede marcar/desmarcar el checkbox manualmente."""
+        try:
+            from licensing_scaffold import likely_known_product
+            slug = slugify(self.name_edit.text().strip())
+            if slug and likely_known_product(slug):
+                self.licensing_check.setChecked(True)
+        except Exception:
+            pass
+
+    def _invalidate_analysis_if_path_changed(self):
+        """Si el user cambia la ruta de referencia, el análisis previo
+        deja de ser válido."""
+        if self._last_analysis and self._last_analysis[0] != self.ref_path_edit.text().strip():
+            self._last_analysis = None
+            self.analysis_status_lbl.setStyleSheet(
+                "color:#fbbf24; font-size:10pt; font-weight:bold; "
+                "padding:8px 12px; background:#3a2e1e; border:1px solid #f59e0b; "
+                "border-radius:6px;"
+            )
+            self.analysis_status_lbl.setText(
+                "ℹ️ Ruta cambiada — vuelve a ejecutar el análisis si quieres inyectarlo."
+            )
+            self.analysis_status_lbl.setVisible(True)
+
+    def _load_repos(self):
+        if not self._github_user:
+            QMessageBox.warning(self, "GitHub", "No hay sesión activa con gh. Ejecuta `gh auth login` antes.")
+            return
+        self.repo_load_btn.setText("Cargando…")
+        self.repo_load_btn.setEnabled(False)
+        QApplication.processEvents()
+        try:
+            repos = gh_list_repos()
+            self.repo_combo.clear()
+            for r in sorted(repos, key=lambda x: x.get("updatedAt", ""), reverse=True):
+                vis = (r.get("visibility") or "").lower()
+                label = f"{r['nameWithOwner']}  ({vis})"
+                self.repo_combo.addItem(label, userData=r["nameWithOwner"])
+            if not repos:
+                QMessageBox.information(self, "GitHub", "No se encontraron repos (¿quizás gh no está autenticado?).")
+        finally:
+            self.repo_load_btn.setText("↻ Cargar mis repos")
+            self.repo_load_btn.setEnabled(True)
+
+    def _current_repo_id(self) -> str:
+        # Devuelve el nameWithOwner si fue seleccionado de la lista,
+        # o el texto escrito si el usuario lo metió manualmente.
+        d = self.repo_combo.currentData()
+        if d:
+            return d
+        txt = self.repo_combo.currentText().strip()
+        # Si trae el sufijo " (public/private)" lo limpiamos
+        return re.sub(r"\s*\(.*\)$", "", txt)
+
+    def _update_preview(self):
+        name = self.name_edit.text() or "(sin nombre)"
+        slug = slugify(name) if not self.mode_existing.isChecked() else (
+            self._current_repo_id().split("/")[-1] or slugify(name)
+        )
+        stack_key = self._stack_key or list(STACKS)[0]
+        stack = STACKS[stack_key]
+        agent = AGENTS[self.provider_picker.current_key()]
+        ttype = self.type_combo.currentText()
+        path = PROJECTS_DIR / slug
+        mode = (
+            "recreate" if self.mode_recreate.isChecked()
+            else "existing" if self.mode_existing.isChecked()
+            else "scratch"
+        )
+
+        lines = [
+            f"Nombre:    {name}",
+            f"Slug:      {slug}",
+            f"Ruta:      {path}",
+            f"Tipo:      {ttype}",
+            f"Agente:    {agent['name']}  →  {agent['command']}",
+            f"Modo:      {mode}",
+        ]
+        if mode == "existing":
+            lines.append(f"Repo:      {self._current_repo_id() or '(falta)'}")
+            lines.append(f"Stack:     (detectado del repo, no se hace scaffolding)")
+        else:
+            lines.append(f"Stack:     {stack['name']}  ({stack['min_version']})")
+            if self.github_create_check.isChecked() and self._github_user:
+                lines.append(f"GH:        crear {self._github_user}/{slug} (privado) al terminar")
+        if mode == "recreate":
+            ref_kind = self.ref_kind_combo.currentData()
+            ref_val = self.ref_path_edit.text().strip()
+            lines.append(f"Referencia [{ref_kind}]: {ref_val or '(falta)'}")
+        if self.licensing_check.isChecked():
+            try:
+                from licensing_scaffold import detect_family
+                fam = detect_family(stack_key) or "—"
+                lines.append(f"licensing: ON (slug={slug}, family={fam})")
+                if self.licensing_gh_check.isChecked():
+                    lines.append(f"           + gh repo create <org>/{slug}")
+                if self.licensing_force_check.isChecked():
+                    lines.append(f"           + forzado en adopt/existing")
+            except Exception:
+                lines.append("licensing: ON")
+        self.preview.setText("\n".join(lines))
+
+    def create_project(self):
+        name = self.name_edit.text().strip()
+        if not name:
+            QMessageBox.warning(self, "ThemeForge", "Pon un nombre.")
+            return
+
+        mode = (
+            "recreate" if self.mode_recreate.isChecked()
+            else "existing" if self.mode_existing.isChecked()
+            else "adopt" if self.mode_adopt.isChecked()
+            else "scratch"
+        )
+
+        # Slug
+        if mode == "existing":
+            repo_id = self._current_repo_id()
+            if not repo_id or "/" not in repo_id:
+                QMessageBox.warning(self, "ThemeForge", "Selecciona o escribe un repo como owner/name.")
+                return
+            slug = repo_id.split("/")[-1]
+        else:
+            slug = slugify(name)
+
+        project_dir = PROJECTS_DIR / slug
+        if project_dir.exists() and any(project_dir.iterdir()):
+            r = QMessageBox.question(
+                self, "Carpeta no vacía",
+                f"{project_dir} ya existe y tiene contenido.\n"
+                "Los scaffoldings y `gh repo clone` FALLARÁN si no está vacía.\n"
+                "¿Continuar igualmente?",
+            )
+            if r != QMessageBox.StandardButton.Yes:
+                return
+
+        stack_key = self._stack_key if mode not in ("existing", "adopt") else "none"
+        ttype = self.type_combo.currentText()
+        agent_key = self.provider_picker.current_key()
+        run_autoskills = self.autoskills_check.isChecked()
+        ref_kind = self.ref_kind_combo.currentData() if mode == "recreate" else None
+        ref_val = self.ref_path_edit.text().strip() if mode == "recreate" else None
+        existing_repo = self._current_repo_id() if mode == "existing" else None
+        adopt_src = self.adopt_path_edit.text().strip() if mode == "adopt" else None
+        create_gh = self.github_create_check.isChecked() and bool(self._github_user)
+
+        if mode == "recreate":
+            if not ref_val:
+                QMessageBox.warning(self, "ThemeForge", "Indica la referencia.")
+                return
+            if ref_kind == "folder" and not Path(ref_val).is_dir():
+                QMessageBox.warning(self, "ThemeForge", f"La carpeta no existe:\n{ref_val}")
+                return
+            if ref_kind == "zip" and not (Path(ref_val).is_file() and ref_val.lower().endswith(".zip")):
+                QMessageBox.warning(self, "ThemeForge", "El .zip no existe o no es un .zip.")
+                return
+            if ref_kind == "url" and not re.match(r"^https?://", ref_val):
+                QMessageBox.warning(self, "ThemeForge", "La URL debe empezar por http:// o https://")
+                return
+        elif mode == "adopt":
+            if not adopt_src or not Path(adopt_src).is_dir():
+                QMessageBox.warning(self, "ThemeForge", f"La carpeta a adoptar no existe:\n{adopt_src}")
+                return
+
+        # ── Provisión automática de BD ─────────────────────────────────
+        # Solo aplica en modo "existing": el repo clonado puede ya tener
+        # drizzle.config.ts / prisma. Para "scratch" la BD se detectará
+        # cuando el scaffold genere los archivos, pero eso es más complejo;
+        # de momento solo aprovisionamos cuando el repo existente lo pide.
+        db_prov = None
+        if mode == "existing" and project_dir.exists():
+            try:
+                from db_provisioner import detect_db_kind, provision_postgres_for, docker_available
+                # Clonamos primero a tmp para inspeccionar drizzle/prisma — no
+                # podemos detectar en project_dir aún porque está vacío. Como
+                # alternativa simple, detectamos tras el clone en el propio
+                # script (ver bloque más abajo).
+                # Aquí pre-aprovisionamos asumiendo Postgres si el repo
+                # remoto tiene drizzle.config.ts (lo comprobamos vía gh).
+                pass
+            except Exception:
+                pass
+
+        # Para "scratch" sí podemos saber por el stack (Laravel + Postgres,
+        # Next + drizzle, etc.). Más adelante. Por ahora solo "existing"
+        # via detección POST-clone embebida en el setup.
+
+        force_postgres = self.postgres_check.isChecked()
+        is_licensed = self.licensing_check.isChecked()
+        licensing_gh = is_licensed and self.licensing_gh_check.isChecked()
+        licensing_force_all = is_licensed and self.licensing_force_check.isChecked()
+
+        # Análisis IA inyectable si el path del análisis coincide con
+        # el path activo del modo (recreate → ref_val, adopt → adopt_src).
+        ai_analysis_text = None
+        if self._last_analysis:
+            cached_path, cached_text = self._last_analysis
+            if mode == "recreate" and cached_path == (ref_val or ""):
+                ai_analysis_text = cached_text
+            elif mode == "adopt" and cached_path == (adopt_src or ""):
+                ai_analysis_text = cached_text
+
+        try:
+            setup = write_setup_script(
+                project_dir, stack_key, ttype, name, agent_key, run_autoskills,
+                mode, ref_kind, ref_val, existing_repo, create_gh, self._github_user,
+                db_provision=db_prov,
+                force_postgres=force_postgres,
+                adopt_src=adopt_src,
+                ai_analysis=ai_analysis_text,
+                is_licensed_product=is_licensed,
+                licensing_create_gh_repo=licensing_gh,
+                licensing_force_all_modes=licensing_force_all,
+            )
+        except Exception as e:
+            QMessageBox.critical(self, "Error generando setup", str(e))
+            return
+
+        # En modo "existing" el `gh repo clone` quiere crear la carpeta
+        # él mismo. Si la creamos vacía antes, ProjectWindow se abre
+        # mostrando el árbol vacío y el setup la borra/recrea con git
+        # historia intacta. Si no, esperamos a que el setup la cree.
+        if mode == "existing":
+            project_dir.mkdir(parents=True, exist_ok=True)
+
+        # Abrir el ProjectWindow embebiendo el setup en su primera pestaña
+        # de terminal en lugar de lanzar una Konsole externa.
+        try:
+            open_project_window(project_dir, initial_cmd=str(setup), provider_key=agent_key)
+        except Exception as e:
+            QMessageBox.critical(self, "Error lanzando ProjectWindow", str(e))
+            return
+
+        self.name_edit.clear()
+        self.name_edit.setFocus()
+
+
+class GalleryPanel(QWidget):
+    """Lista los proyectos creados y permite continuarlos con el agente AI."""
+
+    def __init__(self):
+        super().__init__()
+        self._build_ui()
+        self.refresh()
+
+    def _build_ui(self):
+        header = QLabel(f"Templates en <code>{PROJECTS_DIR}</code>")
+        header.setTextFormat(Qt.TextFormat.RichText)
+
+        # Búsqueda + filtros
+        self.search_edit = QLineEdit()
+        self.search_edit.setPlaceholderText("🔍 Filtrar por nombre / stack…")
+        self.search_edit.textChanged.connect(self._apply_filter)
+        self.fav_only = QCheckBox("Solo favoritos ★")
+        self.fav_only.toggled.connect(self._apply_filter)
+        self.show_archived = QCheckBox("📦 Archivados")
+        self.show_archived.setToolTip(
+            f"Mostrar proyectos archivados (movidos a {ARCHIVE_DIR}). "
+            "Los archivados son reversibles: restáuralos con ↩️ y "
+            "vuelven a PROJECTS_DIR."
+        )
+        self.show_archived.toggled.connect(self._toggle_archive_view)
+        self.cat_filter = QComboBox()
+        self.cat_filter.addItem("Todas las categorías", userData="*")
+        for cat in sorted({s.get("category", "") for s in STACKS.values()}):
+            if cat:
+                self.cat_filter.addItem(cat, userData=cat)
+        self.cat_filter.currentIndexChanged.connect(self._apply_filter)
+
+        # Toggle vista lista / cards. Estado persistido en QSettings
+        # (no añadimos otro archivo de config para algo tan pequeño).
+        from PyQt6.QtCore import QSettings
+        self._settings = QSettings("themeforge", "themeforge")
+        self.view_toggle = QPushButton("🖼️ Cards")
+        self.view_toggle.setCheckable(True)
+        saved_mode = self._settings.value("gallery/view_mode", "list", type=str)
+        self.view_toggle.setChecked(saved_mode == "cards")
+        self.view_toggle.setToolTip(
+            "Alternar entre vista lista (rápido + denso) y cards "
+            "(thumbnails grandes, visual). El thumbnail viene del "
+            "screenshot capturado con 📸 en ProjectWindow; si no hay, "
+            "se genera un placeholder con el color del stack."
+        )
+        self.view_toggle.toggled.connect(self._on_view_mode_changed)
+
+        filter_row = QHBoxLayout()
+        filter_row.addWidget(self.search_edit, 2)
+        filter_row.addWidget(self.cat_filter, 1)
+        filter_row.addWidget(self.fav_only)
+        filter_row.addWidget(self.show_archived)
+        filter_row.addWidget(self.view_toggle)
+
+        self.list_widget = QListWidget()
+        self.list_widget.itemDoubleClicked.connect(lambda _i: self._open_project_window())
+        self.list_widget.currentItemChanged.connect(self._on_select)
+        self._apply_view_mode(self.view_toggle.isChecked())
+
+        self.info = QLabel("Selecciona un template (doble-click abre la ventana del proyecto)")
+        self.info.setStyleSheet("color:#888;")
+
+        self.btn_refresh = QPushButton("↻ Refrescar")
+        self.btn_refresh.clicked.connect(self.refresh)
+        self.btn_fav = QPushButton("★ Favorito")
+        self.btn_fav.setToolTip("Marcar/desmarcar como favorito")
+        self.btn_fav.clicked.connect(self._toggle_favorite)
+        self.btn_tags = QPushButton("🏷️ Tags…")
+        self.btn_tags.setToolTip(
+            "Editar tags del proyecto seleccionado. Separa por comas. "
+            "Filtra escribiendo `tag:nombre` en la barra de búsqueda."
+        )
+        self.btn_tags.clicked.connect(self._edit_tags)
+        self.btn_archive = QPushButton("📦 Archivar")
+        self.btn_archive.setToolTip(
+            f"Mover el proyecto seleccionado a {ARCHIVE_DIR}. "
+            "Reversible — usa el checkbox 📦 Archivados arriba y "
+            "luego ↩️ Restaurar."
+        )
+        self.btn_archive.clicked.connect(self._toggle_archive_project)
+        self.btn_regen = QPushButton("🔄 Regenerar contexto")
+        self.btn_regen.setToolTip("Regenera CLAUDE.md / AGENTS.md con los MDs actuales del builder")
+        self.btn_regen.clicked.connect(self._regenerate_context)
+        self.btn_folder = QPushButton("Abrir carpeta")
+        self.btn_folder.clicked.connect(self._open_folder)
+        self.btn_vscode = QPushButton("VSCode")
+        self.btn_vscode.clicked.connect(self._open_vscode)
+        self.btn_codex = QPushButton("Codex")
+        self.btn_codex.clicked.connect(lambda: self._open_with("codex"))
+        self.btn_claude = QPushButton("Claude Code")
+        self.btn_claude.clicked.connect(lambda: self._open_with("claude"))
+        self.btn_project = QPushButton("📺 Abrir proyecto (preview)")
+        self.btn_project.setStyleSheet("font-weight:bold;")
+        self.btn_project.clicked.connect(self._open_project_window)
+        self.btn_delete = QPushButton("🗑️ Eliminar")
+        self.btn_delete.setToolTip(
+            "Eliminar el proyecto del disco completamente: directorio, "
+            "container Postgres asociado, volumen de datos, entrada en "
+            "ports.json y favoritos. IRREVERSIBLE."
+        )
+        self.btn_delete.setStyleSheet("color:#ed1c57;")
+        self.btn_delete.clicked.connect(self._delete_project)
+
+        btns = QHBoxLayout()
+        btns.addWidget(self.btn_refresh)
+        btns.addWidget(self.btn_fav)
+        btns.addWidget(self.btn_tags)
+        btns.addWidget(self.btn_archive)
+        btns.addWidget(self.btn_regen)
+        btns.addWidget(self.btn_delete)
+        btns.addStretch()
+        btns.addWidget(self.btn_folder)
+        btns.addWidget(self.btn_vscode)
+        btns.addWidget(self.btn_codex)
+        btns.addWidget(self.btn_claude)
+        btns.addWidget(self.btn_project)
+
+        root = QVBoxLayout()
+        root.addWidget(header)
+        root.addLayout(filter_row)
+        root.addWidget(self.list_widget)
+        root.addWidget(self.info)
+        root.addLayout(btns)
+        self.setLayout(root)
+
+    def refresh(self):
+        self.favorites = load_favorites()
+        self.projects_meta = load_projects_meta()
+        self.list_widget.clear()
+        archived_view = (self.show_archived.isChecked()
+                         if hasattr(self, "show_archived") else False)
+        items = list_projects(archived=archived_view)
+        self._all_items = []
+        cards_mode = self.view_toggle.isChecked() if hasattr(self, "view_toggle") else False
+        from PyQt6.QtGui import QIcon
+        for it in items:
+            dt = datetime.fromtimestamp(it["mtime"]).strftime("%Y-%m-%d %H:%M") if it["mtime"] else "?"
+            git_mark = "git ✓" if it["has_git"] else "git —"
+            ctx_mark = "claude.md" if it["has_claude"] else ("agents.md" if it["has_agents"] else "—")
+            star = "★ " if it["name"] in self.favorites else "☆ "
+            tags = (self.projects_meta.get(it["name"]) or {}).get("tags") or []
+            tags_str = "  ·  " + " ".join(f"#{t}" for t in tags) if tags else ""
+            ai_ts = last_ai_activity(it["path"])
+            ai_rel = format_relative_time(ai_ts)
+            ai_mark = f"🤖 {ai_rel}" if ai_ts else "🤖 sin sesiones"
+
+            if cards_mode:
+                # En vista cards el espacio para texto es estrecho; resumen
+                # de 2-3 líneas: nombre, stack, IA + tags (si hay).
+                tags_line = " ".join(f"#{t}" for t in tags[:3])
+                if len(tags) > 3:
+                    tags_line += f"  +{len(tags)-3}"
+                meta_line = f"{ai_mark}"
+                if tags_line:
+                    meta_line += f"  {tags_line}"
+                line = f"{star}{it['name']}\n{it['stack']}\n{meta_line}"
+            else:
+                line = (f"{star}{it['name']}\n"
+                        f"     Stack: {it['stack']:<22}  ·  Mod: {dt}  ·  "
+                        f"{git_mark}  ·  {ctx_mark}  ·  {ai_mark}{tags_str}")
+
+            li = QListWidgetItem(line)
+            li.setData(Qt.ItemDataRole.UserRole, str(it["path"]))
+            li.setData(Qt.ItemDataRole.UserRole + 1, it)   # meta para filtro
+            li.setData(Qt.ItemDataRole.UserRole + 2, tags) # tags para filtro
+
+            if cards_mode:
+                stack_key = detected_stack_to_key(it["stack"])
+                pm = get_or_make_thumbnail(it["name"], stack_key, it["name"])
+                li.setIcon(QIcon(pm))
+
+            self.list_widget.addItem(li)
+            self._all_items.append(li)
+        self.info.setText(f"{len(items)} templates encontrados.")
+        self._apply_filter()
+
+    def _apply_filter(self):
+        text = (self.search_edit.text() if hasattr(self, 'search_edit') else "").strip().lower()
+        cat = self.cat_filter.currentData() if hasattr(self, 'cat_filter') else "*"
+        only_fav = self.fav_only.isChecked() if hasattr(self, 'fav_only') else False
+
+        # Si el search empieza con "tag:foo" → filtro por tag (igualdad
+        # exacta del tag tras el prefijo, en lowercase). Se pueden
+        # encadenar varios separados por espacio: "tag:venta tag:aurora".
+        tag_filters: list[str] = []
+        text_clean = text
+        if "tag:" in text_clean:
+            tokens = text_clean.split()
+            tag_filters = [t[4:].strip().lstrip("#") for t in tokens if t.startswith("tag:")]
+            text_clean = " ".join(t for t in tokens if not t.startswith("tag:")).strip()
+
+        visible = 0
+        for li in getattr(self, '_all_items', []):
+            meta = li.data(Qt.ItemDataRole.UserRole + 1) or {}
+            tags = li.data(Qt.ItemDataRole.UserRole + 2) or []
+            name = (meta.get("name") or "").lower()
+            stack = (meta.get("stack") or "").lower()
+            stack_key = detected_stack_to_key(meta.get("stack") or "")
+            stack_cat = STACKS.get(stack_key, {}).get("category", "")
+            show = True
+            if text_clean and text_clean not in name and text_clean not in stack:
+                show = False
+            if cat and cat != "*" and stack_cat != cat:
+                show = False
+            if only_fav and meta.get("name") not in self.favorites:
+                show = False
+            if tag_filters and not all(tf in tags for tf in tag_filters):
+                show = False
+            li.setHidden(not show)
+            if show: visible += 1
+        if hasattr(self, 'info'):
+            total = len(getattr(self, '_all_items', []))
+            tag_note = f" · tag:{','.join(tag_filters)}" if tag_filters else ""
+            fav_note = " · solo favoritos" if only_fav else ""
+            self.info.setText(f"{visible} / {total} visibles{tag_note}{fav_note}")
+
+    def _selected_path(self) -> Path | None:
+        item = self.list_widget.currentItem()
+        if not item:
+            return None
+        return Path(item.data(Qt.ItemDataRole.UserRole))
+
+    def _on_select(self, current, _prev):
+        if not current:
+            self.info.setText("Selecciona un template")
+            return
+        p = Path(current.data(Qt.ItemDataRole.UserRole))
+        self.info.setText(f"→ {p}")
+
+    def _open_with(self, command: str):
+        p = self._selected_path()
+        if not p:
+            QMessageBox.warning(self, "Galería", "Selecciona primero un template.")
+            return
+        if not shutil.which(command):
+            QMessageBox.warning(self, "Falta comando", f"No encuentro `{command}` en el PATH.")
+            return
+        if pc.open_in_terminal(p, command=command) is None:
+            QMessageBox.critical(self, "Sin terminal",
+                                 "No encuentro un emulador de terminal soportado.")
+
+    def _open_folder(self):
+        p = self._selected_path()
+        if not p: return
+        if pc.open_in_file_manager(p) is None:
+            QMessageBox.warning(self, "Folder",
+                                "No encuentro un file manager en el sistema.")
+
+    def _open_vscode(self):
+        p = self._selected_path()
+        if not p: return
+        if pc.IS_LINUX:
+            for cmd in ("code", "codium", "code-oss"):
+                if shutil.which(cmd):
+                    subprocess.Popen([cmd, str(p)])
+                    return
+        argv = pc.vscode_argv(p)
+        if argv:
+            subprocess.Popen(argv)
+            return
+        QMessageBox.warning(self, "VSCode", "No encuentro VS Code instalado.")
+
+    def _open_project_window(self):
+        p = self._selected_path()
+        if not p:
+            QMessageBox.warning(self, "Galería", "Selecciona primero un template.")
+            return
+        open_project_window(p)
+
+    def _toggle_favorite(self):
+        p = self._selected_path()
+        if not p:
+            QMessageBox.warning(self, "Favoritos", "Selecciona primero un template.")
+            return
+        name = p.name
+        favs = load_favorites()
+        if name in favs:
+            favs.remove(name)
+        else:
+            favs.add(name)
+        save_favorites(favs)
+        self.refresh()
+
+    def _apply_view_mode(self, cards: bool):
+        """Configura QListWidget para modo cards o lista. No refresca
+        — el caller debe llamar refresh() después si quiere regenerar
+        items con thumbnails."""
+        from PyQt6.QtWidgets import QListView
+        from PyQt6.QtCore import QSize
+        if cards:
+            self.list_widget.setViewMode(QListView.ViewMode.IconMode)
+            self.list_widget.setIconSize(QSize(THUMB_WIDTH, THUMB_HEIGHT))
+            self.list_widget.setGridSize(QSize(THUMB_WIDTH + 24, THUMB_HEIGHT + 70))
+            self.list_widget.setResizeMode(QListView.ResizeMode.Adjust)
+            self.list_widget.setMovement(QListView.Movement.Static)
+            self.list_widget.setWordWrap(True)
+            self.list_widget.setSpacing(8)
+            self.list_widget.setUniformItemSizes(True)
+            self.view_toggle.setText("📋 Lista")
+        else:
+            self.list_widget.setViewMode(QListView.ViewMode.ListMode)
+            self.list_widget.setSpacing(0)
+            self.list_widget.setIconSize(QSize(0, 0))
+            self.view_toggle.setText("🖼️ Cards")
+
+    def _on_view_mode_changed(self, checked: bool):
+        self._apply_view_mode(checked)
+        self._settings.setValue("gallery/view_mode", "cards" if checked else "list")
+        self.refresh()
+
+    def _toggle_archive_view(self, checked: bool):
+        """Alterna entre vista de proyectos activos y archivados.
+        Cambia el botón Archivar↔Restaurar consecuentemente."""
+        if checked:
+            self.btn_archive.setText("↩️ Restaurar")
+            self.btn_archive.setToolTip(
+                f"Mover el proyecto archivado de vuelta a {PROJECTS_DIR}."
+            )
+        else:
+            self.btn_archive.setText("📦 Archivar")
+            self.btn_archive.setToolTip(
+                f"Mover el proyecto a {ARCHIVE_DIR}. Reversible."
+            )
+        self.refresh()
+
+    def _toggle_archive_project(self):
+        """Archiva o restaura el proyecto seleccionado, según el modo
+        de vista activo."""
+        p = self._selected_path()
+        if not p:
+            QMessageBox.warning(self, "Archivar", "Selecciona primero un proyecto.")
+            return
+        slug = p.name
+        archived = (self.show_archived.isChecked()
+                    if hasattr(self, "show_archived") else False)
+        if archived:
+            # Restaurar
+            r = QMessageBox.question(
+                self, "Restaurar proyecto",
+                f"¿Restaurar `{slug}` a {PROJECTS_DIR}?\n\n"
+                "Pasará a aparecer de nuevo en la vista normal.",
+            )
+            if r != QMessageBox.StandardButton.Yes:
+                return
+            ok, msg = unarchive_project(slug)
+        else:
+            r = QMessageBox.question(
+                self, "Archivar proyecto",
+                f"¿Archivar `{slug}`?\n\n"
+                f"Se moverá a {ARCHIVE_DIR}/{slug}.\n"
+                "NO se borra nada — puedes restaurarlo cuando quieras\n"
+                "marcando '📦 Archivados' arriba y pulsando ↩️ Restaurar.",
+            )
+            if r != QMessageBox.StandardButton.Yes:
+                return
+            ok, msg = archive_project(slug)
+        if ok:
+            self.info.setText(msg)
+            self.refresh()
+        else:
+            QMessageBox.warning(self, "Archivar", msg)
+
+    def _edit_tags(self):
+        """Editar los tags del proyecto seleccionado. Input: lista
+        separada por comas o espacios. Se persisten lowercased sin '#'.
+
+        Para filtrar por tag, escribe `tag:foo` en la barra de búsqueda
+        (encadenable: `tag:foo tag:bar` exige ambos)."""
+        p = self._selected_path()
+        if not p:
+            QMessageBox.warning(self, "Tags", "Selecciona primero un template.")
+            return
+        slug = p.name
+        current = get_project_tags(slug)
+        from PyQt6.QtWidgets import QInputDialog
+        default_text = ", ".join(current)
+        text, ok = QInputDialog.getText(
+            self, f"Tags — {slug}",
+            "Tags separados por coma o espacio (sin '#'). Ej: "
+            "venta-gumroad, demo-cliente-x, borrador.\n"
+            "Vacío para borrar todos.",
+            text=default_text,
+        )
+        if not ok:
+            return
+        # Aceptar comas o espacios como separador
+        raw = [t for t in re.split(r"[,\s]+", text) if t.strip()]
+        set_project_tags(slug, raw)
+        self.refresh()
+
+    def _delete_project(self):
+        """Borra el proyecto del disco + container Postgres + volumen +
+        entradas en ports.json, db_provisions.json y favoritos. Acción
+        IRREVERSIBLE — pide confirmación explícita con nombre."""
+        p = self._selected_path()
+        if not p:
+            QMessageBox.warning(self, "Eliminar", "Selecciona primero un proyecto.")
+            return
+        slug = p.name
+        # Calcular qué se va a borrar para listarlo en el diálogo de
+        # confirmación.
+        items = []
+        # 1) directorio
+        try:
+            size_mb = sum(f.stat().st_size for f in p.rglob('*') if f.is_file()) // (1024 * 1024)
+        except Exception:
+            size_mb = 0
+        items.append(f"📁 Directorio <code>{p}</code> ({size_mb} MB aprox)")
+        # 2) Postgres provisionado
+        db_info = None
+        try:
+            from db_provisioner import get_provision
+            db_info = get_provision(slug)
+        except Exception:
+            pass
+        if db_info:
+            items.append(
+                f"🐘 Container Postgres <code>{db_info['container']}</code> "
+                f"(puerto {db_info['port']})"
+            )
+            items.append(f"💾 Volumen Docker <code>{db_info['volume']}</code> (datos de BD)")
+        # 3) puerto preview
+        try:
+            from preview import PORTS_FILE
+            ports = json.loads(PORTS_FILE.read_text()) if PORTS_FILE.exists() else {}
+            if slug in ports:
+                items.append(f"🔌 Entrada en <code>ports.json</code> (puerto preview)")
+        except Exception:
+            pass
+        # 4) favorito
+        try:
+            favs = load_favorites()
+            if slug in favs:
+                items.append(f"⭐ Marca de favorito")
+        except Exception:
+            pass
+
+        items_plain = "\n".join(
+            '  · ' + x.replace('<code>', '').replace('</code>', '').replace('<br>', '')
+            for x in items
+        )
+        reply = QMessageBox.question(
+            self, f"Eliminar «{slug}»",
+            f"¿Eliminar el proyecto «{slug}»?\n\n{items_plain}",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
+        )
+        if reply != QMessageBox.StandardButton.Yes:
+            return
+
+        errors = []
+        # 1) Container + volumen Postgres explícito
+        if db_info:
+            try:
+                from db_provisioner import cleanup_for
+                cleanup_for(slug, also_volume=True)
+            except Exception as e:
+                errors.append(f"db cleanup: {e}")
+        # 2) Otros containers con bind-mount al directorio del proyecto
+        #    (e.g. meilisearch, redis, etc. que docker-compose haya
+        #    levantado y dejado archivos como root).
+        try:
+            killed = _stop_containers_using_path(p)
+            if killed:
+                print(f"[delete] parados/eliminados {len(killed)} containers con mount al proyecto: {killed}")
+        except Exception as e:
+            errors.append(f"stop containers: {e}")
+        # 3) Directorio — primer intento normal
+        rmtree_failed = False
+        try:
+            shutil.rmtree(p)
+        except Exception as e:
+            rmtree_failed = True
+            errors.append(f"rmtree {p}: {e}")
+        # 4) Si falló por permisos (archivos creados por containers
+        #    como root), ofrecer al user el comando con sudo.
+        if rmtree_failed and p.exists():
+            from PyQt6.QtWidgets import QInputDialog
+            cmd = f"sudo rm -rf {shell_quote(str(p))}"
+            reply = QMessageBox.question(
+                self, "Permiso denegado al borrar",
+                f"Algunos archivos están como root (probablemente containers "
+                f"Docker que escribieron como root: meilisearch, mysql, etc.).\n\n"
+                f"¿Quieres que ejecute con sudo?\n\n"
+                f"<code>{cmd}</code>\n\n"
+                f"Si dices SÍ se te pedirá la contraseña sudo en una terminal "
+                f"externa (Konsole). Si dices NO, los datos siguen en disco "
+                f"y los borras manualmente cuando quieras.",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            )
+            if reply == QMessageBox.StandardButton.Yes:
+                # sudo interactivo necesita TTY → abrir terminal externa.
+                # platform_compat se encarga del emulador por OS.
+                full = (
+                    f'echo "Ejecutando: {cmd}"; {cmd} && echo "" && '
+                    f'echo "✓ Borrado completado. Pulsa Enter para cerrar." && read'
+                )
+                if pc.open_in_terminal(self._selected_path() or Path.home(),
+                                       command=full, hold=True) is not None:
+                    QMessageBox.information(
+                        self, "Lanzado",
+                        "Se abrió una terminal externa con sudo rm -rf. "
+                        "Introduce tu contraseña ahí. Cuando termine, vuelve "
+                        "aquí y pulsa ↻ Refrescar.",
+                    )
+                else:
+                    QMessageBox.warning(
+                        self, "Sin terminal externa",
+                        f"No encuentro un emulador de terminal para ejecutar "
+                        f"sudo interactivamente.\n\n"
+                        f"Ejecuta manualmente:\n\n{cmd}",
+                    )
+        # 3) ports.json
+        try:
+            from preview import PORTS_FILE
+            if PORTS_FILE.exists():
+                ports = json.loads(PORTS_FILE.read_text())
+                changed = False
+                # Borrar la clave del slug y cualquier sub-clave "slug:..."
+                for k in list(ports.keys()):
+                    if k == slug or k.startswith(f"{slug}:"):
+                        del ports[k]
+                        changed = True
+                if changed:
+                    PORTS_FILE.write_text(json.dumps(ports, indent=2, sort_keys=True))
+        except Exception as e:
+            errors.append(f"ports.json: {e}")
+        # 4) Favorito
+        try:
+            favs = load_favorites()
+            if slug in favs:
+                favs.remove(slug)
+                save_favorites(favs)
+        except Exception as e:
+            errors.append(f"favorites: {e}")
+
+        self.refresh()
+        if errors:
+            QMessageBox.warning(
+                self, "Eliminado con errores",
+                f"El proyecto «{slug}» se eliminó pero hubo errores:\n\n" + "\n".join(errors),
+            )
+        else:
+            QMessageBox.information(
+                self, "Eliminado",
+                f"✓ Proyecto «{slug}» eliminado completamente.",
+            )
+
+    def _regenerate_context(self):
+        p = self._selected_path()
+        if not p:
+            QMessageBox.warning(self, "Galería", "Selecciona primero un template.")
+            return
+
+        # Detectar stack y mapear a key
+        detected = detect_stack(p)
+        stack_key = detected_stack_to_key(detected)
+
+        # Decidir qué archivos regenerar (los que existan; si no existe ninguno,
+        # creamos CLAUDE.md por defecto).
+        targets = []
+        if (p / "CLAUDE.md").exists(): targets.append(("CLAUDE.md", "claude"))
+        if (p / "AGENTS.md").exists(): targets.append(("AGENTS.md", "codex"))
+        if not targets:
+            targets.append(("CLAUDE.md", "claude"))
+
+        # Hacer backup de los actuales
+        backed_up = []
+        from datetime import datetime
+        ts = datetime.now().strftime("%Y%m%d-%H%M%S")
+        for filename, _ in targets:
+            f = p / filename
+            if f.exists():
+                bak = p / f"{filename}.bak.{ts}"
+                try:
+                    bak.write_bytes(f.read_bytes())
+                    backed_up.append(bak.name)
+                except Exception:
+                    pass
+
+        # Regenerar (modo scratch, tipo "Sin tipo" para no sesgar). El usuario
+        # puede ejecutar el agente y darle objetivos concretos directamente.
+        body = render_context(
+            stack_key=stack_key,
+            template_type="(Sin tipo — detectar de la referencia)",
+            project_name=p.name,
+            mode="scratch",
+            reference_kind=None,
+            reference_value=None,
+            existing_repo=None,
+        )
+
+        wrote = []
+        for filename, _agent in targets:
+            try:
+                (p / filename).write_text(body, encoding="utf-8")
+                wrote.append(filename)
+            except Exception as e:
+                QMessageBox.warning(self, "Error", f"No se pudo escribir {filename}:\n{e}")
+
+        if wrote:
+            QMessageBox.information(
+                self, "Regenerado",
+                f"Stack detectado: {detected} → {stack_key}\n"
+                f"Escritos: {', '.join(wrote)}\n"
+                f"Backups: {', '.join(backed_up) if backed_up else '(ninguno)'}",
+            )
+            self.refresh()
+
+
+class _CommandPalette(QDialog):
+    """Paleta de comandos estilo VSCode (Ctrl+K).
+
+    Filtra fuzzy entre las acciones registradas y al pulsar Enter
+    ejecuta la callback. Cerrar con Esc.
+
+    Cada acción es una tupla: (label, category, callback).
+    El filtro hace match contra label + category (substring case-insensitive
+    + score por orden de aparición de los chars del query en el label).
+    """
+
+    def __init__(self, parent, actions: list[tuple[str, str, object]]):
+        super().__init__(parent)
+        self.setWindowTitle("Paleta de comandos")
+        self.setModal(True)
+        self.resize(620, 460)
+        # Sin marco para look "spotlight". Si molesta, quitar esta línea.
+        self.setWindowFlag(Qt.WindowType.FramelessWindowHint, True)
+        self.setStyleSheet(
+            "QDialog { background:#1a1d24; border:1px solid #3a3f4d; "
+            "border-radius:10px; }"
+        )
+
+        self._actions = actions
+        self._filtered: list[tuple[str, str, object]] = list(actions)
+
+        self.search = QLineEdit()
+        self.search.setPlaceholderText("Escribe para buscar… (Esc para cerrar)")
+        self.search.setStyleSheet(
+            "QLineEdit { background:#0f1115; color:#e6e9ef; "
+            "border:1px solid #232838; border-radius:6px; padding:10px 14px; "
+            "font-size:15px; }"
+        )
+        self.search.textChanged.connect(self._on_filter)
+
+        self.results = QListWidget()
+        self.results.setStyleSheet(
+            "QListWidget { background:#1a1d24; color:#e6e9ef; "
+            "border:none; padding:6px; font-size:14px; }"
+            "QListWidget::item { padding:8px 10px; border-radius:6px; }"
+            "QListWidget::item:selected { background:#2a3548; color:#fff; }"
+        )
+        self.results.itemActivated.connect(self._run_selected)
+
+        hint = QLabel("↑↓ navegar  ·  Enter ejecutar  ·  Esc cerrar")
+        hint.setStyleSheet("color:#888; font-size:11px; padding:6px 8px;")
+
+        lay = QVBoxLayout()
+        lay.setContentsMargins(12, 12, 12, 8)
+        lay.addWidget(self.search)
+        lay.addWidget(self.results)
+        lay.addWidget(hint)
+        self.setLayout(lay)
+
+        self._render(self._actions)
+        self.search.setFocus()
+
+    def _on_filter(self, text: str):
+        q = (text or "").strip().lower()
+        if not q:
+            self._render(self._actions)
+            return
+        # Match: substring sobre "label + category". Score = posición del
+        # match (menor = mejor) + bonus si el label empieza por la query.
+        scored = []
+        for label, category, cb in self._actions:
+            hay = (label + " " + category).lower()
+            idx = hay.find(q)
+            if idx < 0:
+                # Fallback: si el query es multi-palabra, exigir que todas
+                # aparezcan al menos como substring (cualquier orden)
+                parts = q.split()
+                if len(parts) > 1 and all(p in hay for p in parts):
+                    scored.append((100 + len(parts), label, category, cb))
+                continue
+            bonus = 0 if hay.startswith(q) else 50
+            scored.append((idx + bonus, label, category, cb))
+        scored.sort(key=lambda x: x[0])
+        self._render([(l, c, cb) for _, l, c, cb in scored])
+
+    def _render(self, items):
+        self.results.clear()
+        self._filtered = list(items)
+        for label, category, _cb in items[:200]:  # cap visual
+            item = QListWidgetItem(f"{label}\n   {category}")
+            self.results.addItem(item)
+        if items:
+            self.results.setCurrentRow(0)
+
+    def _run_selected(self, item):
+        row = self.results.row(item)
+        if 0 <= row < len(self._filtered):
+            _label, _cat, cb = self._filtered[row]
+            self.accept()
+            # Ejecutar DESPUÉS de cerrar para que el cb pueda abrir
+            # diálogos modales sin chocar con esta paleta.
+            QTimer.singleShot(0, cb)
+
+    def keyPressEvent(self, e):
+        from PyQt6.QtCore import Qt as _Qt
+        if e.key() in (_Qt.Key.Key_Down,):
+            row = self.results.currentRow()
+            self.results.setCurrentRow(min(row + 1, self.results.count() - 1))
+            e.accept(); return
+        if e.key() in (_Qt.Key.Key_Up,):
+            row = self.results.currentRow()
+            self.results.setCurrentRow(max(row - 1, 0))
+            e.accept(); return
+        if e.key() in (_Qt.Key.Key_Return, _Qt.Key.Key_Enter):
+            item = self.results.currentItem()
+            if item:
+                self._run_selected(item)
+            e.accept(); return
+        if e.key() == _Qt.Key.Key_Escape:
+            self.reject(); return
+        super().keyPressEvent(e)
+
+
+class _CostTrackerPanel(QWidget):
+    """Panel agregado de uso/coste de IAs.
+
+    Lee de cada provider conocido (Claude Code, Codex, …) sus
+    sesiones persistidas y calcula coste con tarifas embebidas en
+    `cost_tracker.PRICING`. La UI muestra:
+
+      · Header con totales (all-time, mes en curso, últimos 30 días).
+      · Tabla por proveedor.
+      · Tabla por modelo (top N).
+      · Tabla por proyecto (top N).
+      · Mini bar chart de los últimos 30 días.
+      · Estado de cada scanner (instalado / no soportado).
+    """
+
+    def __init__(self):
+        super().__init__()
+        self._build_ui()
+        self.refresh()
+
+    def _build_ui(self):
+        self.header_lbl = QLabel("Cargando…")
+        self.header_lbl.setTextFormat(Qt.TextFormat.RichText)
+        self.header_lbl.setStyleSheet("padding:8px 0;")
+
+        self.provider_filter = QComboBox()
+        self.provider_filter.addItem("Todos los proveedores", userData=None)
+        for p in ("claude", "codex", "gemini", "opencode"):
+            self.provider_filter.addItem(p, userData=p)
+        self.provider_filter.currentIndexChanged.connect(lambda _i: self.refresh())
+
+        self.btn_refresh = QPushButton("↻ Re-escanear")
+        self.btn_refresh.clicked.connect(self.refresh)
+
+        top_row = QHBoxLayout()
+        top_row.addWidget(QLabel("Filtrar por:"))
+        top_row.addWidget(self.provider_filter)
+        top_row.addStretch()
+        top_row.addWidget(self.btn_refresh)
+
+        # Tres tablas: by_provider, by_model, by_project
+        self.table_providers = self._make_table(
+            ["Proveedor", "Coste", "Eventos", "Tokens in", "Tokens out", "Notas"],
+            [160, 100, 80, 110, 110, -1])
+        self.table_models = self._make_table(
+            ["Modelo", "Coste", "Eventos", "Tokens in", "Tokens out", "Tarifa"],
+            [220, 100, 80, 110, 110, 100])
+        self.table_projects = self._make_table(
+            ["Proyecto", "Coste", "Eventos", "Proveedor"],
+            [430, 100, 80, 100])
+
+        # 3 charts QtCharts (mejor look + animations + hover):
+        #   1. Donut: coste por proveedor (top-level breakdown).
+        #   2. H-bar: top 10 proyectos.
+        #   3. V-bar stacked: últimos 30 días, segmentado por proveedor.
+        from PyQt6.QtCharts import QChartView
+        from PyQt6.QtGui import QPainter as _QPainter
+        self.chart_donut = QChartView()
+        self.chart_donut.setRenderHint(_QPainter.RenderHint.Antialiasing)
+        self.chart_donut.setMinimumHeight(280)
+
+        self.chart_projects = QChartView()
+        self.chart_projects.setRenderHint(_QPainter.RenderHint.Antialiasing)
+        self.chart_projects.setMinimumHeight(280)
+
+        self.chart_daily = QChartView()
+        self.chart_daily.setRenderHint(_QPainter.RenderHint.Antialiasing)
+        self.chart_daily.setMinimumHeight(220)
+
+        # Notas / estado de scanners
+        self.scanners_lbl = QLabel("")
+        self.scanners_lbl.setTextFormat(Qt.TextFormat.RichText)
+        self.scanners_lbl.setStyleSheet("color:#9ca3af; padding:6px 0; font-size:12px;")
+        self.scanners_lbl.setWordWrap(True)
+
+        # Layout:
+        #   Fila 1: header (totales)
+        #   Fila 2: filtro + refresh
+        #   Fila 3: [donut por proveedor] | [h-bar top proyectos]
+        #   Fila 4: bar stacked 30 días (full width)
+        #   Fila 5: tabla por modelo (más detalle del top 10)
+        #   Fila 6: estado scanners
+        root = QVBoxLayout()
+        root.addLayout(top_row)
+        root.addWidget(self.header_lbl)
+
+        charts_row = QHBoxLayout()
+        charts_row.addWidget(self.chart_donut, 1)
+        charts_row.addWidget(self.chart_projects, 1)
+        root.addLayout(charts_row)
+
+        root.addWidget(self.chart_daily)
+
+        root.addWidget(QLabel("<b>Por modelo</b>  (top 10)"))
+        root.addWidget(self.table_models)
+
+        # Mantenemos las dos tablas en una fila plegable abajo
+        bottom_tables = QHBoxLayout()
+        provs_box = QVBoxLayout()
+        provs_box.addWidget(QLabel("<b>Por proveedor</b>"))
+        provs_box.addWidget(self.table_providers)
+        proj_box = QVBoxLayout()
+        proj_box.addWidget(QLabel("<b>Por proyecto</b>  (detalle)"))
+        proj_box.addWidget(self.table_projects)
+        bottom_tables.addLayout(provs_box, 1)
+        bottom_tables.addLayout(proj_box, 1)
+        root.addLayout(bottom_tables)
+
+        root.addWidget(self.scanners_lbl)
+        self.setLayout(root)
+
+    def _make_table(self, headers: list[str], widths: list[int]) -> QTableWidget:
+        from PyQt6.QtWidgets import QTableWidget, QHeaderView
+        t = QTableWidget(0, len(headers))
+        t.setHorizontalHeaderLabels(headers)
+        t.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
+        t.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
+        t.setAlternatingRowColors(True)
+        t.verticalHeader().setVisible(False)
+        for i, w in enumerate(widths):
+            if w > 0:
+                t.setColumnWidth(i, w)
+            else:
+                t.horizontalHeader().setSectionResizeMode(i, QHeaderView.ResizeMode.Stretch)
+        t.setStyleSheet(
+            "QTableWidget { background:#1a1d24; color:#e6e9ef; "
+            "alternate-background-color:#1f222b; border:1px solid #2d3340; }"
+            "QHeaderView::section { background:#2d3340; color:#e6e9ef; "
+            "padding:6px; border:none; font-weight:bold; }"
+        )
+        return t
+
+    def refresh(self):
+        from PyQt6.QtWidgets import QTableWidgetItem
+        from PyQt6.QtGui import QColor
+        try:
+            import cost_tracker as ct
+        except Exception as e:
+            self.header_lbl.setText(f"<span style='color:#ed1c57;'>Error: {e}</span>")
+            return
+
+        provider_filter = self.provider_filter.currentData()
+        providers = [provider_filter] if provider_filter else None
+        report = ct.aggregate(providers=providers)
+
+        # Header
+        self.header_lbl.setText(
+            f"<div style='font-size:14px;'>"
+            f"💰 <b>Total all-time:</b> <span style='color:#62b4ff;'>${report.total_cost_usd:,.2f}</span>  "
+            f"·  <b>Este mes:</b> <span style='color:#86efac;'>${report.this_month_usd:,.2f}</span>  "
+            f"·  <b>Últimos 30 días:</b> <span style='color:#86efac;'>${report.last_30_days_usd:,.2f}</span>"
+            f"<br><span style='color:#9ca3af; font-size:12px;'>"
+            f"Tokens totales: {report.total_input:,} input · {report.total_output:,} output"
+            f"</span></div>"
+        )
+
+        # Tabla proveedores
+        self.table_providers.setRowCount(0)
+        for prov, data in sorted(report.by_provider.items(), key=lambda x: -x[1]["cost"]):
+            r = self.table_providers.rowCount()
+            self.table_providers.insertRow(r)
+            self.table_providers.setItem(r, 0, QTableWidgetItem(prov))
+            self.table_providers.setItem(r, 1, QTableWidgetItem(f"${data['cost']:,.2f}"))
+            self.table_providers.setItem(r, 2, QTableWidgetItem(f"{data['events']:,}"))
+            self.table_providers.setItem(r, 3, QTableWidgetItem(f"{data['in']:,}"))
+            self.table_providers.setItem(r, 4, QTableWidgetItem(f"{data['out']:,}"))
+            note = (report.providers.get(prov).notes if report.providers.get(prov) else "") or ""
+            self.table_providers.setItem(r, 5, QTableWidgetItem(note[:120]))
+
+        # Tabla modelos
+        self.table_models.setRowCount(0)
+        top_models = sorted(report.by_model.items(), key=lambda x: -x[1]["cost"])[:10]
+        for model, data in top_models:
+            r = self.table_models.rowCount()
+            self.table_models.insertRow(r)
+            self.table_models.setItem(r, 0, QTableWidgetItem(model))
+            self.table_models.setItem(r, 1, QTableWidgetItem(f"${data['cost']:,.2f}"))
+            self.table_models.setItem(r, 2, QTableWidgetItem(f"{data['events']:,}"))
+            self.table_models.setItem(r, 3, QTableWidgetItem(f"{data['in']:,}"))
+            self.table_models.setItem(r, 4, QTableWidgetItem(f"{data['out']:,}"))
+            tarifa = "✓ conocida" if data.get("pricing_known", True) else "⚠ default"
+            it = QTableWidgetItem(tarifa)
+            if not data.get("pricing_known", True):
+                it.setForeground(QColor("#fbbf24"))
+            self.table_models.setItem(r, 5, it)
+
+        # Tabla proyectos
+        self.table_projects.setRowCount(0)
+        top_proj = sorted(report.by_project.items(), key=lambda x: -x[1]["cost"])[:10]
+        for proj, data in top_proj:
+            r = self.table_projects.rowCount()
+            self.table_projects.insertRow(r)
+            # Decodificar el path encoded de Claude para display
+            label = proj.replace("-home-uther-", "~/").replace("-", "/")
+            self.table_projects.setItem(r, 0, QTableWidgetItem(label[:60]))
+            self.table_projects.setItem(r, 1, QTableWidgetItem(f"${data['cost']:,.2f}"))
+            self.table_projects.setItem(r, 2, QTableWidgetItem(f"{data['events']:,}"))
+            self.table_projects.setItem(r, 3, QTableWidgetItem(data.get("provider", "?")))
+
+        # Charts QtCharts
+        self._render_donut(report)
+        self._render_projects_hbar(report)
+        self._render_daily_stacked(report)
+
+        # Estado scanners
+        notes = []
+        for prov, pr in report.providers.items():
+            icon = "✓" if pr.available else "✗"
+            color = "#86efac" if pr.available else "#9ca3af"
+            sup = "" if pr.supported else " (no soportado)"
+            notes.append(
+                f"<span style='color:{color};'>{icon} {prov}</span>{sup}: "
+                f"{pr.notes[:120]}"
+            )
+        self.scanners_lbl.setText("<br>".join(notes))
+
+    # ── Renderers de charts (QtCharts) ───────────────────────────────
+
+    # Paleta consistente entre charts. Proveedores siempre el mismo color.
+    _PROVIDER_COLORS = {
+        "claude":   "#62b4ff",
+        "codex":    "#86efac",
+        "gemini":   "#fbbf24",
+        "opencode": "#c084fc",
+    }
+    _PROJECT_COLORS = (
+        "#62b4ff", "#86efac", "#fbbf24", "#c084fc", "#f472b6",
+        "#fb923c", "#34d399", "#60a5fa", "#a78bfa", "#fb7185",
+    )
+
+    def _empty_chart(self, view, title: str):
+        """Si no hay datos, mostrar un chart vacío con título informativo."""
+        from PyQt6.QtCharts import QChart
+        ch = QChart()
+        ch.setTitle(f"{title}\n(sin datos)")
+        ch.setTheme(QChart.ChartTheme.ChartThemeDark)
+        ch.setBackgroundVisible(False)
+        view.setChart(ch)
+
+    def _render_donut(self, report):
+        from PyQt6.QtCharts import QChart, QPieSeries
+        from PyQt6.QtGui import QColor
+        from PyQt6.QtCore import Qt as _Qt
+
+        items = [(p, d["cost"]) for p, d in report.by_provider.items() if d["cost"] > 0]
+        if not items:
+            self._empty_chart(self.chart_donut, "Coste por proveedor")
+            return
+
+        total = sum(v for _, v in items)
+        series = QPieSeries()
+        series.setHoleSize(0.45)
+        for prov, cost in items:
+            pct = (cost / total * 100) if total else 0
+            sl = series.append(f"{prov}  ${cost:,.2f}  ({pct:.1f}%)", cost)
+            sl.setLabelVisible(True)
+            sl.setLabelPosition(sl.LabelPosition.LabelOutside)
+            color = self._PROVIDER_COLORS.get(prov, "#888888")
+            sl.setBrush(QColor(color))
+
+        chart = QChart()
+        chart.addSeries(series)
+        chart.setTitle(f"Coste por proveedor — Total ${total:,.2f}")
+        chart.setTheme(QChart.ChartTheme.ChartThemeDark)
+        chart.setBackgroundVisible(False)
+        chart.legend().setAlignment(_Qt.AlignmentFlag.AlignRight)
+        chart.setAnimationOptions(QChart.AnimationOption.SeriesAnimations)
+        self.chart_donut.setChart(chart)
+
+    def _render_projects_hbar(self, report):
+        from PyQt6.QtCharts import (
+            QChart, QHorizontalBarSeries, QBarSet,
+            QValueAxis, QBarCategoryAxis,
+        )
+        from PyQt6.QtGui import QColor
+        from PyQt6.QtCore import Qt as _Qt
+
+        top = sorted(report.by_project.items(), key=lambda x: -x[1]["cost"])[:10]
+        if not top:
+            self._empty_chart(self.chart_projects, "Top proyectos")
+            return
+
+        # Más arriba = más coste → invertimos para QtCharts (que muestra
+        # el primer item abajo por defecto).
+        top.reverse()
+        labels = []
+        values = []
+        for proj, data in top:
+            short = proj.replace("-home-uther-", "~/").replace("-", "/")
+            labels.append(short[:42])
+            values.append(data["cost"])
+
+        bar_set = QBarSet("Coste")
+        bar_set.append(values)
+        bar_set.setColor(QColor(self._PROJECT_COLORS[0]))
+
+        series = QHorizontalBarSeries()
+        series.append(bar_set)
+        series.setLabelsVisible(True)
+        series.setLabelsFormat("$@value")
+        series.setLabelsPosition(series.LabelsPosition.LabelsOutsideEnd)
+
+        chart = QChart()
+        chart.addSeries(series)
+        chart.setTitle("Top 10 proyectos por coste")
+        chart.setTheme(QChart.ChartTheme.ChartThemeDark)
+        chart.setBackgroundVisible(False)
+        chart.setAnimationOptions(QChart.AnimationOption.SeriesAnimations)
+        chart.legend().setVisible(False)
+
+        ax_y = QBarCategoryAxis()
+        ax_y.append(labels)
+        chart.addAxis(ax_y, _Qt.AlignmentFlag.AlignLeft)
+        series.attachAxis(ax_y)
+
+        ax_x = QValueAxis()
+        ax_x.setLabelFormat("$%d")
+        chart.addAxis(ax_x, _Qt.AlignmentFlag.AlignBottom)
+        series.attachAxis(ax_x)
+
+        self.chart_projects.setChart(chart)
+
+    def _render_daily_stacked(self, report):
+        from PyQt6.QtCharts import (
+            QChart, QStackedBarSeries, QBarSet,
+            QValueAxis, QBarCategoryAxis,
+        )
+        from PyQt6.QtGui import QColor
+        from PyQt6.QtCore import Qt as _Qt
+        from datetime import datetime, timezone, timedelta
+
+        today = datetime.now(timezone.utc).date()
+        days = [(today - timedelta(days=i)) for i in range(29, -1, -1)]
+        day_keys = [d.isoformat() for d in days]
+        day_labels = [d.strftime("%d/%m") for d in days]
+
+        # Set de proveedores con coste >0 en los últimos 30 días
+        providers_in_range = set()
+        for day in day_keys:
+            for prov in (report.by_day_by_provider.get(day) or {}).keys():
+                providers_in_range.add(prov)
+        if not providers_in_range:
+            self._empty_chart(self.chart_daily, "Últimos 30 días")
+            return
+
+        # Un QBarSet por proveedor con los 30 valores
+        series = QStackedBarSeries()
+        for prov in sorted(providers_in_range):
+            bset = QBarSet(prov)
+            for day in day_keys:
+                bset.append(
+                    (report.by_day_by_provider.get(day) or {}).get(prov, 0.0)
+                )
+            color = self._PROVIDER_COLORS.get(prov, "#888888")
+            bset.setColor(QColor(color))
+            series.append(bset)
+
+        chart = QChart()
+        chart.addSeries(series)
+        chart.setTitle("Coste por día (últimos 30) — stacked por proveedor")
+        chart.setTheme(QChart.ChartTheme.ChartThemeDark)
+        chart.setBackgroundVisible(False)
+        chart.setAnimationOptions(QChart.AnimationOption.SeriesAnimations)
+        chart.legend().setAlignment(_Qt.AlignmentFlag.AlignBottom)
+
+        ax_x = QBarCategoryAxis()
+        ax_x.append(day_labels)
+        chart.addAxis(ax_x, _Qt.AlignmentFlag.AlignBottom)
+        series.attachAxis(ax_x)
+
+        ax_y = QValueAxis()
+        ax_y.setLabelFormat("$%d")
+        chart.addAxis(ax_y, _Qt.AlignmentFlag.AlignLeft)
+        series.attachAxis(ax_y)
+
+        self.chart_daily.setChart(chart)
+
+
+class _DailyCostChart(QWidget):
+    """Mini bar chart por día, dibujado con QPainter. Sin dependencia de
+    QtCharts para no añadir un módulo opcional."""
+
+    def __init__(self):
+        super().__init__()
+        self._labels: list[str] = []
+        self._values: list[float] = []
+
+    def set_data(self, labels: list[str], values: list[float]):
+        self._labels = labels
+        self._values = values
+        self.update()
+
+    def paintEvent(self, _e):
+        from PyQt6.QtGui import QPainter, QColor, QPen, QFont
+        from PyQt6.QtCore import QRect
+        if not self._values:
+            return
+        p = QPainter(self)
+        try:
+            p.setRenderHint(QPainter.RenderHint.Antialiasing, True)
+            w = self.width()
+            h = self.height()
+            n = len(self._values)
+            margin_l, margin_r = 40, 12
+            margin_t, margin_b = 8, 22
+            chart_w = w - margin_l - margin_r
+            chart_h = h - margin_t - margin_b
+            if chart_w <= 0 or chart_h <= 0:
+                return
+            max_v = max(self._values) or 1.0
+            bar_w = chart_w / n
+            # Ejes Y: 0 y max
+            p.setPen(QPen(QColor("#3a3f4d")))
+            p.drawLine(margin_l, margin_t, margin_l, margin_t + chart_h)
+            p.drawLine(margin_l, margin_t + chart_h, w - margin_r, margin_t + chart_h)
+            # Labels Y
+            font = QFont(); font.setPointSize(8)
+            p.setFont(font)
+            p.setPen(QPen(QColor("#9ca3af")))
+            p.drawText(QRect(0, margin_t - 6, margin_l - 4, 14),
+                       Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter,
+                       f"${max_v:.0f}")
+            p.drawText(QRect(0, margin_t + chart_h - 6, margin_l - 4, 14),
+                       Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter,
+                       "$0")
+            # Barras
+            for i, v in enumerate(self._values):
+                bh = (v / max_v) * chart_h if max_v else 0
+                x = margin_l + i * bar_w
+                y = margin_t + chart_h - bh
+                color = QColor("#62b4ff") if v > 0 else QColor("#2d3340")
+                p.fillRect(int(x + 1), int(y), int(bar_w - 2), int(bh), color)
+            # Labels X: cada 5 días para no saturar
+            p.setPen(QPen(QColor("#9ca3af")))
+            for i, lbl in enumerate(self._labels):
+                if i % 5 == 0 or i == n - 1:
+                    x = margin_l + i * bar_w
+                    p.drawText(QRect(int(x - 20), margin_t + chart_h + 4, 40, 16),
+                               Qt.AlignmentFlag.AlignCenter, lbl)
+        finally:
+            p.end()
+
+
+class _AgentPane(QWidget):
+    """A single agent's output pane in the multi-agent compare tab."""
+
+    def __init__(self, agent_key: str, agent_name: str, color: str,
+                 on_done=None, parent=None):
+        super().__init__(parent)
+        self.agent_key = agent_key
+        self.color = color
+        self.on_done = on_done
+        self.proc: QProcess | None = None
+        self.start_time = 0.0
+        self.ttft: float | None = None
+
+        title = QLabel(f"<b style='color:{color}; font-size:14px;'>{agent_name}</b>")
+        title.setTextFormat(Qt.TextFormat.RichText)
+        self.stats = QLabel("⏳ idle")
+        self.stats.setStyleSheet("color: #888;")
+
+        h_header = QHBoxLayout()
+        h_header.addWidget(title)
+        h_header.addStretch()
+        h_header.addWidget(self.stats)
+
+        self.output = QPlainTextEdit()
+        self.output.setReadOnly(True)
+        self.output.setFont(QFont("monospace", 10))
+
+        btn_copy = QPushButton("📋 Copiar")
+        btn_copy.clicked.connect(self._copy)
+        h_footer = QHBoxLayout()
+        h_footer.addWidget(btn_copy)
+        h_footer.addStretch()
+
+        lay = QVBoxLayout(self)
+        lay.setContentsMargins(6, 6, 6, 6)
+        lay.addLayout(h_header)
+        lay.addWidget(self.output, 1)
+        lay.addLayout(h_footer)
+
+    def run(self, argv: list[str], cwd: str | None = None) -> None:
+        self.output.clear()
+        self.ttft = None
+        self.start_time = time.time()
+        self.stats.setText("▶ corriendo…")
+        self.stats.setStyleSheet(f"color: {self.color};")
+
+        self.proc = QProcess(self)
+        if cwd:
+            self.proc.setWorkingDirectory(cwd)
+        self.proc.setProcessChannelMode(QProcess.ProcessChannelMode.MergedChannels)
+        self.proc.readyReadStandardOutput.connect(self._read)
+        self.proc.finished.connect(self._finished)
+
+        cmd = " ".join(shlex.quote(a) for a in argv)
+        _sh, _args = pc.shell_program_and_args(cmd)
+        self.proc.start(_sh, _args)
+
+    def _read(self) -> None:
+        if not self.proc:
+            return
+        data = self.proc.readAllStandardOutput().data().decode(errors="replace")
+        if not data:
+            return
+        if self.ttft is None:
+            self.ttft = time.time() - self.start_time
+            self.stats.setText(f"⏱ TTFT {self.ttft:.1f}s · corriendo…")
+        self.output.insertPlainText(data)
+        sb = self.output.verticalScrollBar()
+        sb.setValue(sb.maximum())
+
+    def _finished(self, exit_code: int, _status) -> None:
+        total = time.time() - self.start_time
+        ttft_str = f"{self.ttft:.1f}s" if self.ttft is not None else "—"
+        if exit_code == 0:
+            self.stats.setText(f"✅ TTFT {ttft_str} · total {total:.1f}s")
+            self.stats.setStyleSheet("color: #86efac;")
+        else:
+            self.stats.setText(f"❌ exit {exit_code} · {total:.1f}s")
+            self.stats.setStyleSheet("color: #f87171;")
+        if self.on_done:
+            self.on_done()
+
+    def stop(self) -> None:
+        if self.proc and self.proc.state() != QProcess.ProcessState.NotRunning:
+            self.proc.kill()
+            self.stats.setText("■ cancelado")
+            self.stats.setStyleSheet("color: #f59e0b;")
+
+    def _copy(self) -> None:
+        from PyQt6.QtGui import QGuiApplication
+        QGuiApplication.clipboard().setText(self.output.toPlainText())
+
+
+class _MultiAgentPanel(QWidget):
+    """Tab "Comparar agentes": run the same prompt across multiple AI
+    CLIs in parallel and display the outputs side-by-side."""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        import multi_agent as ma
+
+        title = QLabel(
+            "<h3>🤝 Comparar agentes</h3>"
+            "<small>Ejecuta el mismo prompt en varios CLIs de IA "
+            "(Claude / Codex / Gemini / OpenCode) en paralelo y compara "
+            "los resultados lado a lado. Cada agente se invoca en modo "
+            "one-shot non-interactive.</small>"
+        )
+        title.setTextFormat(Qt.TextFormat.RichText)
+        title.setWordWrap(True)
+
+        self.prompt = QPlainTextEdit()
+        self.prompt.setPlaceholderText(
+            "Escribe el prompt aquí…\n\n"
+            "Ej: 'Explica en un párrafo cómo configurar un sitemap.xml en Next.js.'"
+        )
+        self.prompt.setMaximumHeight(160)
+
+        self.agent_checks: dict[str, QCheckBox] = {}
+        agents_row = QHBoxLayout()
+        agents_row.addWidget(QLabel("<b>Agentes:</b>"))
+        for key, spec in ma.AGENTS.items():
+            avail = ma.check_agent_available(key)
+            cb = QCheckBox(spec.name)
+            cb.setChecked(avail)
+            cb.setEnabled(avail)
+            if not avail:
+                cb.setText(f"{spec.name} (no instalado)")
+                cb.setStyleSheet("color: #888;")
+            else:
+                cb.setStyleSheet(f"color: {spec.color}; font-weight: 600;")
+            self.agent_checks[key] = cb
+            agents_row.addWidget(cb)
+        agents_row.addStretch()
+
+        self.btn_run = QPushButton("▶ Ejecutar")
+        self.btn_run.clicked.connect(self._run_all)
+        self.btn_stop = QPushButton("■ Cancelar")
+        self.btn_stop.clicked.connect(self._stop_all)
+        self.btn_stop.setEnabled(False)
+        self.btn_clear = QPushButton("🧹 Limpiar")
+        self.btn_clear.clicked.connect(self._clear)
+
+        actions_row = QHBoxLayout()
+        actions_row.addWidget(self.btn_run)
+        actions_row.addWidget(self.btn_stop)
+        actions_row.addStretch()
+        actions_row.addWidget(self.btn_clear)
+
+        self.splitter = QSplitter(Qt.Orientation.Horizontal)
+        self.splitter.setChildrenCollapsible(False)
+        self.panes: list[_AgentPane] = []
+        self._running_count = 0
+
+        empty = QLabel(
+            "Los paneles de respuesta aparecerán aquí al pulsar <b>▶ Ejecutar</b>.<br>"
+            "<small>Tip: para comparaciones rápidas, escribe un prompt simple y "
+            "deja los dos agentes seleccionados. Cuanto más largo el prompt, "
+            "más vas a esperar.</small>"
+        )
+        empty.setTextFormat(Qt.TextFormat.RichText)
+        empty.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        empty.setStyleSheet("color: #888;")
+        self.splitter.addWidget(empty)
+        self._empty_widget = empty
+
+        lay = QVBoxLayout(self)
+        lay.addWidget(title)
+        lay.addWidget(QLabel("<b>Prompt:</b>"))
+        lay.addWidget(self.prompt)
+        lay.addLayout(agents_row)
+        lay.addLayout(actions_row)
+        lay.addWidget(self.splitter, 1)
+
+    def _run_all(self) -> None:
+        import multi_agent as ma
+        prompt = self.prompt.toPlainText().strip()
+        if not prompt:
+            QMessageBox.warning(self, "Multi-agent", "Escribe un prompt primero.")
+            return
+        selected = [k for k, cb in self.agent_checks.items()
+                    if cb.isChecked() and cb.isEnabled()]
+        if not selected:
+            QMessageBox.warning(self, "Multi-agent",
+                                "Selecciona al menos un agente disponible.")
+            return
+
+        self._clear()
+
+        for key in selected:
+            spec = ma.AGENTS[key]
+            pane = _AgentPane(key, spec.name, spec.color,
+                              on_done=self._on_pane_finished)
+            self.splitter.addWidget(pane)
+            self.panes.append(pane)
+
+        self.btn_run.setEnabled(False)
+        self.btn_stop.setEnabled(True)
+        self._running_count = len(selected)
+
+        for pane, key in zip(self.panes, selected):
+            argv = ma.build_argv(key, prompt)
+            pane.run(argv)
+
+    def _on_pane_finished(self) -> None:
+        self._running_count -= 1
+        if self._running_count <= 0:
+            self.btn_run.setEnabled(True)
+            self.btn_stop.setEnabled(False)
+
+    def _stop_all(self) -> None:
+        for p in self.panes:
+            p.stop()
+        self.btn_stop.setEnabled(False)
+        self.btn_run.setEnabled(True)
+
+    def _clear(self) -> None:
+        for p in self.panes:
+            p.stop()
+            p.deleteLater()
+        self.panes.clear()
+        # Restore the empty hint widget if needed
+        if self.splitter.count() == 0:
+            self.splitter.addWidget(self._empty_widget)
+
+
+class ThemeForgeApp(QWidget):
+    """Ventana raíz con pestañas: Nuevo proyecto + Galería."""
+
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("ThemeForge")
+        self.setMinimumWidth(820)
+        self.setMinimumHeight(640)
+
+        from settings_panel import SettingsPanel
+        from licensing_panel import LicensingPanel
+        self.builder = ThemeForge()
+        self.gallery = GalleryPanel()
+        self.licensing = LicensingPanel()
+        self.settings = SettingsPanel()
+        self.cost = _CostTrackerPanel()
+        self.multi_agent = _MultiAgentPanel()
+
+        self.tabs = QTabWidget()
+        self.tabs.addTab(self.builder, "Nuevo proyecto")
+        self.tabs.addTab(self.gallery, "Galería")
+        self.tabs.addTab(self.cost, "💰 Coste IA")
+        self.tabs.addTab(self.multi_agent, "🤝 Comparar")
+        self.tabs.addTab(self.licensing, "licencias")
+        self.tabs.addTab(self.settings, "⚙ Settings")
+
+        def _on_tab_change(i):
+            w = self.tabs.widget(i)
+            if w is self.gallery: self.gallery.refresh()
+            elif w is self.settings: self.settings.refresh_status()
+            elif w is self.cost: self.cost.refresh()
+        self.tabs.currentChanged.connect(_on_tab_change)
+
+        root = QVBoxLayout()
+        root.addWidget(self.tabs)
+        self.setLayout(root)
+
+        # Atajo global Ctrl+K → command palette
+        from PyQt6.QtGui import QShortcut, QKeySequence
+        self._palette_shortcut = QShortcut(QKeySequence("Ctrl+K"), self)
+        self._palette_shortcut.activated.connect(self._open_command_palette)
+
+    def _build_palette_actions(self) -> list[tuple[str, str, object]]:
+        """Genera la lista de acciones disponibles en la paleta. Se
+        regenera en cada apertura para reflejar el estado actual
+        (proyectos nuevos, etc.)."""
+        actions: list[tuple[str, str, object]] = []
+
+        # Navegación a pestañas
+        for i in range(self.tabs.count()):
+            tab_label = self.tabs.tabText(i)
+            actions.append((
+                f"Ir a: {tab_label}",
+                "Navegación",
+                lambda i=i: self.tabs.setCurrentIndex(i),
+            ))
+
+        # Abrir proyectos (activos y archivados)
+        try:
+            for it in list_projects(archived=False):
+                actions.append((
+                    f"Abrir proyecto: {it['name']}",
+                    f"Galería · {it['stack']}",
+                    lambda p=it["path"]: open_project_window(p),
+                ))
+            for it in list_projects(archived=True):
+                actions.append((
+                    f"Abrir archivado: {it['name']}",
+                    f"Archivados · {it['stack']}",
+                    lambda p=it["path"]: open_project_window(p),
+                ))
+        except Exception:
+            pass
+
+        # Acciones rápidas
+        actions += [
+            (
+                "Nuevo proyecto…",
+                "Acciones",
+                lambda: (self.tabs.setCurrentIndex(0),
+                         self.builder.name_edit.setFocus()),
+            ),
+            (
+                "Refrescar galería",
+                "Acciones",
+                lambda: (self.tabs.setCurrentIndex(1), self.gallery.refresh()),
+            ),
+            (
+                "Vista cards (galería)",
+                "Vista",
+                lambda: (self.tabs.setCurrentIndex(1),
+                         self.gallery.view_toggle.setChecked(True)),
+            ),
+            (
+                "Vista lista (galería)",
+                "Vista",
+                lambda: (self.tabs.setCurrentIndex(1),
+                         self.gallery.view_toggle.setChecked(False)),
+            ),
+            (
+                "Ajustes",
+                "Navegación",
+                lambda: self.tabs.setCurrentIndex(self.tabs.count() - 1),
+            ),
+        ]
+        return actions
+
+    def _open_command_palette(self):
+        dlg = _CommandPalette(self, self._build_palette_actions())
+        dlg.exec()
+
+
+def main():
+    PROJECTS_DIR.mkdir(parents=True, exist_ok=True)
+
+    # Carga API keys de ~/.config/themeforge/keys.json en os.environ para que
+    # las hereden el terminal server y todos los PTYs que arranquen los CLIs.
+    try:
+        aip.apply_all_known_keys()
+    except Exception as e:
+        print(f"[ai_providers] error cargando keys: {e}")
+
+    # Carga plugins del usuario (~/.config/themeforge/plugins/*.py).
+    # Cada plugin puede registrar stacks, template types o agents extra
+    # vía las helpers de `themeforge_plugins`. Se ejecuta ANTES de
+    # construir la UI para que el form lea STACKS ya con los plugins
+    # aplicados.
+    try:
+        from themeforge_plugins import load_user_plugins, PLUGINS_DIR
+        loaded, plugin_errors = load_user_plugins()
+        if loaded:
+            print(f"[plugins] cargados {loaded} plugins de {PLUGINS_DIR}")
+        for err in plugin_errors:
+            print(f"[plugins] ERROR: {err}", file=sys.stderr)
+    except Exception as e:
+        print(f"[plugins] error cargando plugins: {e}", file=sys.stderr)
+
+    # Compartir contexto OpenGL entre Qt y WebEngine (requerido por Qt docs).
+    # NO añadimos QTWEBENGINE_CHROMIUM_FLAGS — los flags de aceleración
+    # GPU crashean QWebEnginePage en ciertos drivers mesa/AMD en Wayland.
+    # Para sesiones largas o demos pesadas usa el botón "🚀 Abrir en
+    # navegador" que lanza Brave/Chromium externo nativo.
+    from PyQt6.QtCore import Qt
+    QApplication.setAttribute(Qt.ApplicationAttribute.AA_ShareOpenGLContexts, True)
+
+    app = QApplication(sys.argv)
+
+    # Set app-wide window icon. Qt propaga este icono a todas las
+    # QWidget de la app (titlebar, taskbar, alt-tab) salvo que se
+    # sobrescriba en la ventana concreta. Cargamos múltiples tamaños
+    # para que Qt elija el mejor según DPI y contexto (titlebar 16px,
+    # taskbar 32-48px, alt-tab 64-128px, dock 256px).
+    from PyQt6.QtCore import QSize
+    from PyQt6.QtGui import QIcon
+    _assets_dir = Path(__file__).parent / "assets"
+    if (_assets_dir / "themeforge.png").is_file():
+        _icon = QIcon()
+        for sz in (16, 32, 48, 64, 128, 256):
+            p = _assets_dir / f"themeforge-{sz}.png"
+            if p.is_file():
+                _icon.addFile(str(p), QSize(sz, sz))
+        _icon.addFile(str(_assets_dir / "themeforge.png"))
+        app.setWindowIcon(_icon)
+
+    # Auto-launch del visualizer pixel-art (pixel-office-openclaw fork MIT
+    # con reader de Claude Code añadido). Lee directo de
+    # ~/.claude/projects/*/*.jsonl así que NO necesita registrar hooks.
+    pixel_proc = None
+    try:
+        import pixel_office
+        if not pixel_office.find_install_dir():
+            r = QMessageBox.question(
+                None, "🎮 Pixel Office",
+                "Pixel Office no está instalado. Es un visualizador pixel-art "
+                "que muestra tus sesiones de Claude Code (y OpenClaw) como "
+                "avatares en una oficina virtual.\n\n"
+                "¿Instalar ahora? (clona el repo en "
+                "~/.local/share/themeforge/pixel-office-openclaw/, ejecuta "
+                "npm install + build. Tarda ~1-2 min.)",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            )
+            if r == QMessageBox.StandardButton.Yes:
+                print("[pixel-office] instalando…", flush=True)
+                ok, msg = pixel_office.install()
+                print(f"[pixel-office] {'OK' if ok else 'FAIL'}: {msg}", flush=True)
+                if not ok:
+                    QMessageBox.warning(
+                        None, "Pixel Office",
+                        f"Instalación falló:\n{msg}\n\n"
+                        "Puedes reintentar desde Settings → 🎮 Office.",
+                    )
+        # Una vez instalado (o si ya lo estaba) → auto-launch
+        pixel_proc = pixel_office.launch_background()
+        if pixel_proc is not None:
+            print("[pixel-office] dashboard arrancado en background (PID", pixel_proc.pid, ")")
+        elif pixel_office.is_dashboard_up():
+            print("[pixel-office] dashboard ya estaba arriba — usando el existente")
+        else:
+            print("[pixel-office] no instalado — actívalo desde Settings → 🎮 Office")
+    except Exception as e:
+        print(f"[pixel-desk] error al auto-launch: {e}")
+
+    def cleanup():
+        try:
+            import pixel_office
+            pixel_office.stop(pixel_proc)
+        except Exception:
+            pass
+
+    app.aboutToQuit.connect(cleanup)
+
+    w = ThemeForgeApp()
+    w.show()
+    sys.exit(app.exec())
+
+
+if __name__ == "__main__":
+    main()

@@ -1,0 +1,1845 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ThemeForge — User Guide</title>
+<style>
+:root {
+  --bg: #0f1115;
+  --bg-elev: #161922;
+  --bg-code: #11141b;
+  --fg: #e6e9ef;
+  --fg-muted: #8b93a6;
+  --border: #232838;
+  --accent: #62b4ff;
+  --accent-soft: #2a3548;
+  --shadow: 0 1px 0 0 rgba(0,0,0,0.04);
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    --bg: #fdfdfd;
+    --bg-elev: #f6f7f9;
+    --bg-code: #f3f5f8;
+    --fg: #1f2330;
+    --fg-muted: #5b6478;
+    --border: #e1e4ec;
+    --accent: #1e6ad6;
+    --accent-soft: #e2eeff;
+  }
+}
+
+* { box-sizing: border-box; }
+
+html { scroll-behavior: smooth; scroll-padding-top: 16px; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI",
+    Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-size: 16px;
+  line-height: 1.65;
+  -webkit-font-smoothing: antialiased;
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: 280px minmax(0, 1fr);
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+aside.toc {
+  position: sticky;
+  top: 0;
+  align-self: start;
+  height: 100vh;
+  overflow-y: auto;
+  padding: 32px 20px 32px 24px;
+  border-right: 1px solid var(--border);
+  background: var(--bg-elev);
+}
+
+aside.toc .brand {
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  margin: 0 0 6px;
+  color: var(--fg);
+}
+aside.toc .brand-sub {
+  font-size: 12px;
+  color: var(--fg-muted);
+  margin: 0 0 20px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+aside.toc ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+aside.toc li { margin: 0; }
+aside.toc a {
+  display: block;
+  padding: 6px 10px;
+  border-radius: 6px;
+  color: var(--fg-muted);
+  text-decoration: none;
+  font-size: 14px;
+  line-height: 1.4;
+  border-left: 2px solid transparent;
+}
+aside.toc a:hover {
+  color: var(--fg);
+  background: var(--accent-soft);
+}
+aside.toc ul ul {
+  margin-left: 14px;
+  border-left: 1px solid var(--border);
+  padding-left: 4px;
+}
+aside.toc ul ul a {
+  font-size: 13px;
+  padding: 4px 10px;
+}
+
+main {
+  padding: 48px 56px 96px;
+  max-width: 900px;
+  min-width: 0;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  margin: 2em 0 0.6em;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+  scroll-margin-top: 16px;
+  position: relative;
+}
+h1 { font-size: 36px; margin-top: 0.2em; }
+h2 {
+  font-size: 26px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border);
+}
+h3 { font-size: 20px; }
+h4 { font-size: 17px; color: var(--fg-muted); text-transform: uppercase; letter-spacing: 0.06em; }
+
+h1 a.anchor, h2 a.anchor, h3 a.anchor, h4 a.anchor {
+  position: absolute;
+  left: -22px;
+  width: 22px;
+  text-align: center;
+  text-decoration: none;
+  color: var(--accent);
+  opacity: 0;
+  transition: opacity 0.12s ease;
+}
+h1:hover a.anchor, h2:hover a.anchor, h3:hover a.anchor, h4:hover a.anchor { opacity: 1; }
+
+p { margin: 0.85em 0; }
+a { color: var(--accent); text-decoration: none; border-bottom: 1px solid transparent; }
+a:hover { border-bottom-color: var(--accent); }
+
+ul, ol { padding-left: 1.4em; }
+li { margin: 0.2em 0; }
+
+hr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 3em 0;
+}
+
+blockquote {
+  margin: 1em 0;
+  padding: 12px 16px;
+  background: var(--accent-soft);
+  border-left: 3px solid var(--accent);
+  border-radius: 6px;
+  color: var(--fg);
+}
+blockquote p { margin: 0.3em 0; }
+
+code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, "Cascadia Code",
+    "Roboto Mono", Consolas, "Liberation Mono", monospace;
+  font-size: 0.9em;
+  background: var(--bg-code);
+  padding: 0.15em 0.4em;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+}
+
+pre {
+  margin: 1em 0;
+  padding: 16px 18px;
+  background: var(--bg-code);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow-x: auto;
+  font-size: 13px;
+  line-height: 1.55;
+}
+pre code {
+  background: transparent;
+  border: none;
+  padding: 0;
+  font-size: inherit;
+}
+
+table {
+  border-collapse: collapse;
+  margin: 1.4em 0;
+  font-size: 14.5px;
+  width: 100%;
+  display: block;
+  overflow-x: auto;
+}
+table thead { background: var(--bg-elev); }
+th, td {
+  padding: 10px 14px;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+th {
+  font-weight: 600;
+  font-size: 13.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--fg-muted);
+}
+tbody tr:hover { background: var(--bg-elev); }
+
+img { max-width: 100%; border-radius: 6px; }
+
+.footer-meta {
+  margin-top: 4em;
+  padding-top: 1.5em;
+  border-top: 1px solid var(--border);
+  font-size: 13px;
+  color: var(--fg-muted);
+}
+
+/* Mobile: hide sidebar, stack content */
+@media (max-width: 900px) {
+  .layout { grid-template-columns: 1fr; }
+  aside.toc {
+    position: static;
+    height: auto;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+  }
+  main { padding: 32px 20px 64px; }
+  h1 a.anchor, h2 a.anchor, h3 a.anchor, h4 a.anchor { display: none; }
+}
+</style>
+</head>
+<body>
+<div class="layout">
+  <aside class="toc">
+    <h2 class="brand">ThemeForge</h2>
+    <p class="brand-sub">User guide</p>
+    <div class="toc"><ul><ul>
+<li><a href="#table-of-contents">Table of contents</a></li>
+<li><a href="#1-what-is-themeforge">1. What is ThemeForge</a></li>
+<li><a href="#2-system-requirements">2. System requirements</a></li>
+<li><a href="#3-installation">3. Installation</a></li>
+<li><a href="#4-initial-setup">4. Initial setup</a></li>
+<li><a href="#5-quickstart-your-first-project">5. Quickstart — your first project</a></li>
+<li><a href="#6-project-creation-modes">6. Project creation modes</a><ul>
+<li><a href="#desde-cero-scratch">Desde cero (scratch)</a></li>
+<li><a href="#recrear-referencia-recreate-from-reference">Recrear referencia (recreate-from-reference)</a></li>
+<li><a href="#adoptar-template-local-adopt">Adoptar template local (adopt)</a></li>
+<li><a href="#trabajar-sobre-repo-existente-existing">Trabajar sobre repo existente (existing)</a></li>
+</ul>
+</li>
+<li><a href="#7-supported-stacks">7. Supported stacks</a></li>
+<li><a href="#8-ai-providers">8. AI providers</a><ul>
+<li><a href="#setting-api-keys">Setting API keys</a></li>
+<li><a href="#skills-auto-install-autoskills">Skills auto-install (autoskills)</a></li>
+</ul>
+</li>
+<li><a href="#9-reference-analysis-conversational">9. Reference analysis (conversational)</a></li>
+<li><a href="#10-projectwindow-features">10. ProjectWindow features</a><ul>
+<li><a href="#preview-tabs">Preview tabs</a></li>
+<li><a href="#viewport-presets">Viewport presets</a></li>
+<li><a href="#multi-stack-mono-repo">Multi-stack mono-repo</a></li>
+<li><a href="#terminal-tabs">Terminal tabs</a></li>
+<li><a href="#start-preview-stop">▶ Start preview / ■ Stop</a></li>
+<li><a href="#dev-server-logs">Dev server logs</a></li>
+<li><a href="#pre-flight-checker">🔬 Pre-flight checker</a></li>
+<li><a href="#marketplace-zip-builder">📦 Marketplace ZIP builder</a></li>
+<li><a href="#demo-deploy">🚀 Demo deploy</a></li>
+</ul>
+</li>
+<li><a href="#11-gallery-and-productivity-shortcuts">11. Gallery and productivity shortcuts</a><ul>
+<li><a href="#tags">Tags</a></li>
+<li><a href="#last-ai-session">Last AI session</a></li>
+<li><a href="#archive">Archive</a></li>
+<li><a href="#card-view-with-thumbnails">Card view with thumbnails</a></li>
+<li><a href="#command-palette-ctrlk">Command palette (Ctrl+K)</a></li>
+<li><a href="#other-gallery-actions">Other gallery actions</a></li>
+</ul>
+</li>
+<li><a href="#12-ai-cost-tracker">12. AI cost tracker</a><ul>
+<li><a href="#scanners">Scanners</a></li>
+<li><a href="#pricing">Pricing</a></li>
+<li><a href="#charts">Charts</a></li>
+<li><a href="#filter">Filter</a></li>
+<li><a href="#detail-tables">Detail tables</a></li>
+<li><a href="#privacy">Privacy</a></li>
+</ul>
+</li>
+<li><a href="#13-multi-agent-compare">13. Multi-agent compare</a><ul>
+<li><a href="#supported-agents">Supported agents</a></li>
+<li><a href="#flow">Flow</a></li>
+<li><a href="#metrics-shown-per-pane">Metrics shown per pane</a></li>
+<li><a href="#cost-considerations">Cost considerations</a></li>
+<li><a href="#limitations-mvp">Limitations (MVP)</a></li>
+<li><a href="#use-cases">Use cases</a></li>
+</ul>
+</li>
+<li><a href="#14-github-integration">14. GitHub integration</a></li>
+<li><a href="#15-pixel-office-visualizer">15. Pixel Office visualizer</a><ul>
+<li><a href="#first-run">First run</a></li>
+<li><a href="#how-the-claude-code-reader-works">How the Claude Code reader works</a></li>
+<li><a href="#disable">Disable</a></li>
+</ul>
+</li>
+<li><a href="#16-settings-panel">16. Settings panel</a></li>
+<li><a href="#17-optional-licensing-system">17. Optional licensing system</a><ul>
+<li><a href="#what-gets-dropped-per-stack-family">What gets dropped per stack family</a></li>
+<li><a href="#url-templating">URL templating</a></li>
+<li><a href="#bring-your-own-backend">Bring your own backend</a></li>
+</ul>
+</li>
+<li><a href="#18-configuration-files">18. Configuration files</a><ul>
+<li><a href="#context-override-pattern">Context override pattern</a></li>
+</ul>
+</li>
+<li><a href="#19-troubleshooting">19. Troubleshooting</a><ul>
+<li><a href="#themeforge-does-not-start-importerror-on-pyqt6">ThemeForge does not start (ImportError on PyQt6)</a></li>
+<li><a href="#embedded-terminal-does-not-load">Embedded terminal does not load</a></li>
+<li><a href="#embedded-preview-shows-blank-in-wayland">Embedded preview shows blank in Wayland</a></li>
+<li><a href="#pixel-office-no-esta-instalado-but-i-already-installed-it">"🎮 Pixel Office no está instalado" but I already installed it</a></li>
+<li><a href="#project-shows-the-connect-to-openclaw-gateway-screen">Project shows the "Connect to OpenClaw" gateway screen</a></li>
+<li><a href="#wp-env-start-exits-with-error-no-plugins-activated">wp-env start exits with Error: No plugins activated</a></li>
+<li><a href="#start-preview-succeeds-but-stop-is-greyed-out">start preview succeeds but Stop is greyed out</a></li>
+<li><a href="#github-says-no-estas-autenticado-en-gh">📦 GitHub says "No estás autenticado en gh"</a></li>
+<li><a href="#brave-chromium-does-not-detect-as-installed">Brave / Chromium does not detect as installed</a></li>
+<li><a href="#ntfs-usb-or-disk-wont-mount">NTFS USB or disk won't mount</a></li>
+<li><a href="#reference-analysis-dialog-says-need-login-for-gemini">Reference-analysis dialog says "Need login" for Gemini</a></li>
+</ul>
+</li>
+<li><a href="#20-credits-and-third-party-licenses">20. Credits and third-party licenses</a><ul>
+<li><a href="#direct-integrations">Direct integrations</a></li>
+<li><a href="#invoked-as-subprocess">Invoked-as-subprocess</a></li>
+<li><a href="#referenced-skill-packages-not-redistributed-invoked-by-name">Referenced skill packages (not redistributed — invoked by name)</a></li>
+<li><a href="#acknowledgements">Acknowledgements</a></li>
+</ul>
+</li>
+<li><a href="#appendix-a-directory-layout-of-a-generated-project">Appendix A — Directory layout of a generated project</a></li>
+<li><a href="#appendix-b-reporting-issues">Appendix B — Reporting issues</a></li>
+</ul>
+</ul></div>
+  </aside>
+  <main>
+    <h1 id="themeforge-user-guide">ThemeForge — User Guide<a class="anchor" href="#themeforge-user-guide" title="Link to this section">#</a></h1>
+<p>A GUI builder (PyQt6) for scaffolding modern template projects that you
+can sell on marketplaces like ThemeForest, CodeCanyon, Creative Market
+and Gumroad — driven end-to-end by AI coding agents (Claude Code,
+Codex, Gemini, OpenCode).</p>
+<p>This guide covers installation, first-time setup, the project creation
+workflow, advanced features (multi-stack mono-repo support, embedded
+preview, conversational reference analysis, GitHub integration, pixel-
+art session visualizer), configuration files, the optional licensing
+system, and troubleshooting.</p>
+<hr />
+<h2 id="table-of-contents">Table of contents<a class="anchor" href="#table-of-contents" title="Link to this section">#</a></h2>
+<ol>
+<li><a href="#1-what-is-themeforge">What is ThemeForge</a></li>
+<li><a href="#2-system-requirements">System requirements</a></li>
+<li><a href="#3-installation">Installation</a></li>
+<li><a href="#4-initial-setup">Initial setup</a></li>
+<li><a href="#5-quickstart--your-first-project">Quickstart — your first project</a></li>
+<li><a href="#6-project-creation-modes">Project creation modes</a></li>
+<li><a href="#7-supported-stacks">Supported stacks</a></li>
+<li><a href="#8-ai-providers">AI providers</a></li>
+<li><a href="#9-reference-analysis-conversational">Reference analysis (conversational)</a></li>
+<li><a href="#10-projectwindow-features">ProjectWindow features</a></li>
+<li><a href="#11-gallery-and-productivity-shortcuts">Gallery and productivity shortcuts</a></li>
+<li><a href="#12-ai-cost-tracker">AI cost tracker</a></li>
+<li><a href="#13-multi-agent-compare">Multi-agent compare</a></li>
+<li><a href="#14-github-integration">GitHub integration</a></li>
+<li><a href="#15-pixel-office-visualizer">Pixel Office visualizer</a></li>
+<li><a href="#16-settings-panel">Settings panel</a></li>
+<li><a href="#17-optional-licensing-system">Optional licensing system</a></li>
+<li><a href="#18-configuration-files">Configuration files</a></li>
+<li><a href="#19-troubleshooting">Troubleshooting</a></li>
+<li><a href="#20-credits-and-third-party-licenses">Credits and third-party licenses</a></li>
+</ol>
+<hr />
+<h2 id="1-what-is-themeforge">1. What is ThemeForge<a class="anchor" href="#1-what-is-themeforge" title="Link to this section">#</a></h2>
+<p>ThemeForge is a PyQt6 desktop application that automates the boring
+parts of starting a new template project:</p>
+<ul>
+<li>Scaffolds 60+ modern stacks (Next.js, Astro, Laravel, WordPress
+  themes/plugins, Shopify, Flutter, Tauri, Spring, Ktor, Phaser, R3F…)
+  with up-to-date defaults and security patches.</li>
+<li>Drops a CLAUDE.md/AGENTS.md context file in the project so any AI
+  coding agent (Claude Code, Codex, Gemini, OpenCode) understands the
+  goals and constraints from the first message.</li>
+<li>Provides modes for scratch, recreate-from-reference, adopt-local
+  and existing-GitHub-repo workflows.</li>
+<li>Lets you analyse a reference template <strong>interactively</strong> with the AI
+  agent — including stack recommendation, market research and
+  reimplementation plan — and inject the analysis into the project's
+  CLAUDE.md.</li>
+<li>Opens a per-project window with embedded preview (multi-tab
+  browser), embedded terminal (xterm.js + node-pty), live logs and a
+  one-click GitHub push/create flow.</li>
+<li>Optionally integrates your own licensing system (verify endpoint +
+  setup wizard + admin panel hooks) into every theme generated.</li>
+<li>Optionally shows your active AI sessions as pixel-art avatars in a
+  virtual office (via the bundled <code>pixel-office</code> visualizer).</li>
+</ul>
+<p>ThemeForge does <strong>not</strong> generate the actual code of your templates —
+the AI agent does. ThemeForge prepares the ground so the agent starts
+with maximum context and minimum boilerplate.</p>
+<hr />
+<h2 id="2-system-requirements">2. System requirements<a class="anchor" href="#2-system-requirements" title="Link to this section">#</a></h2>
+<table>
+<thead>
+<tr>
+<th>Component</th>
+<th>Minimum</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>OS</td>
+<td>Linux (Arch / CachyOS / Manjaro / EndeavourOS recommended)</td>
+<td>Tested on KDE Plasma 6 Wayland. Should work on GNOME and other DEs.</td>
+</tr>
+<tr>
+<td>Python</td>
+<td>3.11+</td>
+<td>For PyQt6 type hints.</td>
+</tr>
+<tr>
+<td>PyQt6</td>
+<td>6.6+</td>
+<td>Includes <code>PyQt6.QtWebEngineWidgets</code> for the embedded browser.</td>
+</tr>
+<tr>
+<td>Node.js</td>
+<td>20+</td>
+<td>For the embedded terminal server, AI CLIs, and most stack scaffolds.</td>
+</tr>
+<tr>
+<td>npm</td>
+<td>latest</td>
+<td>Bundled with Node.</td>
+</tr>
+<tr>
+<td>Git</td>
+<td>2.40+</td>
+<td>For repo operations.</td>
+</tr>
+<tr>
+<td>GitHub CLI (<code>gh</code>)</td>
+<td>optional</td>
+<td>Needed only if you want the "📦 GitHub" button to create/update repos.</td>
+</tr>
+<tr>
+<td>Docker</td>
+<td>optional</td>
+<td>Required for stacks that use <code>docker-compose</code> or <code>wp-env</code> (WordPress).</td>
+</tr>
+<tr>
+<td>Composer + PHP 8.3+</td>
+<td>optional</td>
+<td>Required for Laravel / WordPress stacks.</td>
+</tr>
+</tbody>
+</table>
+<p>For the AI agents you'll want at least one of:</p>
+<ul>
+<li><code>claude</code> (Claude Code CLI, Apache 2.0)</li>
+<li><code>codex</code> (OpenAI Codex CLI, Apache 2.0)</li>
+<li><code>gemini</code> (Google Gemini CLI, Apache 2.0)</li>
+<li><code>opencode</code> (OpenCode CLI)</li>
+</ul>
+<p>All four are invoked as external processes; ThemeForge does not bundle
+them. Install whichever you plan to use.</p>
+<hr />
+<h2 id="3-installation">3. Installation<a class="anchor" href="#3-installation" title="Link to this section">#</a></h2>
+<p>ThemeForge is currently distributed as a Python project that you clone
+and run with <code>launch.sh</code>. No PyPI package yet.</p>
+<pre><code class="language-bash">git clone https://github.com/&lt;owner&gt;/themeforge.git
+cd themeforge
+
+# Python dependencies — only PyQt6 needs to be installed.
+# On Arch / CachyOS:
+sudo pacman -S --needed python python-pyqt6 python-pyqt6-webengine
+
+# On Debian / Ubuntu:
+sudo apt install python3 python3-pyqt6 python3-pyqt6.qtwebengine
+
+# Build the embedded terminal server (Node).
+cd terminal
+npm install
+cd ..
+
+# Launch
+./launch.sh
+</code></pre>
+<p>Alternative: KDE menu entry. After cloning, copy or symlink
+<code>themeforge.desktop</code> into <code>~/.local/share/applications/</code> (you'll need
+to create it manually pointing at your <code>launch.sh</code> location).</p>
+<hr />
+<h2 id="4-initial-setup">4. Initial setup<a class="anchor" href="#4-initial-setup" title="Link to this section">#</a></h2>
+<p>The first time you launch ThemeForge, it creates <code>~/.config/themeforge/</code>
+with:</p>
+<pre><code>~/.config/themeforge/
+├── favorites.json          # bookmarked stacks (empty initially)
+├── ports.json              # per-project port assignments
+└── (you create the rest)
+</code></pre>
+<p>Optional files you can add to extend ThemeForge to your workflow:</p>
+<ul>
+<li><code>~/.config/themeforge/keys.json</code> — API keys for AI providers
+  (Anthropic, OpenAI, Google, OpenRouter). Permissions are auto-set to
+  <code>0600</code>. The Settings panel offers a UI to populate this.</li>
+<li><code>~/.config/themeforge/licensing.json</code> — URL of your own license
+  verification endpoint, admin panel base, GitHub org, Java/Kotlin
+  package ID. See §16.</li>
+<li><code>~/.config/themeforge/known-product-slugs.txt</code> — one slug per line of
+  your own product catalogue, used to auto-tick the "🔑 Activar
+  sistema de licencias" checkbox when you start a new project with a
+  matching name.</li>
+<li><code>~/.config/themeforge/context-private/*.md</code> — your private versions
+  of the context docs (market research, competitor analysis, licensing
+  spec) that get injected into each new project's CLAUDE.md. See §16.</li>
+</ul>
+<p>None of these are required for basic use.</p>
+<hr />
+<h2 id="5-quickstart-your-first-project">5. Quickstart — your first project<a class="anchor" href="#5-quickstart-your-first-project" title="Link to this section">#</a></h2>
+<ol>
+<li>Launch ThemeForge.</li>
+<li>In the main form:
+   - <strong>Nombre</strong> (Name): <code>My First Template</code>
+   - <strong>Stack</strong>: click the button and pick <em>Next.js + Tailwind</em> (the
+     default).
+   - <strong>Tipo</strong> (Type): pick the category, e.g. <em>SaaS Landing</em>.
+   - <strong>Provider</strong>: pick the AI agent you have installed (e.g. Claude).
+   - <strong>Modo</strong> (Mode): leave on <em>Desde cero</em> (scratch).</li>
+<li>Click <strong>Crear proyecto y lanzar agente</strong>.</li>
+</ol>
+<p>What happens behind the scenes:</p>
+<ol>
+<li>ThemeForge creates <code>~/Proyectos/themes/my-first-template/</code>.</li>
+<li>Runs the Next.js scaffolder (<code>npx create-next-app@latest …</code>).</li>
+<li>Copies the context MDs (<code>context/*.md</code>) into the project.</li>
+<li>Generates <code>CLAUDE.md</code> (or <code>AGENTS.md</code> depending on provider) with:
+   project metadata, market analysis, the template type, requirements
+   from <code>REQUIREMENTS-THEMEFOREST.md</code>, your private context overrides
+   if any (see §16).</li>
+<li>Runs <code>npx autoskills -a claude</code> to install relevant skills for the
+   stack (skips silently if <code>autoskills</code> is not installed; see §18).</li>
+<li><code>git init</code> + initial commit.</li>
+<li>Opens the <strong>ProjectWindow</strong> with the embedded preview, terminal,
+   logs and the AI agent ready to chat in a tab.</li>
+</ol>
+<p>In the project window:</p>
+<ul>
+<li>The terminal tab on the right has the AI agent already loaded.</li>
+<li>Type something like <em>"Read CLAUDE.md and tell me what you understand
+  before changing anything"</em> to confirm the agent has the full
+  context.</li>
+<li>When you're happy, click <strong>▶ Start preview</strong> to launch the dev
+  server in the embedded browser.</li>
+</ul>
+<hr />
+<h2 id="6-project-creation-modes">6. Project creation modes<a class="anchor" href="#6-project-creation-modes" title="Link to this section">#</a></h2>
+<h3 id="desde-cero-scratch">Desde cero (scratch)<a class="anchor" href="#desde-cero-scratch" title="Link to this section">#</a></h3>
+<p>Pure greenfield. Runs the stack scaffolder and gives you a clean
+project. Best for new ideas that don't reference any existing template.</p>
+<h3 id="recrear-referencia-recreate-from-reference">Recrear referencia (recreate-from-reference)<a class="anchor" href="#recrear-referencia-recreate-from-reference" title="Link to this section">#</a></h3>
+<p>You point ThemeForge at a folder, ZIP, or URL that contains the
+"reference" template. ThemeForge:</p>
+<ol>
+<li>Runs the stack scaffolder.</li>
+<li>Drops the reference contents in <code>reference/</code> (added to <code>.gitignore</code>).</li>
+<li>Sets up the CLAUDE.md so the AI agent treats <code>reference/</code> as
+   read-only inspiration material, NOT as code to copy.</li>
+</ol>
+<p>Use this when you want to build <em>your own</em> implementation of an idea
+seen in a competitor template. The CLAUDE.md generated includes
+strict anti-copy rules so the agent reimplements every line from
+scratch with your branding.</p>
+<p>This mode pairs with the <strong>🔍 Analizar referencia con IA</strong> button
+(see §9) which produces a written analysis of the reference (market,
+stack, gaps, plan) that gets injected into CLAUDE.md.</p>
+<h3 id="adoptar-template-local-adopt">Adoptar template local (adopt)<a class="anchor" href="#adoptar-template-local-adopt" title="Link to this section">#</a></h3>
+<p>You already have a template in a folder and want to work on it
+in-place with the ThemeForge workflow. ThemeForge:</p>
+<ol>
+<li>Copies the contents of your local folder into
+   <code>~/Proyectos/themes/&lt;slug&gt;/</code>.</li>
+<li>Adds the context MDs and CLAUDE.md on top, so the agent inherits
+   the ThemeForge conventions without altering your existing code.</li>
+<li>Detects mono-repos automatically and gives you a sub-project
+   selector in the ProjectWindow.</li>
+</ol>
+<h3 id="trabajar-sobre-repo-existente-existing">Trabajar sobre repo existente (existing)<a class="anchor" href="#trabajar-sobre-repo-existente-existing" title="Link to this section">#</a></h3>
+<p>You point at a GitHub repo (<code>owner/name</code>). ThemeForge:</p>
+<ol>
+<li><code>gh repo clone owner/name &lt;slug&gt;</code>.</li>
+<li>Detects the stack from the repo contents.</li>
+<li>Adds the context MDs + CLAUDE.md.</li>
+<li>Opens the ProjectWindow.</li>
+</ol>
+<p>This is best when you want to continue an existing project under the
+ThemeForge umbrella — same preview/terminal/agent UI as new projects.</p>
+<hr />
+<h2 id="7-supported-stacks">7. Supported stacks<a class="anchor" href="#7-supported-stacks" title="Link to this section">#</a></h2>
+<p>The full list lives in <code>stacks.py</code>. As of the current version, 60+
+stacks are supported including (non-exhaustive):</p>
+<ul>
+<li><strong>Web frontend</strong>: Next.js (Tailwind / shadcn / Mantine / HeroUI),
+  Astro (Tailwind / shadcn), Remix, Nuxt, SvelteKit, Qwik,
+  SolidStart, React-Vite, Vue 3-Vite, Angular, plain HTML+Tailwind /
+  Bootstrap.</li>
+<li><strong>Frontend libraries</strong>: Storybook (React).</li>
+<li><strong>CMS</strong>: WordPress Block Theme (theme.json + MCP-adapter), WordPress
+  Plugin (with abilities API), Payload CMS, Strapi, Medusa, Sanity
+  Studio, Directus, Docusaurus, VitePress, Starlight, Hugo, Eleventy.</li>
+<li><strong>Backend</strong>: Hono (Bun / Cloudflare), NestJS + Prisma, FastAPI,
+  Django + Tailwind, Phoenix LiveView, Rails + Tailwind, Bun-Elysia,
+  Deno-Fresh, Spring Boot, Ktor, Go-Fiber, Rust-Axum.</li>
+<li><strong>Full-stack</strong>: T3 Stack, Laravel + Inertia + Tailwind.</li>
+<li><strong>Mobile</strong>: Flutter, Expo / React Native (NativeWind / Expo Router),
+  Ionic + Capacitor, Kotlin + Compose.</li>
+<li><strong>Desktop</strong>: Tauri (React), Electron (React).</li>
+<li><strong>Game-dev</strong> (Vite + TypeScript): Phaser, PixiJS, React Three Fiber.</li>
+<li><strong>Email templates</strong>: react-email.</li>
+<li><strong>Browser extensions</strong>: Plasmo, WXT.</li>
+<li><strong>Shopify</strong>: Liquid (Dawn theme).</li>
+</ul>
+<p>Each stack has:
+- A <code>scaffold</code> command list run via bash.
+- A <code>skills</code> list (Anthropic / Vercel / WordPress / Shopify skill
+  packages auto-installed by <code>npx autoskills</code>).
+- A <code>preview</code> profile (the dev-server command + port).
+- A <code>notes</code> string with stack-specific gotchas surfaced in the UI.</p>
+<p>To add a new stack, see <code>stacks.py</code> — append a dict to the <code>STACKS</code>
+constant. Pull requests welcome.</p>
+<hr />
+<h2 id="8-ai-providers">8. AI providers<a class="anchor" href="#8-ai-providers" title="Link to this section">#</a></h2>
+<p>ThemeForge invokes external AI agent CLIs as subprocesses. Supported:</p>
+<table>
+<thead>
+<tr>
+<th>Provider</th>
+<th>CLI binary</th>
+<th>API key env var</th>
+<th>License of CLI</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Claude (Anthropic)</td>
+<td><code>claude</code></td>
+<td><code>ANTHROPIC_API_KEY</code></td>
+<td>Apache 2.0</td>
+</tr>
+<tr>
+<td>Codex (OpenAI)</td>
+<td><code>codex</code></td>
+<td><code>OPENAI_API_KEY</code> (via <code>codex login --with-api-key</code>)</td>
+<td>Apache 2.0</td>
+</tr>
+<tr>
+<td>Gemini (Google)</td>
+<td><code>gemini</code></td>
+<td>Google OAuth or <code>GEMINI_API_KEY</code></td>
+<td>Apache 2.0</td>
+</tr>
+<tr>
+<td>OpenCode</td>
+<td><code>opencode</code></td>
+<td><code>OPENROUTER_API_KEY</code> (for OpenRouter models)</td>
+<td>Apache 2.0</td>
+</tr>
+</tbody>
+</table>
+<h3 id="setting-api-keys">Setting API keys<a class="anchor" href="#setting-api-keys" title="Link to this section">#</a></h3>
+<p>Open the Settings panel (gear icon) and use the provider picker. Keys
+are stored in <code>~/.config/themeforge/keys.json</code> with <code>chmod 0600</code>. The
+directory is <code>0700</code>.</p>
+<p>Keys are never logged. The UI shows only <code>set</code> / <code>unset</code>, never the
+value. They are passed to the AI agent subprocess via
+<code>QProcessEnvironment</code>. As an extra defense, the stderr panel of the
+reference-analysis dialog redacts <code>sk-…</code>, <code>sk-ant-…</code>, <code>sk-proj-…</code>,
+<code>sk-or-v1-…</code>, <code>AIza…</code>, <code>gho_…</code>, <code>ghp_…</code>, <code>glpat-…</code> patterns before
+showing them.</p>
+<h3 id="skills-auto-install-autoskills">Skills auto-install (<code>autoskills</code>)<a class="anchor" href="#skills-auto-install-autoskills" title="Link to this section">#</a></h3>
+<p>If the <strong>npx autoskills</strong> checkbox is on (default), ThemeForge runs
+<code>npx autoskills -a &lt;provider&gt;</code> after scaffolding to install the
+provider-specific skills declared by the stack. Skills are official
+packages from Anthropic / Vercel / WordPress / Shopify referenced by
+slug; ThemeForge doesn't redistribute them.</p>
+<p><code>autoskills</code> itself is by <strong>midudev</strong>
+(<a href="https://github.com/midudev/autoskills">https://github.com/midudev/autoskills</a>) under <strong>CC BY-NC 4.0</strong>. See
+§18 for the implication and how to disable in commercial builds.</p>
+<hr />
+<h2 id="9-reference-analysis-conversational">9. Reference analysis (conversational)<a class="anchor" href="#9-reference-analysis-conversational" title="Link to this section">#</a></h2>
+<p>In <code>recrear</code> or <code>adopt</code> mode, the form shows a <strong>🔍 Analizar
+referencia con IA</strong> button (and <strong>🔍 Analizar con IA</strong> for adopt).</p>
+<p>When clicked, ThemeForge:</p>
+<ol>
+<li>Scans the reference folder/zip with <code>reference_analyzer.py</code>:
+   detects build-system markers (package.json, composer.json,
+   pubspec.yaml, artisan…), recognises commercial-marketplace
+   structures (<code>codecanyon-*</code> folder name, <code>Documentation/</code> /
+   <code>Files/</code> / <code>Updates/</code> dirs, README mentioning Envato or purchase
+   codes), and detects multi-stack mono-repos to depth 3.</li>
+<li>Builds a prompt with the detected facts and either:
+   - The <strong>reference prompt</strong> (anti-copy rules — for commercial
+     templates that you'll reimplement in your own code), or
+   - The <strong>design-export prompt</strong> (when the reference looks like an
+     export from claude.ai/design, v0.dev or Figma Make — assumes
+     it's your own design).
+   The classifier is conservative: any marketplace marker
+   (CodeCanyon / ThemeForest / Envato / commercial folder structure)
+   forces the reference prompt with explicit "license is out of
+   scope" framing.</li>
+<li>Launches the selected AI provider with the prompt via the
+   ReferenceAnalysisDialog. Streams the response, tracks tokens,
+   TTFT and cost in real time (for stream-json capable CLIs like
+   <code>claude --output-format=stream-json</code>).</li>
+<li>When the turn ends, the <strong>reply input</strong> below the output enables.
+   Type a follow-up and press <strong>➡ Enviar respuesta</strong>: ThemeForge
+   builds a multi-turn prompt that includes the original prompt +
+   full conversation history + your new reply, and relaunches the
+   CLI. Each turn is appended to the same panel with visual
+   separators (<code>👤 Tú:</code> and <code>🤖 Agente:</code>).</li>
+<li>When you click <strong>💾 Guardar y cerrar</strong>, the full conversation is
+   stored as the analysis, and gets injected into the project's
+   CLAUDE.md when you click <strong>Crear proyecto y lanzar agente</strong>.</li>
+</ol>
+<p>This is the killer feature: the project's AI agent starts already
+aware of your detailed analysis of the reference (stack recommendation,
+market research, gaps, your specific follow-ups). The agent confirms
+what it understood before changing any code.</p>
+<hr />
+<h2 id="10-projectwindow-features">10. ProjectWindow features<a class="anchor" href="#10-projectwindow-features" title="Link to this section">#</a></h2>
+<p>Opening any project (newly created or via the Galería tab) gives you
+a per-project window with:</p>
+<pre><code>┌────────────────────────────┬────────────────────────────┐
+│  Tabs of embedded preview  │  Tabs of embedded terminals │
+│  - Preview (default)       │  - Setup / Shell           │
+│  - + (additional pages)    │  - Claude / Codex / Gemini │
+│                            │  - 🎮 Office (visualizer)  │
+├────────────────────────────┴────────────────────────────┤
+│ Logs of the dev server (live tail)                      │
+└─────────────────────────────────────────────────────────┘
+</code></pre>
+<h3 id="preview-tabs">Preview tabs<a class="anchor" href="#preview-tabs" title="Link to this section">#</a></h3>
+<p>The preview panel is a <code>QTabWidget</code> of <code>QWebEngineView</code>s. The first
+tab ("Preview") is bound to the project's dev server. Click the <strong>+</strong>
+button to add additional tabs (e.g. one for the landing, one for
+<code>/wp-admin</code>, one for <code>/docs</code>).</p>
+<ul>
+<li>The URL bar is shared across tabs; pressing Enter navigates the
+  active tab. The ↻ reload button also targets the active tab.</li>
+<li>Tab titles auto-update from the page's <code>&lt;title&gt;</code>.</li>
+<li>The first tab cannot be closed (it's the dev server preview).</li>
+<li>The 🚀 button opens the active URL in your external browser in
+  <code>--app</code> mode (Brave / Chromium / Firefox) — useful for sustained
+  performance on Wayland where QWebEngine can lag.</li>
+<li>📸 captures a screenshot of the active tab to PNG.</li>
+<li>🔧 opens a Chromium DevTools window on the active tab.</li>
+</ul>
+<h3 id="viewport-presets">Viewport presets<a class="anchor" href="#viewport-presets" title="Link to this section">#</a></h3>
+<p>Buttons to clip the preview width to common breakpoints (360, iPhone
+14, Tablet, 1280, 1920, Full). Useful for responsive QA without
+opening a separate browser.</p>
+<h3 id="multi-stack-mono-repo">Multi-stack mono-repo<a class="anchor" href="#multi-stack-mono-repo" title="Link to this section">#</a></h3>
+<p>If the project root has more than one stack (e.g. <code>Files/Laravel/</code>,
+<code>Files/Flutter/Driver/</code>), a <strong>Sub-proyecto</strong> dropdown appears at the
+top. Switching it changes the active preview profile, port and dev
+server commands. Each sub-project gets its own port assigned in
+<code>~/.config/themeforge/ports.json</code>.</p>
+<h3 id="terminal-tabs">Terminal tabs<a class="anchor" href="#terminal-tabs" title="Link to this section">#</a></h3>
+<p>Backed by an embedded Node server (<code>terminal/server.js</code>) using
+xterm.js + node-pty. On startup, ThemeForge spawns the server on a
+random port and creates the configured tabs:</p>
+<ul>
+<li><strong>Setup</strong> (if the project just scaffolded) — runs the setup script
+  and leaves a shell.</li>
+<li><strong>Shell</strong> — plain bash in the project root.</li>
+<li><strong><AI Provider></strong> — runs your chosen agent CLI (<code>claude</code>, <code>codex</code>,
+  <code>gemini</code>, <code>opencode</code>) in the project root.</li>
+</ul>
+<p>You can switch tabs while the AI is running; each is an independent
+PTY.</p>
+<h3 id="start-preview-stop">▶ Start preview / ■ Stop<a class="anchor" href="#start-preview-stop" title="Link to this section">#</a></h3>
+<p>Runs the stack's preview profile. For <strong>detached</strong> profiles (wp-env,
+<code>docker compose up -d</code>), Stop remains enabled after Start exits with
+code 0 because the containers are still up — Stop will invoke the
+<code>stop</code> command of the profile (e.g. <code>npx @wordpress/env stop</code>).</p>
+<h3 id="dev-server-logs">Dev server logs<a class="anchor" href="#dev-server-logs" title="Link to this section">#</a></h3>
+<p>The bottom pane is a live tail of stdout/stderr from the dev server.
+Useful for catching compile errors without leaving ThemeForge.</p>
+<h3 id="pre-flight-checker">🔬 Pre-flight checker<a class="anchor" href="#pre-flight-checker" title="Link to this section">#</a></h3>
+<p>Toolbar button that runs a battery of automated checks against the
+project to verify it's ready for marketplace upload (Envato, Gumroad,
+Creative Market, etc.). Fast — filesystem + grep only, no external
+tools required by default.</p>
+<p>Checks (13 total, grouped by severity):</p>
+<table>
+<thead>
+<tr>
+<th>Check</th>
+<th>What it verifies</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>README presente</td>
+<td><code>README.md</code> / <code>README.txt</code> exists in root</td>
+</tr>
+<tr>
+<td>LICENSE / licensing.txt</td>
+<td>Required by Envato; recommended elsewhere</td>
+</tr>
+<tr>
+<td>documentation/ HTML</td>
+<td><code>documentation/index.html</code> present (required by Envato)</td>
+</tr>
+<tr>
+<td>screenshots/</td>
+<td>Folder with PNG/JPG captures; ≥3 recommended</td>
+</tr>
+<tr>
+<td>Sin jQuery 1.x/2.x legacy</td>
+<td>greps for <code>jquery-1.*</code>, <code>jquery-2.*</code> references</td>
+</tr>
+<tr>
+<td>Sin Bootstrap 3/4</td>
+<td>greps for legacy Bootstrap versions</td>
+</tr>
+<tr>
+<td>Sin tracking hardcoded</td>
+<td>greps for GA, FB Pixel, Hotjar IDs</td>
+</tr>
+<tr>
+<td>prefers-reduced-motion respetado</td>
+<td>CSS includes the media query</td>
+</tr>
+<tr>
+<td>.env fuera de git</td>
+<td><code>git ls-files</code> shows no <code>.env*</code> tracked (except <code>.env.example</code>)</td>
+</tr>
+<tr>
+<td>Tamaño del proyecto</td>
+<td>Total &lt;50 MB ideal, lists files &gt;10 MB</td>
+</tr>
+<tr>
+<td>Placeholders del scaffold sustituidos</td>
+<td>greps for <code>__SLUG__</code>, <code>__PROJECT__</code>, <code>YOUR_DOMAIN</code>, <code>__LICENSE_API_URL__</code>, etc.</td>
+</tr>
+<tr>
+<td>Lighthouse instalado</td>
+<td>Info-only: hints <code>npm i -g lighthouse</code> if missing</td>
+</tr>
+<tr>
+<td>HTML validator</td>
+<td>Info-only: hints <code>npm i -g html-validate</code> if missing</td>
+</tr>
+</tbody>
+</table>
+<p>Result dialog shows each check with pass / warn / fail / info icons,
+ordered by severity (fail at top). Each item expands to show the
+actionable hint ("how to fix") and details (e.g. list of files where a
+problem was found).</p>
+<p>Header verdict:</p>
+<ul>
+<li><strong>✓ Listo para empaquetar y subir.</strong> — zero fails, zero warns.</li>
+<li><strong>⚠ Sin fallos críticos pero hay warnings…</strong> — proceed but consider
+  fixing the warns.</li>
+<li><strong>✗ N fallos bloqueantes…</strong> — must resolve before upload (likely
+  causes marketplace rejection).</li>
+</ul>
+<p>Typical flow before publishing:</p>
+<ol>
+<li>ProjectWindow → <strong>🔬 Pre-flight</strong> → review warns/fails.</li>
+<li>Fix what each hint suggests.</li>
+<li>Re-run → all green.</li>
+<li><strong>📦 ZIP</strong> (next section) → upload.</li>
+</ol>
+<h3 id="marketplace-zip-builder">📦 Marketplace ZIP builder<a class="anchor" href="#marketplace-zip-builder" title="Link to this section">#</a></h3>
+<p>Toolbar button that packages the project into a ZIP ready for upload
+to any marketplace. Excludes development noise aggressively.</p>
+<p>Auto-excluded directories: <code>node_modules/</code>, <code>.git/</code>, <code>.next/</code>, <code>.nuxt/</code>,
+<code>out/</code>, <code>dist/</code>, <code>build/</code>, <code>.cache/</code>, <code>__pycache__/</code>, <code>.venv/</code>, <code>venv/</code>,
+<code>.pytest_cache/</code>, <code>.mypy_cache/</code>, <code>.ruff_cache/</code>, <code>coverage/</code>, <code>.turbo/</code>,
+<code>.vercel/</code>, <code>.netlify/</code>, <code>.vscode/</code>, <code>.idea/</code>, <code>.cursor/</code>, <code>.windsurf/</code>,
+<code>.claude/</code>, <code>.aider/</code>, <code>target/</code>, <code>vendor/</code>, <code>.gradle/</code>, <code>.dart_tool/</code>.</p>
+<p>Auto-excluded files: <code>.env</code>, <code>.env.local</code>, <code>.env.development</code>,
+<code>.env.production</code>, <code>.env.test</code>, <code>.env.&lt;anything&gt;</code>, <code>.DS_Store</code>,
+<code>Thumbs.db</code>, <code>CLAUDE.md</code>, <code>AGENTS.md</code>, <code>GEMINI.md</code>, <code>MEMORY.md</code>,
+<code>.eslintcache</code>.</p>
+<p>Auto-excluded suffixes: <code>*.log</code>, <code>*.pyc</code>, <code>*.pyo</code>, <code>*.swp</code>, <code>*.swo</code>,
+<code>*.bak</code>, <code>*.tmp</code>.</p>
+<p>Dialog options (auto-detects which folders exist and pre-checks them):</p>
+<ul>
+<li>✓ Include <code>documentation/</code></li>
+<li>✓ Include <code>screenshots/</code></li>
+<li>✓ Include <code>source/</code> (PSDs, Figma exports, editable assets)</li>
+</ul>
+<p>Output: <code>~/Proyectos/themes-builds/&lt;slug&gt;-&lt;YYYYMMDD-HHMMSS&gt;.zip</code>. The
+ZIP wraps content in a <code>&lt;slug&gt;/</code> root directory — standard marketplace
+convention so unzipping doesn't pollute the buyer's cwd.</p>
+<p>After build, popup shows:</p>
+<ul>
+<li>File count + uncompressed size + compressed size + compression ratio.</li>
+<li>Option to open the builds folder in your file manager.</li>
+</ul>
+<p>Compression: <code>ZIP_DEFLATED</code> level 6 (good balance speed/size).
+Typical ratio: 50-70% reduction for text-heavy themes.</p>
+<h3 id="demo-deploy">🚀 Demo deploy<a class="anchor" href="#demo-deploy" title="Link to this section">#</a></h3>
+<p>Toolbar button that builds the project and deploys to a public host
+so you can share a working preview URL with a client, reviewer or
+prospective buyer.</p>
+<p><strong>Supported targets:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Provider</th>
+<th>CLI</th>
+<th>Auth required</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Netlify</strong></td>
+<td><code>netlify-cli</code> (<code>npm i -g netlify-cli</code>)</td>
+<td>First time: opens browser for OAuth</td>
+<td>Best static-site experience, edge functions if needed</td>
+</tr>
+<tr>
+<td><strong>Vercel</strong></td>
+<td><code>vercel</code> (<code>npm i -g vercel</code>)</td>
+<td>First time: opens browser for OAuth</td>
+<td>Inspects the repo and picks its own dist; ideal for Next.js</td>
+</tr>
+<tr>
+<td><strong>Cloudflare Pages</strong></td>
+<td><code>npx wrangler</code> (no install)</td>
+<td>First time: opens browser for OAuth</td>
+<td>Generous free tier, global edge</td>
+</tr>
+<tr>
+<td><strong>Surge.sh</strong></td>
+<td><code>surge</code> (<code>npm i -g surge</code>)</td>
+<td>First time: email/password prompt</td>
+<td>Fast, anon-friendly for quick demos</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Stack auto-detection</strong> (from <code>package.json</code> deps + config files):</p>
+<table>
+<thead>
+<tr>
+<th>Stack</th>
+<th>Build command</th>
+<th>Dist directory</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Next.js (w/ <code>output: 'export'</code>)</td>
+<td><code>npm run build</code></td>
+<td><code>out/</code></td>
+</tr>
+<tr>
+<td>Next.js (default)</td>
+<td><code>npm run build</code></td>
+<td><code>.next/</code> (Vercel only)</td>
+</tr>
+<tr>
+<td>Astro / Vite</td>
+<td><code>npm run build</code></td>
+<td><code>dist/</code></td>
+</tr>
+<tr>
+<td>SvelteKit + adapter-static</td>
+<td><code>npm run build</code></td>
+<td><code>build/</code></td>
+</tr>
+<tr>
+<td>Gatsby</td>
+<td><code>npm run build</code></td>
+<td><code>public/</code></td>
+</tr>
+<tr>
+<td>Create React App</td>
+<td><code>npm run build</code></td>
+<td><code>build/</code></td>
+</tr>
+<tr>
+<td>Angular</td>
+<td><code>npm run build</code></td>
+<td><code>dist/</code> (verify <code>angular.json</code>)</td>
+</tr>
+<tr>
+<td>Nuxt</td>
+<td><code>npm run generate</code></td>
+<td><code>.output/public/</code></td>
+</tr>
+<tr>
+<td>Hugo</td>
+<td><code>hugo --minify</code></td>
+<td><code>public/</code></td>
+</tr>
+<tr>
+<td>Jekyll</td>
+<td><code>bundle exec jekyll build</code></td>
+<td><code>_site/</code></td>
+</tr>
+<tr>
+<td>Plain HTML</td>
+<td>(none)</td>
+<td><code>./</code></td>
+</tr>
+</tbody>
+</table>
+<p>The dialog pre-fills both fields with the detected values — you can
+override them manually for stacks not in the table or for non-default
+configurations.</p>
+<p><strong>Flow:</strong></p>
+<ol>
+<li>Click <strong>🚀 Demo</strong> in the project toolbar.</li>
+<li>Pick a provider (default = first available CLI on PATH).</li>
+<li>Confirm or edit build command + dist directory.</li>
+<li>Hit <strong>🚀 Build &amp; Deploy</strong>. UI shows live build logs, then live
+   deploy logs (streamed via QProcess, so the app stays responsive).</li>
+<li>On success: a popup shows the deployed URL, copies it to your
+   clipboard, and offers to open it in your default browser.</li>
+</ol>
+<p><strong>Server-rendered stacks</strong> (Laravel, WordPress, Express, Rails…) are
+NOT supported by this deploy — they need a Node/PHP/Ruby runtime that
+static hosts don't provide. For those, use the <strong>📦 ZIP</strong> + manual FTP
+or a server provider (Render, Railway, Fly.io, etc.).</p>
+<p><strong>Auth troubleshooting:</strong> Most providers open the browser the first
+time. If you're using ThemeForge over SSH or in a headless setup,
+the deploy will fail with an auth error. Run the CLI's <code>login</code> command
+in a real terminal first:</p>
+<pre><code class="language-bash">netlify login
+vercel login
+npx wrangler login
+surge login
+</code></pre>
+<hr />
+<h2 id="11-gallery-and-productivity-shortcuts">11. Gallery and productivity shortcuts<a class="anchor" href="#11-gallery-and-productivity-shortcuts" title="Link to this section">#</a></h2>
+<p>The <strong>Galería</strong> tab lists every project ever created in
+<code>~/Proyectos/themes/</code> plus archived projects in
+<code>~/Proyectos/themes-archive/</code>. Each row shows: name, stack, last
+modified, git status, CLAUDE.md presence, last AI session, tags.</p>
+<h3 id="tags">Tags<a class="anchor" href="#tags" title="Link to this section">#</a></h3>
+<p>Each project can have one or more user-defined tags (lowercase, no
+<code>#</code>). Tags help organise large catalogues by status (<code>borrador</code>,
+<code>venta-activa</code>, <code>archivado-2025</code>), client (<code>cliente-x</code>), or stack
+(<code>aurora-*</code>).</p>
+<p>Edit tags with the <strong>🏷️ Tags…</strong> button — input is comma- or space-
+separated. Tags are normalised: lowercased, deduplicated, sorted.</p>
+<p>To filter the gallery by tag, type <code>tag:&lt;name&gt;</code> in the search bar:</p>
+<pre><code>tag:venta-gumroad           # only projects tagged 'venta-gumroad'
+tag:venta tag:aurora        # must have BOTH tags
+aurora tag:venta            # matches 'aurora' in name/stack AND tagged 'venta'
+</code></pre>
+<p>Tags persist in <code>~/.config/themeforge/projects-meta.json</code> (JSON, one
+entry per slug).</p>
+<h3 id="last-ai-session">Last AI session<a class="anchor" href="#last-ai-session" title="Link to this section">#</a></h3>
+<p>Each project row shows the time since the last Claude Code session
+(e.g. <code>🤖 hace 2h</code>, <code>🤖 hace 3 d</code>, <code>🤖 sin sesiones</code>). ThemeForge
+inspects <code>~/.claude/projects/&lt;encoded-path&gt;/*.jsonl</code> and reports the
+most recent file mtime.</p>
+<p>This helps locate the "I was working on this yesterday" project
+without remembering its name.</p>
+<h3 id="archive">Archive<a class="anchor" href="#archive" title="Link to this section">#</a></h3>
+<p>Projects you're not actively working on can be moved to an archive
+without deleting them.</p>
+<ul>
+<li><strong>📦 Archivar</strong> button on a selected project → moves it to
+  <code>~/Proyectos/themes-archive/&lt;slug&gt;/</code>. Confirms before moving.</li>
+<li>Toggle <strong>📦 Archivados</strong> (checkbox in filter row) → switches the
+  gallery view to show archived projects only.</li>
+<li>In archive view, the action button changes to <strong>↩️ Restaurar</strong> —
+  click it to move the project back to <code>~/Proyectos/themes/&lt;slug&gt;/</code>.</li>
+</ul>
+<p>Archive is fully reversible. Conflicts (e.g. a project named <code>foo</code>
+already exists in archive) raise a clear error without overwriting.</p>
+<h3 id="card-view-with-thumbnails">Card view with thumbnails<a class="anchor" href="#card-view-with-thumbnails" title="Link to this section">#</a></h3>
+<p>Toggle <strong>🖼️ Cards</strong> / <strong>📋 Lista</strong> in the filter row switches between
+the two view modes. State persists between sessions.</p>
+<ul>
+<li><strong>Lista</strong> (default): dense rows with full metadata. Good for
+  searching across many projects.</li>
+<li><strong>🖼️ Cards</strong>: 220×190 cards in a responsive grid with a thumbnail
+  (200×120). Visual recognition is faster.</li>
+</ul>
+<p>Thumbnails are stored at <code>~/.cache/themeforge/thumbnails/&lt;slug&gt;.png</code>.</p>
+<p>Sources of thumbnails (in priority order):</p>
+<ol>
+<li><strong>Cached screenshot</strong>: every time you click 📸 in a ProjectWindow,
+   a 200×120 crop is saved as the project's thumbnail.</li>
+<li><strong>Generated placeholder</strong>: if no real thumbnail exists, ThemeForge
+   draws one with QPainter — vertical gradient using the stack's
+   brand colour (60+ stacks mapped) + project initials centred + stack
+   name at the bottom. Looks clean even with zero captures.</li>
+</ol>
+<p>To capture a real thumbnail for a project:</p>
+<ol>
+<li>Open the project, <strong>▶ Start preview</strong>, wait for the dev server.</li>
+<li>Click <strong>📸</strong> on the preview toolbar.</li>
+<li>The screenshot is saved both to <code>screenshots/preview-&lt;ts&gt;.png</code> and
+   as the gallery thumbnail.</li>
+</ol>
+<h3 id="command-palette-ctrlk">Command palette (Ctrl+K)<a class="anchor" href="#command-palette-ctrlk" title="Link to this section">#</a></h3>
+<p>Press <strong>Ctrl+K</strong> from anywhere in the ThemeForge main window to open
+a spotlight-style command palette. Fuzzy-finder over:</p>
+<ul>
+<li><strong>Navigation</strong>: jump to any tab (Nuevo proyecto, Galería,
+  licencias, Settings).</li>
+<li><strong>Projects</strong>: open any active or archived project directly in a
+  ProjectWindow without scrolling the gallery.</li>
+<li><strong>Actions</strong>: new project, refresh gallery, switch to cards/lista
+  view, jump to settings.</li>
+</ul>
+<p>The palette regenerates the action list on each open, so newly
+created or archived projects show up immediately.</p>
+<p>Keyboard:</p>
+<ul>
+<li><code>↑↓</code> navigate, <code>Enter</code> execute, <code>Esc</code> close.</li>
+<li>Type multiple words: <code>aurora laravel</code> matches items containing both.</li>
+</ul>
+<p>The matching algorithm is substring with positional scoring: items
+where the query appears earlier in the label rank higher; an exact
+prefix match wins over a mid-string match.</p>
+<h3 id="other-gallery-actions">Other gallery actions<a class="anchor" href="#other-gallery-actions" title="Link to this section">#</a></h3>
+<ul>
+<li><strong>★ Favorito</strong> — toggle. Filter to favourites-only with the <strong>Solo
+  favoritos ★</strong> checkbox.</li>
+<li><strong>🔄 Regenerar contexto</strong> — re-creates <code>CLAUDE.md</code> / <code>AGENTS.md</code>
+  for the selected project with the latest context MDs.</li>
+<li><strong>🗑️ Eliminar</strong> — permanent delete (project dir + Postgres
+  container + ports.json entry + favourites entry). Irreversible —
+  requires confirmation with typed project name.</li>
+<li><strong>VSCode</strong>, <strong>Codex</strong>, <strong>Claude Code</strong> — open the selected project
+  with the chosen tool.</li>
+<li><strong>Abrir carpeta</strong> — opens the project dir in Dolphin / Nautilus /
+  whatever file manager is installed.</li>
+</ul>
+<hr />
+<h2 id="12-ai-cost-tracker">12. AI cost tracker<a class="anchor" href="#12-ai-cost-tracker" title="Link to this section">#</a></h2>
+<p>The <strong>💰 Coste IA</strong> tab in the main window aggregates token usage
+and cost across every AI provider's local session store and renders
+three QtCharts visualizations + detail tables.</p>
+<h3 id="scanners">Scanners<a class="anchor" href="#scanners" title="Link to this section">#</a></h3>
+<table>
+<thead>
+<tr>
+<th>Provider</th>
+<th>Source</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Claude Code</strong></td>
+<td><code>~/.claude/projects/&lt;encoded-path&gt;/*.jsonl</code> (<code>message.usage</code> + <code>message.model</code> per <code>type:assistant</code> event)</td>
+<td>Fully supported, robust parsing</td>
+</tr>
+<tr>
+<td><strong>Codex (OpenAI)</strong></td>
+<td><code>~/.codex/logs_2.sqlite</code> table <code>logs</code> — <code>feedback_log_body</code> strings parsed with regex looking for embedded JSON <code>response.usage</code></td>
+<td>Best-effort. May miss events depending on log format</td>
+</tr>
+<tr>
+<td><strong>Gemini (Google)</strong></td>
+<td>n/a — gemini-cli does not persist token data in a documented local format</td>
+<td>"Not supported" — link to Google AI Studio billing</td>
+</tr>
+<tr>
+<td><strong>OpenCode</strong></td>
+<td>n/a — likewise</td>
+<td>"Not supported" — link to OpenRouter activity</td>
+</tr>
+</tbody>
+</table>
+<p>Each provider's scanner is registered in <code>cost_tracker.SCANNERS</code>; the
+panel calls them in parallel, aggregates the results into one
+<code>AggregateReport</code> and feeds the charts/tables.</p>
+<h3 id="pricing">Pricing<a class="anchor" href="#pricing" title="Link to this section">#</a></h3>
+<p>Pricing per 1M tokens is hard-coded in <code>cost_tracker.PRICING</code> for the
+common Claude 3.x/4.x, GPT-5.x, o3 and Gemini 2.x model IDs. Each
+event's cost is computed as:</p>
+<pre><code>cost = (input_tokens          / 1M) × price_input
+     + (output_tokens         / 1M) × price_output
+     + (cache_creation_tokens / 1M) × price_cache_write
+     + (cache_read_tokens     / 1M) × price_cache_read
+</code></pre>
+<p>For models not in <code>PRICING</code>, the panel uses conservative defaults
+(Opus rates) and marks the row with <strong>⚠ default</strong> in the "Tarifa"
+column so you can see the number is an estimate.</p>
+<p>Two known sources of divergence vs the official billing dashboards:</p>
+<ol>
+<li><strong>Ephemeral 1-hour cache</strong> has higher rates than the standard 5-min
+   cache (~2× cache write). <code>PRICING</code> uses the 5-min rates.</li>
+<li><strong><code>[1m]</code> long-context variants</strong> of Opus may have different
+   pricing tiers depending on the API tier — not modelled.</li>
+</ol>
+<p>For relative breakdowns (which project / model burns the most), the
+tracker is reliable. For exact billing reconciliation, cross-check
+with the provider's official dashboard.</p>
+<h3 id="charts">Charts<a class="anchor" href="#charts" title="Link to this section">#</a></h3>
+<table>
+<thead>
+<tr>
+<th>Chart</th>
+<th>Type</th>
+<th>What it shows</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>🍩 Donut by provider</strong></td>
+<td><code>QPieSeries</code> with 45% hole</td>
+<td>Slice per provider with <code>&lt;provider&gt; $&lt;amount&gt; (&lt;percent&gt;%)</code>. Colors are consistent across charts (claude → blue, codex → green, gemini → amber, opencode → purple).</td>
+</tr>
+<tr>
+<td><strong>📊 Top 10 projects</strong></td>
+<td><code>QHorizontalBarSeries</code></td>
+<td>Project paths decoded from Claude's encoded format (<code>-home-uther-Proyectos-themes-foo</code> → <code>~/Proyectos/themes/foo</code>), top 10 by cost, labels formatted <code>$amount</code>.</td>
+</tr>
+<tr>
+<td><strong>📅 Last 30 days stacked</strong></td>
+<td><code>QStackedBarSeries</code></td>
+<td>One bar per day for the last 30 days, segmented by provider with consistent colors. Hover tooltips show exact values.</td>
+</tr>
+</tbody>
+</table>
+<p>All three charts use the dark theme with transparent background,
+series animations on refresh, and native hover tooltips. They scale
+with the window — resize the ThemeForge window to enlarge them.</p>
+<h3 id="filter">Filter<a class="anchor" href="#filter" title="Link to this section">#</a></h3>
+<p>The combo at the top filters to a single provider:</p>
+<ul>
+<li><strong>Todos los proveedores</strong> (default): aggregate across all known
+  scanners.</li>
+<li><code>claude</code>, <code>codex</code>, <code>gemini</code>, <code>opencode</code>: focus on one provider. The
+  donut becomes a single-slice (less useful) but the daily chart and
+  top projects refocus to that provider only.</li>
+</ul>
+<p>Click <strong>↻ Re-escanear</strong> to re-read the session stores after using the
+AI agents — the tracker doesn't auto-refresh while you work.</p>
+<h3 id="detail-tables">Detail tables<a class="anchor" href="#detail-tables" title="Link to this section">#</a></h3>
+<p>Below the charts:</p>
+<ul>
+<li><strong>Por modelo (top 10)</strong> — table with cost, events, tokens in/out,
+  and tariff status (<code>✓ conocida</code> / <code>⚠ default</code>).</li>
+<li><strong>Por proveedor</strong> — same data the donut shows but in tabular form
+  with scanner notes (file paths scanned, event counts).</li>
+<li><strong>Por proyecto (detalle)</strong> — same data as the top-10 horizontal bar
+  but with full path and event counts.</li>
+</ul>
+<h3 id="privacy">Privacy<a class="anchor" href="#privacy" title="Link to this section">#</a></h3>
+<p>The cost tracker reads ONLY local files in your home (<code>~/.claude/</code>,
+<code>~/.codex/</code>). It does NOT contact any provider's API; pricing is
+embedded constants. Your token data never leaves your machine.</p>
+<hr />
+<h2 id="13-multi-agent-compare">13. Multi-agent compare<a class="anchor" href="#13-multi-agent-compare" title="Link to this section">#</a></h2>
+<p>The <strong>🤝 Comparar</strong> tab in the main window runs the same prompt
+across multiple AI CLIs in parallel and displays the outputs
+side-by-side in resizable panes.</p>
+<h3 id="supported-agents">Supported agents<a class="anchor" href="#supported-agents" title="Link to this section">#</a></h3>
+<table>
+<thead>
+<tr>
+<th>Agent</th>
+<th>CLI</th>
+<th>Invocation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Claude Code</td>
+<td><code>claude</code></td>
+<td><code>claude -p "&lt;prompt&gt;"</code></td>
+</tr>
+<tr>
+<td>Codex</td>
+<td><code>codex</code></td>
+<td><code>codex exec "&lt;prompt&gt;"</code></td>
+</tr>
+<tr>
+<td>Gemini</td>
+<td><code>gemini</code></td>
+<td><code>gemini -p "&lt;prompt&gt;"</code></td>
+</tr>
+<tr>
+<td>OpenCode</td>
+<td><code>opencode</code></td>
+<td><code>opencode run "&lt;prompt&gt;"</code></td>
+</tr>
+</tbody>
+</table>
+<p>Agents whose CLI is not on PATH are shown disabled with the label
+<code>&lt;agent&gt; (no instalado)</code>. Each agent has a consistent color across the
+ThemeForge UI (claude blue, codex green, gemini amber, opencode purple).</p>
+<h3 id="flow">Flow<a class="anchor" href="#flow" title="Link to this section">#</a></h3>
+<ol>
+<li>Open the <strong>🤝 Comparar</strong> tab.</li>
+<li>Type the prompt in the textarea (anything from a one-liner to a
+   multi-paragraph spec works).</li>
+<li>Check the agents to run (defaults to all available).</li>
+<li>Click <strong>▶ Ejecutar</strong>.</li>
+<li>One pane per agent appears side-by-side, each streaming output as
+   the CLI produces it. Stats line shows live status, TTFT
+   (time-to-first-token) and total wall time.</li>
+<li>Click <strong>📋 Copiar</strong> in any pane to copy that agent's output to
+   the clipboard.</li>
+<li><strong>■ Cancelar</strong> kills all running processes; <strong>🧹 Limpiar</strong> clears
+   the panes.</li>
+</ol>
+<h3 id="metrics-shown-per-pane">Metrics shown per pane<a class="anchor" href="#metrics-shown-per-pane" title="Link to this section">#</a></h3>
+<ul>
+<li><strong>⏳ idle</strong> — pane created, process not started.</li>
+<li><strong>▶ corriendo…</strong> — process started, waiting for first output.</li>
+<li><strong>⏱ TTFT 1.2s · corriendo…</strong> — first output received at 1.2s, still streaming.</li>
+<li><strong>✅ TTFT 1.2s · total 8.4s</strong> — finished successfully.</li>
+<li><strong>❌ exit 1 · 3.2s</strong> — process failed (auth missing, prompt too long, etc.).</li>
+<li><strong>■ cancelado</strong> — user clicked Cancel.</li>
+</ul>
+<h3 id="cost-considerations">Cost considerations<a class="anchor" href="#cost-considerations" title="Link to this section">#</a></h3>
+<p>This tab does <em>not</em> track cost — each invocation runs in the CLI's
+default account (OAuth for Pro/Max accounts, or API key if <code>--bare</code>
+mode is configured). To see the cost of these runs, switch to the
+<strong>💰 Coste IA</strong> tab and click <strong>↻ Re-escanear</strong> — the local session
+stores get updated by each CLI invocation.</p>
+<h3 id="limitations-mvp">Limitations (MVP)<a class="anchor" href="#limitations-mvp" title="Link to this section">#</a></h3>
+<ul>
+<li>No per-agent model picker (uses each CLI's default model). For
+  Claude that's the OAuth default; for Codex it's gpt-5-codex-pro
+  (depending on the plan).</li>
+<li>No token / cost extraction (planned — see ROADMAP).</li>
+<li>No diff view between agents' outputs (planned).</li>
+<li>No "vote-merge" composite (planned).</li>
+<li>Server-rendered streaming responses are shown as plain text — any
+  agent-specific formatting/markdown is preserved verbatim.</li>
+</ul>
+<h3 id="use-cases">Use cases<a class="anchor" href="#use-cases" title="Link to this section">#</a></h3>
+<ul>
+<li><strong>Choose the best agent for a task.</strong> Different models excel at
+  different domains (Claude on long-form code review, Codex on tight
+  code edits, etc.) — compare empirically.</li>
+<li><strong>Debug an unclear specification.</strong> Run the same prompt on N agents
+  and check whether they all converge on the same interpretation. If
+  they diverge, your prompt is ambiguous.</li>
+<li><strong>Generate competing solutions for manual merge.</strong> Get 2-3 distinct
+  approaches and cherry-pick the best parts.</li>
+</ul>
+<hr />
+<h2 id="14-github-integration">14. GitHub integration<a class="anchor" href="#14-github-integration" title="Link to this section">#</a></h2>
+<p>The <strong>📦 GitHub</strong> button in the project toolbar discovers existing
+repos and offers update-or-create.</p>
+<p>When clicked:</p>
+<ol>
+<li>Verifies <code>gh</code> is installed and authenticated. If not, prompts to
+   install via paru/apt and run <code>gh auth login</code>.</li>
+<li>Calls <code>gh repo list</code> for your active user AND for the
+   organisation listed in <code>~/.config/themeforge/licensing.json</code>
+   (<code>github_org</code> field) if configured. Filters by repos whose name
+   matches the project folder name (case-insensitive).</li>
+<li>Shows a dialog with:
+   - <code>↻ Actualizar  &lt;owner&gt;/&lt;slug&gt;  [public/private]</code> — for each
+     match found.
+   - <code>＋ CREAR nuevo  &lt;your-gh-user&gt;/&lt;slug&gt;  [privado]</code>.
+   - <code>＋ CREAR nuevo  &lt;github_org&gt;/&lt;slug&gt;  [privado, org]</code> if
+     <code>github_org</code> is set.</li>
+<li>Once you pick an option:
+   - <strong>Sanitises the index</strong>: ensures <code>.gitignore</code> blocks
+     <code>node_modules/</code>, <code>.next/</code>, <code>dist/</code>, <code>build/</code>, <code>.env*</code>,
+     <code>__pycache__/</code>, <code>.venv/</code>, <code>target/</code>, <code>vendor/</code>, <code>.idea/</code>,
+     <code>.vscode/</code>, <code>.DS_Store</code>. If any of these were accidentally
+     committed before, runs <code>git rm --cached</code> to untrack them, then
+     creates a tidy-up commit.
+   - <strong>Updates existing</strong>: sets <code>origin</code> to the chosen repo (if it
+     doesn't match), then <code>git push -u origin HEAD</code>.
+   - <strong>Creates new</strong>: <code>gh repo create &lt;slug&gt; --private --source=.
+     --remote=origin --push</code>.</li>
+<li>Logs the URL on success, shows a popup with the link.</li>
+</ol>
+<hr />
+<h2 id="15-pixel-office-visualizer">15. Pixel Office visualizer<a class="anchor" href="#15-pixel-office-visualizer" title="Link to this section">#</a></h2>
+<p>Optional. Visualises your active AI agent sessions as pixel-art
+avatars in a virtual office, served as a web dashboard on
+<code>localhost:3002</code>.</p>
+<p>ThemeForge integrates with the MIT-licensed fork at
+<code>pcreativedev/pixel-office-openclaw</code> (based on
+<code>neomatrix25/pixel-office-openclaw</code>), with an additional reader for
+Claude Code sessions added to its <code>server.js</code>.</p>
+<h3 id="first-run">First run<a class="anchor" href="#first-run" title="Link to this section">#</a></h3>
+<p>The first time ThemeForge launches, if it doesn't find Pixel Office
+installed, it asks:</p>
+<blockquote>
+<p>Pixel Office no está instalado. ¿Instalar ahora? (clones the repo
+to <code>~/.local/share/themeforge/pixel-office-openclaw/</code>, runs npm
+install + npm run build. Takes ~1-2 min.)</p>
+</blockquote>
+<p>If you accept, ThemeForge installs and auto-launches <code>node server.js</code>
+in background. The dashboard is then embedded in every
+ProjectWindow's "🎮 Office" tab.</p>
+<h3 id="how-the-claude-code-reader-works">How the Claude Code reader works<a class="anchor" href="#how-the-claude-code-reader-works" title="Link to this section">#</a></h3>
+<p>The server scans <code>~/.claude/projects/*/*.jsonl</code> files (where Claude
+Code stores its conversations). For each <code>.jsonl</code> younger than the
+active-window threshold (default 60 minutes):</p>
+<ul>
+<li>The file mtime → <code>lastActivity</code>.</li>
+<li>The first <code>{"type": "ai-title", ...}</code> line found → <code>name</code>.</li>
+<li>The <code>model</code> field of the last assistant message → <code>model</code>.</li>
+<li>The last user or assistant message → <code>lastMessage</code>.</li>
+</ul>
+<p>These are exposed at <code>/sessions_list</code> in the same schema as OpenClaw
+sessions. The React frontend renders one avatar per agent (project),
+with status <code>active</code> / <code>waiting</code> / <code>idle</code> based on recency.</p>
+<h3 id="disable">Disable<a class="anchor" href="#disable" title="Link to this section">#</a></h3>
+<p>Settings → 🎮 Office → ■ Stop. Or set
+<code>PIXEL_OFFICE_NO_CLAUDE_CODE=1</code> to scan only OpenClaw, or pass
+<code>--no-claude-code</code> to the CLI binary.</p>
+<hr />
+<h2 id="16-settings-panel">16. Settings panel<a class="anchor" href="#16-settings-panel" title="Link to this section">#</a></h2>
+<p>The Settings tab in the main window exposes:</p>
+<ul>
+<li><strong>AI providers</strong>: API key configuration per provider (see §8).</li>
+<li><strong>Default stack</strong>: select the stack used as the form default.</li>
+<li><strong>Postgres provisioning</strong>: auto-spin a per-project Docker postgres
+  container when scaffolding stacks that need a DB (Next + Drizzle,
+  Laravel + Postgres, etc.).</li>
+<li><strong>🎮 Office</strong>: install / launch / stop / open the Pixel Office
+  dashboard.</li>
+</ul>
+<hr />
+<h2 id="17-optional-licensing-system">17. Optional licensing system<a class="anchor" href="#17-optional-licensing-system" title="Link to this section">#</a></h2>
+<blockquote>
+<p><strong>TL;DR — what's bundled and what isn't.</strong></p>
+<p>ThemeForge ships the <strong>client side</strong> of a license verification flow:
+setup wizard UI, middleware guard, and a small HTTP client that
+calls your verification endpoint with a documented request/response
+schema. ThemeForge does <strong>NOT</strong> ship the backend (the verify endpoint,
+the license database, the admin panel, the Gumroad/Stripe webhook).
+You bring your own, or you point the client at a third-party service
+(Lemon Squeezy License API, Polar, Paddle, Gumroad License Verify…)
+with a tiny adapter. If you don't sell themes with license keys at
+all, leave the checkbox off and nothing licensing-related is added
+to the project.</p>
+</blockquote>
+<p>ThemeForge can scaffold a <strong>license verification client</strong> into every
+new theme — useful if you sell on Gumroad / your own web store and
+want each downloaded theme to verify the purchase code before
+running.</p>
+<p>Activation: check <strong>🔑 Activar sistema de licencias</strong> in the project
+creation form. Optional sub-checkboxes:</p>
+<ul>
+<li><strong>└─ Crear repo gh <code>&lt;your-org&gt;/&lt;slug&gt;</code> (Phase 3)</strong>: at end of
+  scaffolding, runs <code>gh repo create</code> under your org.</li>
+<li><strong>└─ Forzar también en modos <code>adopt</code> / <code>existing</code></strong>: by default the
+  scaffold only runs in <code>scratch</code> and <code>recreate</code> modes to avoid
+  collisions; tick this if you want to overlay the licensing files on
+  a template that doesn't have them yet.</li>
+</ul>
+<p>The checkbox is auto-ticked if the project name matches one of the
+slugs in <code>~/.config/themeforge/known-product-slugs.txt</code>.</p>
+<h3 id="what-gets-dropped-per-stack-family">What gets dropped per stack family<a class="anchor" href="#what-gets-dropped-per-stack-family" title="Link to this section">#</a></h3>
+<table>
+<thead>
+<tr>
+<th>Stack family</th>
+<th>Files generated</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Next.js</td>
+<td><code>src/app/api/verify-license/route.ts</code>, <code>src/app/setup/page.tsx</code>, <code>src/store/setup-store.ts</code>, <code>middleware.ts</code>, <code>.env.example</code> additions, <code>npm install zustand</code></td>
+</tr>
+<tr>
+<td>Laravel</td>
+<td><code>app/Http/Controllers/SetupWizardController.php</code>, <code>CheckSetupWizard.php</code> middleware, <code>SetupState.php</code> model, dated migration, Blade view with Alpine wizard, <code>routes/web.php</code> and <code>bootstrap/app.php</code> patches (idempotent), <code>.env.example</code> additions</td>
+</tr>
+<tr>
+<td>WordPress (plugin/theme)</td>
+<td><code>inc/class-license.php</code>, <code>inc/admin-license-page.php</code>, <code>README.licensing.md</code></td>
+</tr>
+<tr>
+<td>Express / Hono / NestJS / Bun-Elysia</td>
+<td><code>src/routes/license.ts</code> (stub), <code>.env.example</code> additions</td>
+</tr>
+<tr>
+<td>Other stacks</td>
+<td>A note in the project README pointing to <code>context/LICENSING-SYSTEM.md</code> for manual integration</td>
+</tr>
+</tbody>
+</table>
+<h3 id="url-templating">URL templating<a class="anchor" href="#url-templating" title="Link to this section">#</a></h3>
+<p>The verify-license URL, the panel base URL, and other host-specific
+values are NOT hardcoded in the templates. They use placeholders
+(<code>__LICENSE_API_URL__</code>, <code>__LICENSE_HOST__</code>, <code>__LICENSE_HOST_BARE__</code>,
+<code>__ORG_ID__</code>) which <code>licensing_scaffold.py</code> substitutes at scaffold
+time from <code>~/.config/themeforge/licensing.json</code>. If the config file
+doesn't exist, placeholders (e.g. <code>https://YOUR_DOMAIN/...</code>) are
+emitted instead.</p>
+<h3 id="bring-your-own-backend">Bring your own backend<a class="anchor" href="#bring-your-own-backend" title="Link to this section">#</a></h3>
+<p>The PHP backend is not required to be a specific implementation. As
+long as your endpoint accepts:</p>
+<pre><code class="language-http">POST /api/license/verify
+Content-Type: application/json
+
+{
+  &quot;license_key&quot;: &quot;XXXX-YYYY-ZZZZ-WWWW&quot;,
+  &quot;product&quot;:     &quot;&lt;product-slug&gt;&quot;,
+  &quot;domain&quot;:      &quot;buyer-host.com&quot;,
+  &quot;action&quot;:      &quot;activate&quot;,
+  &quot;version&quot;:     &quot;1.2.3&quot;
+}
+</code></pre>
+<p>…and returns:</p>
+<pre><code class="language-json">{
+  &quot;valid&quot;:   true,
+  &quot;type&quot;:    &quot;regular|pro|extended|developer&quot;,
+  &quot;email&quot;:   &quot;buyer@example.com&quot;,
+  &quot;expires&quot;: &quot;&quot;,
+  &quot;uses&quot;:    1,
+  &quot;max&quot;:     1,
+  &quot;product&quot;: &quot;&lt;product-slug&gt;&quot;,
+  &quot;server_time&quot;: 1735689600
+}
+</code></pre>
+<p>…the scaffolded clients (Next.js / Laravel / WordPress / Express) will
+work. Drop-in compatible backends: Lemon Squeezy License API, Polar,
+Paddle MoR, Gumroad license verify, or your own PHP/Node endpoint.</p>
+<hr />
+<h2 id="18-configuration-files">18. Configuration files<a class="anchor" href="#18-configuration-files" title="Link to this section">#</a></h2>
+<p>Under <code>~/.config/themeforge/</code>:</p>
+<table>
+<thead>
+<tr>
+<th>File</th>
+<th>Purpose</th>
+<th>Permissions</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>favorites.json</code></td>
+<td>Bookmarked stacks in the picker.</td>
+<td>0644</td>
+</tr>
+<tr>
+<td><code>ports.json</code></td>
+<td>Per-project (and per-sub-project for mono-repos) port assignments.</td>
+<td>0644</td>
+</tr>
+<tr>
+<td><code>projects-meta.json</code></td>
+<td>Per-project tags (<code>{"slug": {"tags": [...]}}</code>). See §11.</td>
+<td>0644</td>
+</tr>
+<tr>
+<td><code>keys.json</code></td>
+<td>AI provider API keys. <strong>Sensitive.</strong></td>
+<td>0600</td>
+</tr>
+<tr>
+<td><code>licensing.json</code></td>
+<td>URLs, GitHub org, package ID for the optional licensing system. <strong>Sensitive (URLs may be private).</strong></td>
+<td>0600</td>
+</tr>
+<tr>
+<td><code>known-product-slugs.txt</code></td>
+<td>Your product catalogue, one slug per line. Used to auto-tick the licensing checkbox.</td>
+<td>0644</td>
+</tr>
+<tr>
+<td><code>context-private/*.md</code></td>
+<td>Your private versions of context MDs (market research, competitor analysis, licensing spec). Overrides the public stubs in <code>context/</code>.</td>
+<td>0644</td>
+</tr>
+</tbody>
+</table>
+<p>ThemeForge also persists state outside <code>~/.config/</code>:</p>
+<table>
+<thead>
+<tr>
+<th>Location</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>~/Proyectos/themes/</code></td>
+<td>All active projects you've created with ThemeForge.</td>
+</tr>
+<tr>
+<td><code>~/Proyectos/themes-archive/</code></td>
+<td>Projects archived from the gallery (§11). Reversible.</td>
+</tr>
+<tr>
+<td><code>~/Proyectos/themes-builds/</code></td>
+<td>Marketplace ZIPs produced by <strong>📦 ZIP</strong> in ProjectWindow (§10).</td>
+</tr>
+<tr>
+<td><code>~/.cache/themeforge/thumbnails/&lt;slug&gt;.png</code></td>
+<td>Card-view thumbnails for the gallery (200×120). Generated from screenshots or as placeholders. Safe to delete — they regenerate.</td>
+</tr>
+<tr>
+<td><code>~/.local/share/themeforge/pixel-office-openclaw/</code></td>
+<td>Auto-installed Pixel Office visualizer (§13).</td>
+</tr>
+</tbody>
+</table>
+<h3 id="context-override-pattern">Context override pattern<a class="anchor" href="#context-override-pattern" title="Link to this section">#</a></h3>
+<p>When ThemeForge generates a new project, it copies context MDs to
+<code>&lt;project&gt;/context/</code>. Discovery is dynamic:</p>
+<ol>
+<li>Each <code>*.md</code> under <code>~/.config/themeforge/context-private/</code>.</li>
+<li>Each <code>*.md</code> and <code>*.template.md</code> under <code>&lt;repo&gt;/context/</code> whose stem
+   doesn't already exist in (1).</li>
+</ol>
+<p>Templates have a <code>.template.md</code> suffix; their <code>.template</code> is stripped
+on copy. This means you can ship public neutral stubs in the repo
+(<code>MARKET-RESEARCH.template.md</code>) while injecting your real research
+(<code>~/.config/themeforge/context-private/MARKET-RESEARCH.md</code>) into every
+project you build locally.</p>
+<p>The public stubs in <code>context/</code> are intentionally neutral — no product
+names, no domains, no strategies leak from the repo.</p>
+<hr />
+<h2 id="19-troubleshooting">19. Troubleshooting<a class="anchor" href="#19-troubleshooting" title="Link to this section">#</a></h2>
+<h3 id="themeforge-does-not-start-importerror-on-pyqt6">ThemeForge does not start (ImportError on PyQt6)<a class="anchor" href="#themeforge-does-not-start-importerror-on-pyqt6" title="Link to this section">#</a></h3>
+<p>Install <code>python-pyqt6</code> and <code>python-pyqt6-webengine</code> from your distro.
+On Arch: <code>sudo pacman -S python-pyqt6 python-pyqt6-webengine</code>. On
+Debian: <code>sudo apt install python3-pyqt6 python3-pyqt6.qtwebengine</code>.</p>
+<h3 id="embedded-terminal-does-not-load">Embedded terminal does not load<a class="anchor" href="#embedded-terminal-does-not-load" title="Link to this section">#</a></h3>
+<p>The terminal needs Node. Verify:</p>
+<pre><code class="language-bash">which node
+node --version          # must be 20+
+cd terminal &amp;&amp; npm install
+</code></pre>
+<p>If still broken, look at the <code>[term-server stderr]</code> lines in the
+project window's bottom log pane.</p>
+<h3 id="embedded-preview-shows-blank-in-wayland">Embedded preview shows blank in Wayland<a class="anchor" href="#embedded-preview-shows-blank-in-wayland" title="Link to this section">#</a></h3>
+<p>QtWebEngine has known performance issues on some Wayland setups. Use
+the 🚀 button to open the preview in Brave/Chromium in <code>--app</code> mode
+instead. The native browser handles the page natively.</p>
+<h3 id="pixel-office-no-esta-instalado-but-i-already-installed-it">"🎮 Pixel Office no está instalado" but I already installed it<a class="anchor" href="#pixel-office-no-esta-instalado-but-i-already-installed-it" title="Link to this section">#</a></h3>
+<p>The auto-detect checks two paths:</p>
+<pre><code>~/.local/share/themeforge/pixel-office-openclaw/
+~/Proyectos/pixel-office-openclaw/
+</code></pre>
+<p>If you cloned elsewhere, either move it or symlink one of the above
+to your install location.</p>
+<h3 id="project-shows-the-connect-to-openclaw-gateway-screen">Project shows the "Connect to OpenClaw" gateway screen<a class="anchor" href="#project-shows-the-connect-to-openclaw-gateway-screen" title="Link to this section">#</a></h3>
+<p>ThemeForge's <code>pixel_office.py</code> serves the SPA at <code>localhost:3002</code>. The
+SPA auto-connects to same-origin if <code>/sessions_list</code> responds. If the
+gateway screen appears anyway, reload (Ctrl+R). If it persists, clear
+browser cache for <code>localhost:3002</code>.</p>
+<h3 id="wp-env-start-exits-with-error-no-plugins-activated"><code>wp-env start</code> exits with <code>Error: No plugins activated</code><a class="anchor" href="#wp-env-start-exits-with-error-no-plugins-activated" title="Link to this section">#</a></h3>
+<p>A previous version of ThemeForge's wp-env config injected a buggy
+<code>afterStart</code> hook. Open the <code>.wp-env.json</code> in your WordPress project
+and delete the entire <code>lifecycleScripts</code> block — wp-env auto-activates
+plugins listed in <code>plugins</code>. ThemeForge no longer emits the broken
+hook for new projects.</p>
+<h3 id="start-preview-succeeds-but-stop-is-greyed-out"><code>start preview</code> succeeds but Stop is greyed out<a class="anchor" href="#start-preview-succeeds-but-stop-is-greyed-out" title="Link to this section">#</a></h3>
+<p>For detached profiles (wp-env, <code>docker compose -d</code>), the start command
+exits with code 0 after launching containers. Recent ThemeForge keeps
+Stop enabled when the profile defines a <code>stop</code> command. Make sure
+you're on the latest commit.</p>
+<h3 id="github-says-no-estas-autenticado-en-gh"><code>📦 GitHub</code> says "No estás autenticado en gh"<a class="anchor" href="#github-says-no-estas-autenticado-en-gh" title="Link to this section">#</a></h3>
+<p>Run <code>gh auth login</code> in any terminal and complete the flow. ThemeForge
+will pick up the auth on the next click. The OAuth token lives in
+<code>~/.config/gh/hosts.yml</code> (managed by gh, NOT touched by ThemeForge).</p>
+<h3 id="brave-chromium-does-not-detect-as-installed">Brave / Chromium does not detect as installed<a class="anchor" href="#brave-chromium-does-not-detect-as-installed" title="Link to this section">#</a></h3>
+<p>ThemeForge looks for one of: <code>brave</code>, <code>brave-browser</code>, <code>chromium</code>,
+<code>google-chrome-stable</code>, <code>google-chrome</code>, <code>microsoft-edge</code>, <code>vivaldi</code>,
+<code>firefox</code>, <code>xdg-open</code>. If none are found, the 🚀 button errors out.</p>
+<h3 id="ntfs-usb-or-disk-wont-mount">NTFS USB or disk won't mount<a class="anchor" href="#ntfs-usb-or-disk-wont-mount" title="Link to this section">#</a></h3>
+<p>Install <code>ntfs-3g</code>. On Arch: <code>sudo pacman -S ntfs-3g</code>. CachyOS's
+linux-cachyos kernel doesn't include the <code>ntfs3</code> in-kernel module by
+default; <code>ntfs-3g</code> provides FUSE-based access.</p>
+<h3 id="reference-analysis-dialog-says-need-login-for-gemini">Reference-analysis dialog says "Need login" for Gemini<a class="anchor" href="#reference-analysis-dialog-says-need-login-for-gemini" title="Link to this section">#</a></h3>
+<p>Gemini requires Google OAuth via <code>gemini</code> CLI's first-run flow OR a
+<code>GEMINI_API_KEY</code> env var. Run <code>gemini</code> once in a terminal to complete
+OAuth, or set the key via the Settings panel.</p>
+<hr />
+<h2 id="20-credits-and-third-party-licenses">20. Credits and third-party licenses<a class="anchor" href="#20-credits-and-third-party-licenses" title="Link to this section">#</a></h2>
+<p>ThemeForge is licensed under <strong>GPL v3</strong> (forced by the PyQt6
+dependency which is GPL v3 or commercial). See <code>LICENSE</code>.</p>
+<h3 id="direct-integrations">Direct integrations<a class="anchor" href="#direct-integrations" title="Link to this section">#</a></h3>
+<table>
+<thead>
+<tr>
+<th>Component</th>
+<th>License</th>
+<th>How it's used</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://www.riverbankcomputing.com/software/pyqt/">PyQt6</a></td>
+<td>GPL v3 (or commercial)</td>
+<td>The whole GUI.</td>
+</tr>
+<tr>
+<td><a href="https://xtermjs.org/"><code>@xterm/xterm</code></a></td>
+<td>MIT</td>
+<td>Embedded terminal in <code>terminal/</code>. Bundled via npm.</td>
+</tr>
+<tr>
+<td><a href="https://xtermjs.org/"><code>@xterm/addon-fit</code></a></td>
+<td>MIT</td>
+<td>Resize support for the terminal.</td>
+</tr>
+<tr>
+<td><a href="https://github.com/microsoft/node-pty"><code>node-pty</code></a></td>
+<td>MIT</td>
+<td>PTY backend for the terminal.</td>
+</tr>
+<tr>
+<td><a href="https://github.com/websockets/ws"><code>ws</code></a></td>
+<td>MIT</td>
+<td>WebSocket transport between the terminal frontend and <code>node-pty</code>.</td>
+</tr>
+<tr>
+<td><a href="https://github.com/midudev/autoskills"><code>autoskills</code></a> (midudev)</td>
+<td><strong>CC BY-NC 4.0</strong></td>
+<td>Invoked via <code>npx autoskills -a &lt;provider&gt;</code> to install skills declared by each stack. <strong>Non-commercial license</strong> — if you ship a commercial build of ThemeForge, the autoskills checkbox must be off-by-default or replaced with a permissive alternative.</td>
+</tr>
+<tr>
+<td><a href="https://github.com/neomatrix25/pixel-office-openclaw"><code>pixel-office-openclaw</code></a> (neomatrix25)</td>
+<td>MIT</td>
+<td>Visualizer dashboard. Fork at <code>pcreativedev/pixel-office-openclaw</code> adds the Claude Code session reader.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="invoked-as-subprocess">Invoked-as-subprocess<a class="anchor" href="#invoked-as-subprocess" title="Link to this section">#</a></h3>
+<p>These are external CLIs ThemeForge invokes; they're not bundled.</p>
+<table>
+<thead>
+<tr>
+<th>Tool</th>
+<th>License</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://github.com/anthropics/claude-code">Claude Code CLI</a> (Anthropic)</td>
+<td>Apache 2.0</td>
+</tr>
+<tr>
+<td><a href="https://github.com/openai/codex">Codex CLI</a> (OpenAI)</td>
+<td>Apache 2.0</td>
+</tr>
+<tr>
+<td><a href="https://github.com/google-gemini/gemini-cli">Gemini CLI</a> (Google)</td>
+<td>Apache 2.0</td>
+</tr>
+<tr>
+<td><a href="https://github.com/opencode-ai/opencode">OpenCode CLI</a></td>
+<td>Apache 2.0</td>
+</tr>
+<tr>
+<td><a href="https://github.com/cli/cli">GitHub CLI (<code>gh</code>)</a></td>
+<td>MIT</td>
+</tr>
+</tbody>
+</table>
+<h3 id="referenced-skill-packages-not-redistributed-invoked-by-name">Referenced skill packages (not redistributed — invoked by name)<a class="anchor" href="#referenced-skill-packages-not-redistributed-invoked-by-name" title="Link to this section">#</a></h3>
+<ul>
+<li><code>anthropics/skills/frontend-design</code> (Anthropic).</li>
+<li><code>vercel/skills/nextjs-best-practices</code> (Vercel).</li>
+<li><code>wordpress/skills/block-theme-development</code> (WordPress).</li>
+<li><code>shopify/skills/theme-development</code> (Shopify).</li>
+</ul>
+<h3 id="acknowledgements">Acknowledgements<a class="anchor" href="#acknowledgements" title="Link to this section">#</a></h3>
+<ul>
+<li><strong>midudev</strong> for <a href="https://github.com/midudev/autoskills">autoskills</a>
+  and the broader Spanish-speaking dev community he educates.</li>
+<li><strong>neomatrix25</strong> for <a href="https://github.com/neomatrix25/pixel-office-openclaw">pixel-office-openclaw</a>,
+  the foundation of the visualizer.</li>
+<li>The Qt team for PyQt6 and PySide6.</li>
+<li>Anthropic, OpenAI, Google and the open-source AI community for the
+  CLIs that make this workflow possible.</li>
+</ul>
+<hr />
+<h2 id="appendix-a-directory-layout-of-a-generated-project">Appendix A — Directory layout of a generated project<a class="anchor" href="#appendix-a-directory-layout-of-a-generated-project" title="Link to this section">#</a></h2>
+<p>After ThemeForge creates a project, the on-disk layout looks like
+this (for a Next.js + licensing example):</p>
+<pre><code>~/Proyectos/themes/my-template/
+├── .git/
+├── .gitignore
+├── CLAUDE.md                    # injected by ThemeForge
+├── README.md                    # from the stack scaffolder
+├── context/                     # market/competitors/requirements MDs
+│   ├── REQUIREMENTS-THEMEFOREST.md
+│   ├── MARKET-RESEARCH.md       # private if you have ~/.config/.../context-private/
+│   └── …
+├── public/
+├── src/
+│   ├── app/
+│   │   ├── api/
+│   │   │   └── verify-license/route.ts   # licensing scaffold
+│   │   ├── setup/
+│   │   │   └── page.tsx                  # licensing wizard
+│   │   └── …
+│   └── store/
+│       └── setup-store.ts                # Zustand store for setup
+├── middleware.ts                # redirects to /setup if not completed
+├── package.json
+└── tsconfig.json
+</code></pre>
+<p>For multi-stack mono-repos (e.g. Laravel + Flutter), each stack lives
+in its own subdirectory and the sub-project dropdown lets you switch
+the active preview between them.</p>
+<hr />
+<h2 id="appendix-b-reporting-issues">Appendix B — Reporting issues<a class="anchor" href="#appendix-b-reporting-issues" title="Link to this section">#</a></h2>
+<p>If you hit a bug:</p>
+<ol>
+<li>Check §17 (Troubleshooting) first.</li>
+<li>Run ThemeForge from a terminal so you can capture stack traces:
+   <code>python3 ~/Proyectos/themeforge/themeforge.py</code>.</li>
+<li>Report at the repo's Issues tracker including:
+   - Distro + kernel (<code>uname -a</code>).
+   - Python version, PyQt6 version (<code>pip show pyqt6</code>).
+   - Node version.
+   - Stack you were creating.
+   - Mode (scratch / recreate / adopt / existing).
+   - The traceback.</li>
+</ol>
+    <p class="footer-meta">Generated from <code>USER_GUIDE.md</code> by
+    <code>generate-html.py</code>. Re-run after editing the markdown.</p>
+  </main>
+</div>
+</body>
+</html>

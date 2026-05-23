@@ -1,0 +1,134 @@
+# ThemeForge
+
+A PyQt6 desktop GUI that scaffolds **modern template projects** for
+ThemeForest / CodeCanyon / Creative Market / Gumroad and drives them
+end-to-end with **AI coding agents** (Claude Code, Codex, Gemini,
+OpenCode).
+
+Pick a stack, pick a mode (from scratch / recreate-from-reference /
+adopt-local / existing-repo), pick an AI provider, and ThemeForge:
+
+- Runs the official scaffold of the stack (Next.js / Astro / Laravel /
+  WordPress / Flutter / Tauri / + ~55 more).
+- Drops a `CLAUDE.md` (or `AGENTS.md`) with project context, market
+  research, requirements and anti-copy rules.
+- Optionally analyses a reference template **interactively** with the
+  AI (multi-turn) and injects the conversation into the project.
+- Opens a per-project window with embedded **preview** (multi-tab
+  browser), embedded **terminal** (xterm.js + node-pty), one-click
+  **GitHub push/create**, and optional **pixel-art session visualizer**.
+- Lets you wire your own **licensing system** into every generated
+  theme (Lemon Squeezy / Polar / Paddle / custom endpoint).
+
+📖 **[Read the full user guide → `docs/USER_GUIDE.md`](docs/USER_GUIDE.md)**
+
+## Platform support
+
+| Platform | Status | Notes |
+|---|---|---|
+| 🐧 **Linux** | ✅ **Beta / supported** | Primary development platform. Tested on CachyOS / Arch / Ubuntu / Fedora. Run from source with `python3 themeforge.py`. |
+| 🍎 **macOS** | ⚠️ **Alpha** | Cross-platform refactor complete (subprocess, file manager, terminal, paths all dispatched per OS). Pre-built `.app` available from the [Releases](../../releases) page (built via GitHub Actions on `macos-latest`). **Not yet tested on real Macs** — expect rough edges; report issues. App is **not code-signed** — first launch will require `Cmd+click → Open` to bypass Gatekeeper. |
+| 🪟 **Windows** | 🔴 **Backlog** | Tracked in [`ROADMAP.md`](ROADMAP.md#cross-platform-support). Estimated 3-5 days of additional refactor (PowerShell wrapper, path conventions, no-bash). PRs welcome. |
+
+## Quick install
+
+### Linux (from source)
+
+```bash
+git clone https://github.com/<owner>/themeforge.git
+cd themeforge
+
+# System deps (Arch / CachyOS)
+sudo pacman -S --needed python python-pyqt6 python-pyqt6-webengine python-pyqt6-charts nodejs npm git
+
+# Embedded terminal server
+cd terminal && npm install && cd ..
+
+# Launch
+./launch.sh
+```
+
+For Debian / Ubuntu instructions, AI provider setup, and full
+configuration, see the [user guide](docs/USER_GUIDE.md#3-installation).
+
+### macOS (pre-built .app — alpha)
+
+1. Download `ThemeForge-macOS.zip` from the [Releases](../../releases) page.
+2. Unzip → drag `ThemeForge.app` to `/Applications/`.
+3. First launch: **right-click** → **Open** → confirm the "developer not
+   identified" dialog. Subsequent launches will work normally.
+4. Install Node + the AI CLIs separately (the .app doesn't bundle them):
+   ```bash
+   brew install node gh
+   npm i -g @anthropic-ai/claude-code @openai/codex @google/gemini-cli opencode-ai
+   ```
+
+### macOS (from source)
+
+```bash
+git clone https://github.com/<owner>/themeforge.git
+cd themeforge
+brew install python@3.12 node gh
+pip3 install pyqt6 pyqt6-webengine pyqt6-charts
+cd terminal && npm install && cd ..
+python3 themeforge.py
+```
+
+## Highlights
+
+- **60+ stacks** — Next.js, Astro, Laravel, WordPress (block themes
+  and plugins with MCP-adapter), Shopify Liquid, Flutter, Expo, Ionic,
+  Tauri, Electron, Spring Boot, Ktor, Phaser, R3F, and more.
+- **Multi-stack mono-repo detection** — automatic sub-project
+  dropdown for projects like `Files/Laravel/` + `Files/Flutter/`.
+- **Conversational reference analysis** — multi-turn IA dialog with
+  TTFT/token/cost metrics, saved into the project's CLAUDE.md.
+- **Embedded preview with tabs** — multiple URLs in the same window,
+  shared URL bar, screenshot to PNG, DevTools.
+- **GitHub integration** — auto-detects existing repos in your account
+  and your org, offers update-or-create with idempotent `.gitignore`
+  sanitisation before push.
+- **🔬 Pre-flight checker** — 13 automated checks against ThemeForest
+  requirements (README, LICENSE, jQuery legacy, hardcoded tracking,
+  placeholders unresolved, project size, etc.) before you upload.
+- **📦 Marketplace ZIP builder** — one click produces a `<slug>.zip`
+  with aggressive exclusions (node_modules, .git, .env, .claude,
+  MEMORY.md…) ready for ThemeForest / Gumroad / Creative Market.
+- **Gallery** with card view + custom tags + project archive + last
+  AI session indicator + command palette (Ctrl+K).
+- **Pixel Office visualizer** (optional) — your active Claude Code
+  sessions as pixel-art avatars in a virtual office.
+
+## License
+
+GPL v3 — see [`LICENSE`](LICENSE) (forced by the PyQt6 dependency).
+
+## Credits
+
+ThemeForge wouldn't exist without:
+
+- [autoskills](https://github.com/midudev/autoskills) by **midudev**
+  (CC BY-NC 4.0)
+- [pixel-office-openclaw](https://github.com/neomatrix25/pixel-office-openclaw)
+  by **neomatrix25** (MIT)
+- xterm.js, node-pty, ws (all MIT)
+- The Claude Code, Codex, Gemini and OpenCode teams for the agent
+  CLIs
+
+Full third-party attribution in
+[`docs/USER_GUIDE.md` §20](docs/USER_GUIDE.md#20-credits-and-third-party-licenses).
+
+## Status
+
+**Linux:** Beta — production-quality for the documented workflows.
+Rough edges expected on uncommon stacks or distros far from Arch.
+
+**macOS:** Alpha — the cross-platform refactor is in. Pre-built .app
+ships from CI but hasn't been tested on real Macs yet. If you're a
+Mac user willing to try it and report issues, you'd be doing the
+project a huge favour. See [`ROADMAP.md`](ROADMAP.md#cross-platform-support)
+for the open items.
+
+**Windows:** Backlog. PRs welcome.
+
+Issues and pull requests welcome.

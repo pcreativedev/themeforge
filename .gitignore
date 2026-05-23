@@ -1,0 +1,83 @@
+# ─── DATOS PERSONALES / SECRETS (CRÍTICO) ────────────────────────────
+# Cualquier .md en context/ se considera PRIVADO por defecto. Solo se
+# permiten los *.template.md (versiones genéricas públicas) y los
+# explícitamente marcados como exempt más abajo.
+context/*.md
+!context/*.template.md
+!context/REQUISITOS-THEMEFOREST.md
+
+# Memoria de Claude Code / agents — local-only, nunca al repo.
+.claude/
+CLAUDE.md
+AGENTS.md
+MEMORY.md
+memory/
+.cursor/
+.windsurf/
+
+# Notas internas pre-publicación. Si decides publicarlas como
+# transparencia histórica, quita esta línea.
+ANTES-DE-PUBLICAR.md
+
+# Configs / state runtime con keys
+~/.config/themeforge/keys.json
+**/keys.json
+**/.env
+**/.env.*
+!**/.env.example
+**/credentials.json
+**/.credentials.json
+# licensing.json local-only por si pones la versión real (con tu URL
+# de panel y tu github_org) en el repo dir por error. La versión real
+# va a ~/.config/themeforge/licensing.json (fuera del repo).
+**/licensing.json
+!licensing_config.py
+
+# Builds privados
+builds/
+
+# PyInstaller / macOS build artefactos
+build/
+dist/
+*.spec
+icon.iconset/
+assets/themeforge.icns
+out/
+
+
+# ─── Python ─────────────────────────────────────────────────────────
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.so
+.Python
+.venv/
+venv/
+env/
+ENV/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# ─── Node (terminal embebida) ───────────────────────────────────────
+terminal/node_modules/
+**/node_modules/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ─── OS / Editor ────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# ─── Temporales del propio ThemeForge ──────────────────────────────
+*.tmp
+*.bak
+tmp/

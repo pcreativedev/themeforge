@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>ThemeForge Terminal</title>
+  <link rel="stylesheet" href="/xterm.css">
+  <style>
+    html, body { margin:0; padding:0; height:100%; background:#0c0c0d; overflow:hidden; }
+    #term { position:absolute; inset:0; padding:6px; }
+    .status { position:absolute; bottom:0; right:6px; color:#666; font:11px monospace; pointer-events:none; }
+  </style>
+</head>
+<body>
+  <div id="term"></div>
+  <div class="status" id="status">conectando…</div>
+
+  <script src="/xterm.js"></script>
+  <script src="/addon-fit.js"></script>
+  <script>
+    const params = new URLSearchParams(location.search);
+    const status = document.getElementById('status');
+
+    const term = new Terminal({
+      fontFamily: '"Fira Code", "DejaVu Sans Mono", monospace',
+      fontSize: 13,
+      cursorBlink: true,
+      allowProposedApi: true,
+      scrollback: 5000,
+      theme: {
+        background:    '#0c0c0d',
+        foreground:    '#e6e6e6',
+        cursor:        '#e6e6e6',
+        selectionBackground: '#3a3a3a',
+        black:   '#222', red:     '#ed1c57',
+        green:   '#50fa7b', yellow:  '#ffe44d',
+        blue:    '#62b4ff', magenta: '#cc7cff',
+        cyan:    '#8be9fd', white:   '#e8e8eb',
+      },
+    });
+    const fit = new FitAddon.FitAddon();
+    term.loadAddon(fit);
+    term.open(document.getElementById('term'));
+    fit.fit();
+
+    const wsHost = location.host;
+    const ws = new WebSocket(`ws://${wsHost}/?${params}`);
+
+    ws.onopen = () => {
+      status.textContent = 'conectado';
+      sendResize();
+    };
+    ws.onclose = () => { status.textContent = 'desconectado'; };
+    ws.onerror = () => { status.textContent = 'error WebSocket'; };
+    ws.onmessage = e => {
+      // Texto crudo del pty
+      if (typeof e.data === 'string') term.write(e.data);
+      else e.data.text().then(t => term.write(t));
+    };
+
+    term.onData(d => {
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({type: 'input', data: d}));
+      }
+    });
+
+    function sendResize() {
+      fit.fit();
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({type: 'resize', cols: term.cols, rows: term.rows}));
+      }
+    }
+    let rt;
+    window.addEventListener('resize', () => {
+      clearTimeout(rt);
+      rt = setTimeout(sendResize, 60);
+    });
+
+    // Foco al iniciar
+    term.focus();
+  </script>
+</body>
+</html>
