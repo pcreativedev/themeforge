@@ -224,6 +224,69 @@ per agent. See §13 of USER_GUIDE.
 
 ---
 
+## 🎨 App themes
+
+Current state (post-v1.1.0, on main): 5 sprints shipped — full theme
+system for ThemeForge's own UI (separate from uipro/autoskills which
+theme the projects it generates). See `themes/` module and §17 of
+USER_GUIDE.
+
+**Shipped:**
+
+- ✅ **Sprint 1** — JSON-token schema, QPalette + QSS pipeline, 5
+  builtin themes (Dark/Light/Dracula/Nord/Tokyo Night), Settings
+  dropdown with hot-reload, persistence.
+- ✅ **Sprint 2** — Component variants (`button: flat|raised|pill|
+  brutalist|ghost`, `tab: underline|card|pill|segmented`, `input:
+  outlined|filled|underlined|brutalist`, `density: compact|
+  comfortable|spacious`, etc.) + 3 showcase themes (Brutalism,
+  Linear, Soft UI).
+- ✅ **Sprint 3** — 38 Lucide SVG icons in `assets/icons/lucide/`,
+  `tf_icon(name, color, size)` renderer that swaps `currentColor`
+  for the theme's accent, applied to the 6 main tabs. Re-tints on
+  theme change via `theme_signals.theme_changed` pyqtSignal.
+- ✅ **Sprint 4** — Live visual editor `ThemeEditorDialog`: 21 color
+  swatches with QColorDialog pickers, 5 shape sliders, 6 component
+  dropdowns, metadata fields. Every edit re-applies the working
+  ThemePack to the whole app (the app IS the preview). Save writes
+  to `~/.config/themeforge/themes/<slug>.json`.
+- ✅ **Sprint 5** — Figma DTCG import (`themes/figma_import.py` +
+  `figma_import_dialog.py`). Two paths: paste/load DTCG JSON from
+  Tokens Studio (free Figma) or call REST API `/variables/local`
+  (Enterprise). 26 color + 5 shape regex patterns score Figma
+  tokens against ThemeForge slots; user can re-target or skip rows.
+  Reverse export `themepack_to_dtcg()` for round-trips back to
+  designers.
+
+### Future updates
+
+- **Sprint 6 — Motion + density deeper.** `motion` tokens (transition
+  duration / easing). QPropertyAnimation pulses on theme change.
+  Density modes (compact / comfortable / spacious) propagate to
+  font sizes, not just padding.
+- **Sprint 7 — Effects opt-in.** Glassmorphism via cached
+  `QGraphicsBlurEffect` (per Qt research, performance-sensitive —
+  cache the blurred pixmap once per resize). Neumorphism via double
+  shadow (inset + drop). Optional per-theme; off by default.
+- **Sprint 8 — Theme marketplace.** Read-only browser of a community
+  themes repo (e.g. `pcreativedev/themeforge-themes-community`),
+  one-click install. Optional `share-via-gist` button.
+- **Sprint 9 — Per-tab accent variations.** Each main tab gets a
+  slight color shift (Builder=accent_blue, Gallery=teal,
+  Cost=amber, Compare=purple, Settings=neutral) for visual hierarchy.
+- **Sprint 10 — AI mapping assist.** When importing DTCG with
+  ambiguous token names, fall back to Claude/Codex (via cost
+  tracker pricing) to suggest mappings. User confirms.
+- **Sprint 11 — VSCode theme import.** Parse VSCode `theme.json`
+  (`colors` + `tokenColors`) into our ThemePack format. Cross-
+  pollinates from the VS Code community theme ecosystem.
+- **Sprint 12 — Animated theme transitions.** Cross-fade between
+  themes instead of instant switch.
+- **More builtin themes**: Catppuccin Mocha/Latte, Solarized,
+  Gruvbox, One Dark, GitHub light/dark, Carbon (IBM), Bento (Apple).
+
+---
+
 ## 📦 Distribution
 
 Current state (v1.0): GitHub Actions builds **AppImage** (universal),

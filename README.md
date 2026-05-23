@@ -58,6 +58,12 @@ adopt-local / existing-repo), pick an AI provider, and ThemeForge:
   with one click.
 - 🔐 **Wires your own licensing system** into every generated theme
   (Lemon Squeezy / Polar / Paddle / custom endpoint).
+- 🎨 **Theme system for the app itself** — 8 builtin themes (Dark /
+  Light / Dracula / Nord / Tokyo Night / Brutalism / Linear / Soft UI),
+  visual editor with live preview, **Figma DTCG import** (works with
+  free-plan Tokens Studio plugin + Enterprise REST API), Lucide
+  iconography that re-tints with the active accent color. See
+  [`docs/USER_GUIDE.md` §17](docs/USER_GUIDE.md#17-app-themes).
 
 📖 **[Read the full user guide → `docs/USER_GUIDE.md`](docs/USER_GUIDE.md)**
 

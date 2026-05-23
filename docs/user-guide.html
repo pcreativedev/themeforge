@@ -263,6 +263,7 @@ img { max-width: 100%; border-radius: 6px; }
 <li><a href="#8-ai-providers">8. AI providers</a><ul>
 <li><a href="#setting-api-keys">Setting API keys</a></li>
 <li><a href="#skills-auto-install-autoskills">Skills auto-install (autoskills)</a></li>
+<li><a href="#design-intelligence-uipro-uiux-pro-max">Design intelligence (uipro — UI/UX Pro Max)</a></li>
 </ul>
 </li>
 <li><a href="#9-reference-analysis-conversational">9. Reference analysis (conversational)</a></li>
@@ -313,17 +314,33 @@ img { max-width: 100%; border-radius: 6px; }
 </ul>
 </li>
 <li><a href="#16-settings-panel">16. Settings panel</a></li>
-<li><a href="#17-optional-licensing-system">17. Optional licensing system</a><ul>
+<li><a href="#17-app-themes">17. App themes</a><ul>
+<li><a href="#171-whats-in-the-box">17.1 What's in the box</a></li>
+<li><a href="#172-theme-tokens-what-each-theme-controls">17.2 Theme tokens — what each theme controls</a></li>
+<li><a href="#173-visual-editor">17.3 Visual editor</a></li>
+<li><a href="#174-figma-import">17.4 Figma import</a><ul>
+<li><a href="#path-a-tokens-studio-json-free-figma">Path A: Tokens Studio JSON (free Figma)</a></li>
+<li><a href="#path-b-figma-rest-api-enterprise-plan">Path B: Figma REST API (Enterprise plan)</a></li>
+<li><a href="#mapping-table">Mapping table</a></li>
+<li><a href="#multi-mode-alias-support">Multi-mode + alias support</a></li>
+</ul>
+</li>
+<li><a href="#175-theme-file-format">17.5 Theme file format</a></li>
+<li><a href="#176-round-trip-back-to-figma">17.6 Round-trip back to Figma</a></li>
+<li><a href="#177-limitations">17.7 Limitations</a></li>
+</ul>
+</li>
+<li><a href="#18-optional-licensing-system">18. Optional licensing system</a><ul>
 <li><a href="#what-gets-dropped-per-stack-family">What gets dropped per stack family</a></li>
 <li><a href="#url-templating">URL templating</a></li>
 <li><a href="#bring-your-own-backend">Bring your own backend</a></li>
 </ul>
 </li>
-<li><a href="#18-configuration-files">18. Configuration files</a><ul>
+<li><a href="#19-configuration-files">19. Configuration files</a><ul>
 <li><a href="#context-override-pattern">Context override pattern</a></li>
 </ul>
 </li>
-<li><a href="#19-troubleshooting">19. Troubleshooting</a><ul>
+<li><a href="#20-troubleshooting">20. Troubleshooting</a><ul>
 <li><a href="#themeforge-does-not-start-importerror-on-pyqt6">ThemeForge does not start (ImportError on PyQt6)</a></li>
 <li><a href="#embedded-terminal-does-not-load">Embedded terminal does not load</a></li>
 <li><a href="#embedded-preview-shows-blank-in-wayland">Embedded preview shows blank in Wayland</a></li>
@@ -337,7 +354,7 @@ img { max-width: 100%; border-radius: 6px; }
 <li><a href="#reference-analysis-dialog-says-need-login-for-gemini">Reference-analysis dialog says "Need login" for Gemini</a></li>
 </ul>
 </li>
-<li><a href="#20-credits-and-third-party-licenses">20. Credits and third-party licenses</a><ul>
+<li><a href="#21-credits-and-third-party-licenses">21. Credits and third-party licenses</a><ul>
 <li><a href="#direct-integrations">Direct integrations</a></li>
 <li><a href="#invoked-as-subprocess">Invoked-as-subprocess</a></li>
 <li><a href="#referenced-skill-packages-not-redistributed-invoked-by-name">Referenced skill packages (not redistributed — invoked by name)</a></li>
@@ -379,10 +396,11 @@ system, and troubleshooting.</p>
 <li><a href="#14-github-integration">GitHub integration</a></li>
 <li><a href="#15-pixel-office-visualizer">Pixel Office visualizer</a></li>
 <li><a href="#16-settings-panel">Settings panel</a></li>
-<li><a href="#17-optional-licensing-system">Optional licensing system</a></li>
-<li><a href="#18-configuration-files">Configuration files</a></li>
-<li><a href="#19-troubleshooting">Troubleshooting</a></li>
-<li><a href="#20-credits-and-third-party-licenses">Credits and third-party licenses</a></li>
+<li><a href="#17-app-themes">App themes</a></li>
+<li><a href="#18-optional-licensing-system">Optional licensing system</a></li>
+<li><a href="#19-configuration-files">Configuration files</a></li>
+<li><a href="#20-troubleshooting">Troubleshooting</a></li>
+<li><a href="#21-credits-and-third-party-licenses">Credits and third-party licenses</a></li>
 </ol>
 <hr />
 <h2 id="1-what-is-themeforge">1. What is ThemeForge<a class="anchor" href="#1-what-is-themeforge" title="Link to this section">#</a></h2>
@@ -700,6 +718,28 @@ slug; ThemeForge doesn't redistribute them.</p>
 <p><code>autoskills</code> itself is by <strong>midudev</strong>
 (<a href="https://github.com/midudev/autoskills">https://github.com/midudev/autoskills</a>) under <strong>CC BY-NC 4.0</strong>. See
 §18 for the implication and how to disable in commercial builds.</p>
+<h3 id="design-intelligence-uipro-uiux-pro-max">Design intelligence (<code>uipro</code> — UI/UX Pro Max)<a class="anchor" href="#design-intelligence-uipro-uiux-pro-max" title="Link to this section">#</a></h3>
+<p>A second, complementary skill: <strong>UI UX Pro Max</strong> by
+<a href="https://github.com/nextlevelbuilder">nextlevelbuilder</a>
+(<a href="https://github.com/nextlevelbuilder/ui-ux-pro-max-skill">https://github.com/nextlevelbuilder/ui-ux-pro-max-skill</a>, MIT).
+Whereas <code>autoskills</code> covers <em>technical</em> skills (Next.js patterns,
+WordPress block themes, Shopify Liquid, …), <code>uipro</code> covers the
+<strong>visual</strong> side: design systems, UI styles, color palettes, font
+pairings, anti-patterns to avoid.</p>
+<p>When the <strong>uipro UI/UX Pro Max</strong> checkbox is on (auto-checked for any
+stack with a visual surface — disabled by default only for
+backend-only stacks), ThemeForge runs
+<code>npx --yes uipro-cli init --ai &lt;agent&gt;</code> immediately after autoskills.
+This drops 161 reasoning rules + 67 UI styles + 161 palettes + 57
+font pairings into the agent's context — so when the agent starts
+writing CSS / Tailwind / SwiftUI / Flutter widgets, it does so with
+a coherent design system already in mind.</p>
+<p>Supported agents (auto-mapped by ThemeForge):
+<code>claude</code>, <code>claude-api</code> → <code>claude</code> · <code>codex</code>, <code>codex-api</code> → <code>codex</code> ·
+<code>gemini</code> → <code>gemini</code> · <code>opencode</code>, <code>openrouter</code> → <code>opencode</code>.</p>
+<p>UI UX Pro Max is <strong>MIT</strong> licensed and invoked at runtime (never
+bundled), so it imposes no extra licensing constraints on themes
+generated with ThemeForge.</p>
 <hr />
 <h2 id="9-reference-analysis-conversational">9. Reference analysis (conversational)<a class="anchor" href="#9-reference-analysis-conversational" title="Link to this section">#</a></h2>
 <p>In <code>recrear</code> or <code>adopt</code> mode, the form shows a <strong>🔍 Analizar
@@ -1442,7 +1482,245 @@ with status <code>active</code> / <code>waiting</code> / <code>idle</code> based
   dashboard.</li>
 </ul>
 <hr />
-<h2 id="17-optional-licensing-system">17. Optional licensing system<a class="anchor" href="#17-optional-licensing-system" title="Link to this section">#</a></h2>
+<h2 id="17-app-themes">17. App themes<a class="anchor" href="#17-app-themes" title="Link to this section">#</a></h2>
+<blockquote>
+<p><strong>TL;DR.</strong> ThemeForge's own UI is fully themable: 8 builtin
+themes, a visual editor, and a Figma DTCG importer.
+This section is about <strong>how the app you're using looks</strong> — not
+about themes you generate for marketplaces. The latter is what
+autoskills / uipro (§8) do.</p>
+</blockquote>
+<h3 id="171-whats-in-the-box">17.1 What's in the box<a class="anchor" href="#171-whats-in-the-box" title="Link to this section">#</a></h3>
+<p>The <code>themes/</code> module ships <strong>8 builtin themes</strong>:</p>
+<table>
+<thead>
+<tr>
+<th>Theme</th>
+<th>Mode</th>
+<th>Vibe</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>ThemeForge Dark</strong> (default)</td>
+<td>🌑</td>
+<td>VSCode-inspired, blue accent</td>
+</tr>
+<tr>
+<td><strong>ThemeForge Light</strong></td>
+<td>☀️</td>
+<td>Paper-white, blue accent</td>
+</tr>
+<tr>
+<td><strong>Dracula</strong></td>
+<td>🌑</td>
+<td>Purple + green pastel</td>
+</tr>
+<tr>
+<td><strong>Nord</strong></td>
+<td>🌑</td>
+<td>Cool polar blues</td>
+</tr>
+<tr>
+<td><strong>Tokyo Night</strong></td>
+<td>🌑</td>
+<td>Deep blues + neon accents</td>
+</tr>
+<tr>
+<td><strong>Brutalism</strong></td>
+<td>☀️</td>
+<td>Hard 2px borders, no radius, orange accent</td>
+</tr>
+<tr>
+<td><strong>Linear</strong></td>
+<td>🌑</td>
+<td>Ghost buttons, segmented tabs, compact density</td>
+</tr>
+<tr>
+<td><strong>Soft UI</strong></td>
+<td>☀️</td>
+<td>Pill buttons, generous radii, spacious</td>
+</tr>
+</tbody>
+</table>
+<p>Pick one from <strong>⚙ Settings → 🎨 Tema de la app → Theme</strong> dropdown.
+Changes apply <strong>instantly without restart</strong> — Qt repaints the
+entire widget tree.</p>
+<p>The active theme persists in
+<code>~/.config/themeforge/settings.json</code> under the <code>theme</code> key.</p>
+<h3 id="172-theme-tokens-what-each-theme-controls">17.2 Theme tokens — what each theme controls<a class="anchor" href="#172-theme-tokens-what-each-theme-controls" title="Link to this section">#</a></h3>
+<p>Each theme JSON exposes 5 token groups (~50 tokens total):</p>
+<ol>
+<li><strong>Color</strong> (21 tokens): <code>bg_primary</code>, <code>bg_secondary</code>, <code>bg_tertiary</code>,
+   <code>bg_elevated</code>, <code>fg_primary</code>, <code>fg_secondary</code>, <code>fg_disabled</code>,
+   <code>accent</code>, <code>accent_hover</code>, <code>accent_active</code>, <code>accent_fg</code>, <code>success</code>,
+   <code>warning</code>, <code>danger</code>, <code>info</code>, <code>border</code>, <code>border_strong</code>,
+   <code>selection_bg</code>, <code>selection_fg</code>, <code>scrollbar_bg</code>, <code>scrollbar_thumb</code>.</li>
+<li><strong>Typography</strong> (11 tokens): font families + size scale + weights.</li>
+<li><strong>Spacing</strong> (5 tokens): <code>xs</code>, <code>sm</code>, <code>md</code>, <code>lg</code>, <code>xl</code> (in pixels).</li>
+<li><strong>Shape</strong> (5 tokens): <code>radius_sm</code>, <code>radius_md</code>, <code>radius_lg</code>,
+   <code>radius_pill</code>, <code>border_width</code>.</li>
+<li><strong>Components</strong> (6 variant tokens):
+   - <code>button_variant</code>: <code>flat | raised | pill | brutalist | ghost</code>
+   - <code>tab_variant</code>: <code>underline | card | pill | segmented</code>
+   - <code>input_variant</code>: <code>outlined | filled | underlined | brutalist</code>
+   - <code>scrollbar_variant</code>: <code>thin | thick | hidden</code>
+   - <code>checkbox_variant</code>: <code>square | rounded | pill</code>
+   - <code>density</code>: <code>compact | comfortable | spacious</code></li>
+</ol>
+<p>The QSS builder dispatches by variant — <code>tab_variant: "pill"</code> emits
+a different QSS rule block than <code>tab_variant: "underline"</code>. So
+<strong>two themes with identical colors can look radically different</strong>
+just by changing variant tokens.</p>
+<h3 id="173-visual-editor">17.3 Visual editor<a class="anchor" href="#173-visual-editor" title="Link to this section">#</a></h3>
+<p><strong>⚙ Settings → 🎨 Tema de la app → ✏️ Personalizar tema actual…</strong>
+opens a dialog with:</p>
+<ul>
+<li>21 color rows with hex line edit + clickable swatch that opens
+  <code>QColorDialog</code>.</li>
+<li>5 shape sliders.</li>
+<li>6 component dropdowns.</li>
+<li>Metadata fields (name, author, description, dark/light toggle).</li>
+</ul>
+<p>Every edit re-applies the working ThemePack to the <strong>entire app</strong>
+on the fly — the app itself is the live preview. <strong>💾 Guardar
+como…</strong> prompts for a slug (auto-suggested from the name), writes
+the JSON to <code>~/.config/themeforge/themes/&lt;slug&gt;.json</code>, switches the
+active theme, and refreshes the dropdown with the new entry tagged
+<code>(custom)</code>. <strong>Cancelar</strong> restores whatever was active when the
+dialog opened.</p>
+<h3 id="174-figma-import">17.4 Figma import<a class="anchor" href="#174-figma-import" title="Link to this section">#</a></h3>
+<p><strong>⚙ Settings → 🎨 Tema de la app → 📥 Importar desde Figma…</strong>
+opens a two-tab dialog:</p>
+<h4 id="path-a-tokens-studio-json-free-figma">Path A: Tokens Studio JSON (free Figma)<a class="anchor" href="#path-a-tokens-studio-json-free-figma" title="Link to this section">#</a></h4>
+<ol>
+<li>In Figma, install the <strong>Tokens Studio</strong> plugin (free):
+   <a href="https://docs.tokens.studio/">https://docs.tokens.studio/</a></li>
+<li>Define your design tokens in the plugin (colors, spacing, radius…).</li>
+<li>Export to JSON (Tokens Studio's "Export" button) — output is W3C
+   <a href="https://www.designtokens.org/tr/drafts/format/">DTCG v2025.10</a>
+   compatible.</li>
+<li>Paste the JSON in the ThemeForge dialog tab, or click <strong>📂 Abrir
+   archivo JSON…</strong>.</li>
+<li>Click <strong>⚡ Parsear y proponer mapeos</strong>.</li>
+</ol>
+<h4 id="path-b-figma-rest-api-enterprise-plan">Path B: Figma REST API (Enterprise plan)<a class="anchor" href="#path-b-figma-rest-api-enterprise-plan" title="Link to this section">#</a></h4>
+<p>Requires Figma Enterprise + a Personal Access Token with
+<code>file_variables:read</code> scope (see <a href="https://www.figma.com/developers/api">Figma developer docs</a>).</p>
+<ol>
+<li>Paste the Figma file URL (or just the file key).</li>
+<li>Paste your PAT.</li>
+<li>Click <strong>🌐 Fetch + parsear</strong> — ThemeForge calls
+   <code>GET /v1/files/&lt;key&gt;/variables/local</code> and translates the response
+   to DTCG.</li>
+</ol>
+<h4 id="mapping-table">Mapping table<a class="anchor" href="#mapping-table" title="Link to this section">#</a></h4>
+<p>In both paths, after parsing you get a table:</p>
+<table>
+<thead>
+<tr>
+<th>✓</th>
+<th>Figma path</th>
+<th>Score</th>
+<th>→ ThemeForge slot</th>
+<th>Valor</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>☑</td>
+<td><code>color.brand.primary</code></td>
+<td>90 🟡</td>
+<td><code>color.accent</code></td>
+<td><code>#6366f1</code></td>
+</tr>
+<tr>
+<td>☑</td>
+<td><code>color.bg.base</code></td>
+<td>95 🟢</td>
+<td><code>color.bg_primary</code></td>
+<td><code>#0d0d10</code></td>
+</tr>
+<tr>
+<td>☑</td>
+<td><code>radius.full</code></td>
+<td>100 🟢</td>
+<td><code>shape.radius_pill</code></td>
+<td><code>999</code></td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li><strong>Score</strong> is the confidence of the auto-mapping (0-100).
+  Green ≥ 95 / yellow ≥ 85 / red &lt; 85.</li>
+<li><strong>Re-target</strong> any row via the dropdown (e.g., the auto-mapper
+  picked <code>accent</code> for <code>color.action</code> but you want it as <code>info</code>).</li>
+<li><strong>Uncheck</strong> rows to skip them.</li>
+<li>Click <strong>👁 Preview en vivo</strong> to apply the current selection to the
+  whole app without saving.</li>
+<li>Click <strong>💾 Guardar como tema</strong> to persist as a new theme JSON.</li>
+<li><strong>Cancelar</strong> restores the original theme.</li>
+</ul>
+<h4 id="multi-mode-alias-support">Multi-mode + alias support<a class="anchor" href="#multi-mode-alias-support" title="Link to this section">#</a></h4>
+<p>If your DTCG file has multi-mode <code>$value</code> (e.g.
+<code>{"light": "#fff", "dark": "#000"}</code>), the first mode is used by
+default; future updates will surface a mode picker. DTCG aliases
+(<code>{color.brand.primary}</code> references) are resolved transitively up
+to 8 levels deep.</p>
+<h3 id="175-theme-file-format">17.5 Theme file format<a class="anchor" href="#175-theme-file-format" title="Link to this section">#</a></h3>
+<p>A complete theme JSON looks like:</p>
+<pre><code class="language-json">{
+  &quot;name&quot;: &quot;My Custom Theme&quot;,
+  &quot;author&quot;: &quot;you&quot;,
+  &quot;is_dark&quot;: true,
+  &quot;description&quot;: &quot;...&quot;,
+  &quot;color&quot;: {
+    &quot;bg_primary&quot;:   &quot;#1e1e1e&quot;,
+    &quot;accent&quot;:       &quot;#62b4ff&quot;,
+    &quot;...&quot;: &quot;...&quot;
+  },
+  &quot;shape&quot;: {
+    &quot;radius_sm&quot;: 3,
+    &quot;radius_md&quot;: 6,
+    &quot;...&quot;: &quot;...&quot;
+  },
+  &quot;components&quot;: {
+    &quot;button_variant&quot;: &quot;flat&quot;,
+    &quot;tab_variant&quot;: &quot;underline&quot;,
+    &quot;density&quot;: &quot;comfortable&quot;
+  }
+}
+</code></pre>
+<p>Themes live in two locations:</p>
+<ul>
+<li><strong>Builtins</strong> (read-only, shipped with ThemeForge):
+  <code>themes/presets/*.json</code> inside the repo.</li>
+<li><strong>User-installed</strong> (read-write):
+  <code>~/.config/themeforge/themes/*.json</code>.</li>
+</ul>
+<p>User themes <strong>override</strong> builtins with the same <code>name</code>, so you can
+customize ThemeForge Dark without forking the repo. Forward-
+compatible: unknown JSON keys are ignored silently, missing keys
+fall back to the dark defaults.</p>
+<h3 id="176-round-trip-back-to-figma">17.6 Round-trip back to Figma<a class="anchor" href="#176-round-trip-back-to-figma" title="Link to this section">#</a></h3>
+<p>ThemeForge exposes <code>themepack_to_dtcg()</code> (see <code>themes/figma_import.py</code>)
+which converts any ThemePack back to a DTCG JSON tree. The reverse
+flow is: edit a theme in ThemeForge → save → re-import to Figma via
+Tokens Studio. This closes the loop between designers and the dev
+team.</p>
+<h3 id="177-limitations">17.7 Limitations<a class="anchor" href="#177-limitations" title="Link to this section">#</a></h3>
+<ul>
+<li>Typography tokens are not yet editable from the visual editor
+  (you can hand-edit the JSON in <code>~/.config/themeforge/themes/</code>).</li>
+<li>DTCG <code>typography</code> composite tokens (font family + size + weight in
+  one) are parsed but not currently mapped to ThemeForge slots.</li>
+<li>Motion / animation tokens are not yet implemented (Sprint 6).</li>
+<li>Glassmorphism / neumorphism effects are not yet supported (Sprint 7).</li>
+</ul>
+<p>See <a href="../ROADMAP.md#-app-themes"><code>ROADMAP.md</code></a> for the planned
+sprints.</p>
+<hr />
+<h2 id="18-optional-licensing-system">18. Optional licensing system<a class="anchor" href="#18-optional-licensing-system" title="Link to this section">#</a></h2>
 <blockquote>
 <p><strong>TL;DR — what's bundled and what isn't.</strong></p>
 <p>ThemeForge ships the <strong>client side</strong> of a license verification flow:
@@ -1541,7 +1819,7 @@ Content-Type: application/json
 work. Drop-in compatible backends: Lemon Squeezy License API, Polar,
 Paddle MoR, Gumroad license verify, or your own PHP/Node endpoint.</p>
 <hr />
-<h2 id="18-configuration-files">18. Configuration files<a class="anchor" href="#18-configuration-files" title="Link to this section">#</a></h2>
+<h2 id="19-configuration-files">19. Configuration files<a class="anchor" href="#19-configuration-files" title="Link to this section">#</a></h2>
 <p>Under <code>~/.config/themeforge/</code>:</p>
 <table>
 <thead>
@@ -1636,7 +1914,7 @@ project you build locally.</p>
 <p>The public stubs in <code>context/</code> are intentionally neutral — no product
 names, no domains, no strategies leak from the repo.</p>
 <hr />
-<h2 id="19-troubleshooting">19. Troubleshooting<a class="anchor" href="#19-troubleshooting" title="Link to this section">#</a></h2>
+<h2 id="20-troubleshooting">20. Troubleshooting<a class="anchor" href="#20-troubleshooting" title="Link to this section">#</a></h2>
 <h3 id="themeforge-does-not-start-importerror-on-pyqt6">ThemeForge does not start (ImportError on PyQt6)<a class="anchor" href="#themeforge-does-not-start-importerror-on-pyqt6" title="Link to this section">#</a></h3>
 <p>Install <code>python-pyqt6</code> and <code>python-pyqt6-webengine</code> from your distro.
 On Arch: <code>sudo pacman -S python-pyqt6 python-pyqt6-webengine</code>. On
@@ -1693,7 +1971,7 @@ default; <code>ntfs-3g</code> provides FUSE-based access.</p>
 <code>GEMINI_API_KEY</code> env var. Run <code>gemini</code> once in a terminal to complete
 OAuth, or set the key via the Settings panel.</p>
 <hr />
-<h2 id="20-credits-and-third-party-licenses">20. Credits and third-party licenses<a class="anchor" href="#20-credits-and-third-party-licenses" title="Link to this section">#</a></h2>
+<h2 id="21-credits-and-third-party-licenses">21. Credits and third-party licenses<a class="anchor" href="#21-credits-and-third-party-licenses" title="Link to this section">#</a></h2>
 <p>ThemeForge is licensed under <strong>GPL v3</strong> (forced by the PyQt6
 dependency which is GPL v3 or commercial). See <code>LICENSE</code>.</p>
 <h3 id="direct-integrations">Direct integrations<a class="anchor" href="#direct-integrations" title="Link to this section">#</a></h3>

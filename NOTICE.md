@@ -54,6 +54,9 @@ each project's official channel.
 | Gemini CLI (Google) | Apache 2.0 | <https://github.com/google-gemini/gemini-cli> | AI agent (`gemini`) |
 | OpenCode CLI | MIT | <https://github.com/sst/opencode> | AI agent (`opencode`, npm pkg `opencode-ai`) |
 | UI UX Pro Max | MIT | <https://github.com/nextlevelbuilder/ui-ux-pro-max-skill> | Optional design skill (`uipro-cli init --ai <agent>`) for 161 reasoning rules + 67 UI styles + 161 paletas. Invoked when the "uipro" checkbox is enabled in the project form. |
+| **Lucide icons** | ISC | <https://github.com/lucide-icons/lucide> | 38 SVG icons bundled in `assets/icons/lucide/` and used for the main-window tabs and Settings widgets. SVGs use `currentColor` so they re-tint to the active theme's accent. ISC is functionally equivalent to MIT — full attribution preserved in the SVG files. |
+| W3C DTCG spec | (community) | <https://www.designtokens.org/tr/drafts/format/> | Theme JSON format reference for the Figma import path. ThemeForge parses tokens following the DTCG v2025.10 spec (`$type` + `$value` with `$`-prefixed metadata). |
+| Tokens Studio for Figma | (referenced, not bundled) | <https://docs.tokens.studio/> | Recommended Figma plugin for exporting design tokens as DTCG JSON to feed ThemeForge's Figma import dialog. Not redistributed. |
 | GitHub CLI (`gh`) | MIT | <https://github.com/cli/cli> | Repo create / push from the ProjectWindow |
 | `paru` | GPL v3 | <https://github.com/Morganamilo/paru> | AUR helper hint in docs |
 

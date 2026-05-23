@@ -31,10 +31,11 @@ system, and troubleshooting.
 14. [GitHub integration](#14-github-integration)
 15. [Pixel Office visualizer](#15-pixel-office-visualizer)
 16. [Settings panel](#16-settings-panel)
-17. [Optional licensing system](#17-optional-licensing-system)
-18. [Configuration files](#18-configuration-files)
-19. [Troubleshooting](#19-troubleshooting)
-20. [Credits and third-party licenses](#20-credits-and-third-party-licenses)
+17. [App themes](#17-app-themes)
+18. [Optional licensing system](#18-optional-licensing-system)
+19. [Configuration files](#19-configuration-files)
+20. [Troubleshooting](#20-troubleshooting)
+21. [Credits and third-party licenses](#21-credits-and-third-party-licenses)
 
 ---
 
@@ -996,7 +997,200 @@ The Settings tab in the main window exposes:
 
 ---
 
-## 17. Optional licensing system
+## 17. App themes
+
+> **TL;DR.** ThemeForge's own UI is fully themable: 8 builtin
+> themes, a visual editor, and a Figma DTCG importer.
+> This section is about **how the app you're using looks** — not
+> about themes you generate for marketplaces. The latter is what
+> autoskills / uipro (§8) do.
+
+### 17.1 What's in the box
+
+The `themes/` module ships **8 builtin themes**:
+
+| Theme | Mode | Vibe |
+|---|---|---|
+| **ThemeForge Dark** (default) | 🌑 | VSCode-inspired, blue accent |
+| **ThemeForge Light** | ☀️ | Paper-white, blue accent |
+| **Dracula** | 🌑 | Purple + green pastel |
+| **Nord** | 🌑 | Cool polar blues |
+| **Tokyo Night** | 🌑 | Deep blues + neon accents |
+| **Brutalism** | ☀️ | Hard 2px borders, no radius, orange accent |
+| **Linear** | 🌑 | Ghost buttons, segmented tabs, compact density |
+| **Soft UI** | ☀️ | Pill buttons, generous radii, spacious |
+
+Pick one from **⚙ Settings → 🎨 Tema de la app → Theme** dropdown.
+Changes apply **instantly without restart** — Qt repaints the
+entire widget tree.
+
+The active theme persists in
+`~/.config/themeforge/settings.json` under the `theme` key.
+
+### 17.2 Theme tokens — what each theme controls
+
+Each theme JSON exposes 5 token groups (~50 tokens total):
+
+1. **Color** (21 tokens): `bg_primary`, `bg_secondary`, `bg_tertiary`,
+   `bg_elevated`, `fg_primary`, `fg_secondary`, `fg_disabled`,
+   `accent`, `accent_hover`, `accent_active`, `accent_fg`, `success`,
+   `warning`, `danger`, `info`, `border`, `border_strong`,
+   `selection_bg`, `selection_fg`, `scrollbar_bg`, `scrollbar_thumb`.
+2. **Typography** (11 tokens): font families + size scale + weights.
+3. **Spacing** (5 tokens): `xs`, `sm`, `md`, `lg`, `xl` (in pixels).
+4. **Shape** (5 tokens): `radius_sm`, `radius_md`, `radius_lg`,
+   `radius_pill`, `border_width`.
+5. **Components** (6 variant tokens):
+   - `button_variant`: `flat | raised | pill | brutalist | ghost`
+   - `tab_variant`: `underline | card | pill | segmented`
+   - `input_variant`: `outlined | filled | underlined | brutalist`
+   - `scrollbar_variant`: `thin | thick | hidden`
+   - `checkbox_variant`: `square | rounded | pill`
+   - `density`: `compact | comfortable | spacious`
+
+The QSS builder dispatches by variant — `tab_variant: "pill"` emits
+a different QSS rule block than `tab_variant: "underline"`. So
+**two themes with identical colors can look radically different**
+just by changing variant tokens.
+
+### 17.3 Visual editor
+
+**⚙ Settings → 🎨 Tema de la app → ✏️ Personalizar tema actual…**
+opens a dialog with:
+
+- 21 color rows with hex line edit + clickable swatch that opens
+  `QColorDialog`.
+- 5 shape sliders.
+- 6 component dropdowns.
+- Metadata fields (name, author, description, dark/light toggle).
+
+Every edit re-applies the working ThemePack to the **entire app**
+on the fly — the app itself is the live preview. **💾 Guardar
+como…** prompts for a slug (auto-suggested from the name), writes
+the JSON to `~/.config/themeforge/themes/<slug>.json`, switches the
+active theme, and refreshes the dropdown with the new entry tagged
+`(custom)`. **Cancelar** restores whatever was active when the
+dialog opened.
+
+### 17.4 Figma import
+
+**⚙ Settings → 🎨 Tema de la app → 📥 Importar desde Figma…**
+opens a two-tab dialog:
+
+#### Path A: Tokens Studio JSON (free Figma)
+
+1. In Figma, install the **Tokens Studio** plugin (free):
+   <https://docs.tokens.studio/>
+2. Define your design tokens in the plugin (colors, spacing, radius…).
+3. Export to JSON (Tokens Studio's "Export" button) — output is W3C
+   [DTCG v2025.10](https://www.designtokens.org/tr/drafts/format/)
+   compatible.
+4. Paste the JSON in the ThemeForge dialog tab, or click **📂 Abrir
+   archivo JSON…**.
+5. Click **⚡ Parsear y proponer mapeos**.
+
+#### Path B: Figma REST API (Enterprise plan)
+
+Requires Figma Enterprise + a Personal Access Token with
+`file_variables:read` scope (see [Figma developer docs](https://www.figma.com/developers/api)).
+
+1. Paste the Figma file URL (or just the file key).
+2. Paste your PAT.
+3. Click **🌐 Fetch + parsear** — ThemeForge calls
+   `GET /v1/files/<key>/variables/local` and translates the response
+   to DTCG.
+
+#### Mapping table
+
+In both paths, after parsing you get a table:
+
+| ✓ | Figma path | Score | → ThemeForge slot | Valor |
+|---|---|---|---|---|
+| ☑ | `color.brand.primary` | 90 🟡 | `color.accent` | `#6366f1` |
+| ☑ | `color.bg.base` | 95 🟢 | `color.bg_primary` | `#0d0d10` |
+| ☑ | `radius.full` | 100 🟢 | `shape.radius_pill` | `999` |
+
+- **Score** is the confidence of the auto-mapping (0-100).
+  Green ≥ 95 / yellow ≥ 85 / red < 85.
+- **Re-target** any row via the dropdown (e.g., the auto-mapper
+  picked `accent` for `color.action` but you want it as `info`).
+- **Uncheck** rows to skip them.
+- Click **👁 Preview en vivo** to apply the current selection to the
+  whole app without saving.
+- Click **💾 Guardar como tema** to persist as a new theme JSON.
+- **Cancelar** restores the original theme.
+
+#### Multi-mode + alias support
+
+If your DTCG file has multi-mode `$value` (e.g.
+`{"light": "#fff", "dark": "#000"}`), the first mode is used by
+default; future updates will surface a mode picker. DTCG aliases
+(`{color.brand.primary}` references) are resolved transitively up
+to 8 levels deep.
+
+### 17.5 Theme file format
+
+A complete theme JSON looks like:
+
+```json
+{
+  "name": "My Custom Theme",
+  "author": "you",
+  "is_dark": true,
+  "description": "...",
+  "color": {
+    "bg_primary":   "#1e1e1e",
+    "accent":       "#62b4ff",
+    "...": "..."
+  },
+  "shape": {
+    "radius_sm": 3,
+    "radius_md": 6,
+    "...": "..."
+  },
+  "components": {
+    "button_variant": "flat",
+    "tab_variant": "underline",
+    "density": "comfortable"
+  }
+}
+```
+
+Themes live in two locations:
+
+- **Builtins** (read-only, shipped with ThemeForge):
+  `themes/presets/*.json` inside the repo.
+- **User-installed** (read-write):
+  `~/.config/themeforge/themes/*.json`.
+
+User themes **override** builtins with the same `name`, so you can
+customize ThemeForge Dark without forking the repo. Forward-
+compatible: unknown JSON keys are ignored silently, missing keys
+fall back to the dark defaults.
+
+### 17.6 Round-trip back to Figma
+
+ThemeForge exposes `themepack_to_dtcg()` (see `themes/figma_import.py`)
+which converts any ThemePack back to a DTCG JSON tree. The reverse
+flow is: edit a theme in ThemeForge → save → re-import to Figma via
+Tokens Studio. This closes the loop between designers and the dev
+team.
+
+### 17.7 Limitations
+
+- Typography tokens are not yet editable from the visual editor
+  (you can hand-edit the JSON in `~/.config/themeforge/themes/`).
+- DTCG `typography` composite tokens (font family + size + weight in
+  one) are parsed but not currently mapped to ThemeForge slots.
+- Motion / animation tokens are not yet implemented (Sprint 6).
+- Glassmorphism / neumorphism effects are not yet supported (Sprint 7).
+
+See [`ROADMAP.md`](../ROADMAP.md#-app-themes) for the planned
+sprints.
+
+---
+
+## 18. Optional licensing system
 
 > **TL;DR — what's bundled and what isn't.**
 >
@@ -1088,7 +1282,7 @@ Paddle MoR, Gumroad license verify, or your own PHP/Node endpoint.
 
 ---
 
-## 18. Configuration files
+## 19. Configuration files
 
 Under `~/.config/themeforge/`:
 
@@ -1132,7 +1326,7 @@ names, no domains, no strategies leak from the repo.
 
 ---
 
-## 19. Troubleshooting
+## 20. Troubleshooting
 
 ### ThemeForge does not start (ImportError on PyQt6)
 
@@ -1219,7 +1413,7 @@ OAuth, or set the key via the Settings panel.
 
 ---
 
-## 20. Credits and third-party licenses
+## 21. Credits and third-party licenses
 
 ThemeForge is licensed under **GPL v3** (forced by the PyQt6
 dependency which is GPL v3 or commercial). See `LICENSE`.
