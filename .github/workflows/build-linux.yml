@@ -1,0 +1,216 @@
+name: Build Linux
+
+# Builds Linux distribution packages from a single PyInstaller bundle:
+#   - ThemeForge-x86_64.AppImage  — universal, runs on most distros
+#   - themeforge_<ver>_amd64.deb  — Debian / Ubuntu
+#   - themeforge-<ver>-1.x86_64.rpm — Fedora / RHEL / openSUSE
+#
+# Runs on `ubuntu-22.04` (older glibc 2.35 = wider compatibility:
+# AppImages built on 24.04's glibc 2.39 fail on older systems).
+#
+# Triggers:
+#   - tag push v*       → builds + attaches to draft Release
+#   - workflow_dispatch → manual run with artifacts only
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Compute version
+        id: ver
+        run: |
+          if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+            V="${GITHUB_REF#refs/tags/v}"
+          else
+            V="0.0.0-dev.$(date +%Y%m%d%H%M%S)"
+          fi
+          echo "version=$V" >> "$GITHUB_OUTPUT"
+          echo "▶ version=$V"
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements*.txt', '.github/workflows/build-linux.yml') }}
+
+      - name: Install Python deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install pyqt6 pyqt6-webengine pyqt6-charts pyinstaller
+
+      - name: Install system tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            ruby ruby-dev rpm libfuse2 wget desktop-file-utils
+          sudo gem install --no-document fpm
+
+      - name: Build with PyInstaller
+        run: |
+          set -e
+          pyinstaller --noconfirm --clean \
+            --windowed \
+            --name ThemeForge \
+            --icon assets/themeforge-256.png \
+            --add-data "assets:assets" \
+            --add-data "context:context" \
+            --collect-submodules PyQt6 \
+            themeforge.py
+          ls -la dist/
+
+      # ──────────────── AppImage ────────────────
+      - name: Build AppImage
+        run: |
+          set -e
+          wget -q https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage
+          chmod +x appimagetool-x86_64.AppImage
+
+          APPDIR=ThemeForge.AppDir
+          rm -rf $APPDIR
+          mkdir -p $APPDIR/usr/bin
+
+          # Copy the PyInstaller output
+          cp -r dist/ThemeForge/* $APPDIR/usr/bin/
+
+          # Icon at AppDir root + standard usr/share path
+          cp assets/themeforge-256.png $APPDIR/themeforge.png
+          mkdir -p $APPDIR/usr/share/icons/hicolor/256x256/apps
+          cp assets/themeforge-256.png $APPDIR/usr/share/icons/hicolor/256x256/apps/themeforge.png
+
+          # .desktop file (AppImage style — Exec is the bundled binary name)
+          cat > $APPDIR/themeforge.desktop <<'EOF'
+          [Desktop Entry]
+          Type=Application
+          Name=ThemeForge
+          GenericName=Theme Project Builder
+          Comment=PyQt6 GUI for scaffolding template projects
+          Exec=ThemeForge %F
+          Icon=themeforge
+          Terminal=false
+          Categories=Development;IDE;
+          Keywords=template;theme;scaffold;ai;claude;codex;
+          StartupNotify=true
+          StartupWMClass=ThemeForge
+          EOF
+          mkdir -p $APPDIR/usr/share/applications
+          cp $APPDIR/themeforge.desktop $APPDIR/usr/share/applications/
+
+          # AppRun script
+          cat > $APPDIR/AppRun <<'EOF'
+          #!/bin/sh
+          HERE="$(dirname "$(readlink -f "$0")")"
+          exec "$HERE/usr/bin/ThemeForge" "$@"
+          EOF
+          chmod +x $APPDIR/AppRun
+
+          # Validate .desktop
+          desktop-file-validate $APPDIR/themeforge.desktop || true
+
+          # Build it
+          ARCH=x86_64 ./appimagetool-x86_64.AppImage --no-appstream $APPDIR \
+            ThemeForge-${{ steps.ver.outputs.version }}-x86_64.AppImage
+
+      # ──────────────── .deb ────────────────
+      - name: Build .deb
+        run: |
+          set -e
+          V="${{ steps.ver.outputs.version }}"
+          # fpm with directory source — packages the PyInstaller bundle into /opt
+          mkdir -p pkgroot/opt/themeforge pkgroot/usr/bin \
+                   pkgroot/usr/share/applications \
+                   pkgroot/usr/share/icons/hicolor/256x256/apps
+          cp -r dist/ThemeForge/* pkgroot/opt/themeforge/
+          # Wrapper in /usr/bin
+          cat > pkgroot/usr/bin/themeforge <<'EOF'
+          #!/bin/sh
+          exec /opt/themeforge/ThemeForge "$@"
+          EOF
+          chmod +x pkgroot/usr/bin/themeforge
+          # Icon + .desktop for system menu
+          cp assets/themeforge-256.png pkgroot/usr/share/icons/hicolor/256x256/apps/themeforge.png
+          cat > pkgroot/usr/share/applications/themeforge.desktop <<'EOF'
+          [Desktop Entry]
+          Type=Application
+          Name=ThemeForge
+          GenericName=Theme Project Builder
+          Comment=PyQt6 GUI for scaffolding template projects
+          Exec=themeforge %F
+          Icon=themeforge
+          Terminal=false
+          Categories=Development;IDE;
+          StartupWMClass=ThemeForge
+          EOF
+
+          fpm -s dir -t deb \
+              --name themeforge \
+              --version "$V" \
+              --architecture amd64 \
+              --maintainer "pcreativedev <contact@pcreative.dev>" \
+              --url "https://github.com/pcreativedev/themeforge" \
+              --license GPL-3.0 \
+              --description "PyQt6 GUI for scaffolding template projects with AI agents" \
+              --depends "nodejs" \
+              --depends "git" \
+              -C pkgroot \
+              opt usr
+
+          ls -la *.deb
+
+      # ──────────────── .rpm ────────────────
+      - name: Build .rpm
+        run: |
+          set -e
+          V="${{ steps.ver.outputs.version }}"
+          fpm -s dir -t rpm \
+              --name themeforge \
+              --version "$V" \
+              --architecture x86_64 \
+              --maintainer "pcreativedev <contact@pcreative.dev>" \
+              --url "https://github.com/pcreativedev/themeforge" \
+              --license GPLv3 \
+              --description "PyQt6 GUI for scaffolding template projects with AI agents" \
+              --depends "nodejs" \
+              --depends "git" \
+              -C pkgroot \
+              opt usr
+
+          ls -la *.rpm
+
+      # ──────────────── Upload ────────────────
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ThemeForge-Linux-${{ steps.ver.outputs.version }}
+          path: |
+            ThemeForge-*-x86_64.AppImage
+            themeforge_*_amd64.deb
+            themeforge-*.x86_64.rpm
+          retention-days: 30
+
+      - name: Attach to Release (tag only)
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            ThemeForge-*-x86_64.AppImage
+            themeforge_*_amd64.deb
+            themeforge-*.x86_64.rpm
+          draft: true
+          generate_release_notes: true

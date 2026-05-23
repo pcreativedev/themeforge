@@ -65,6 +65,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the dialog. CLI availability check with install hint, build → deploy
   chain runs in QProcess (UI remains responsive), logs streamed live to
   the project log panel.
+- **📦 Multi-format Linux distribution.** GitHub Actions workflow
+  `.github/workflows/build-linux.yml` builds three Linux artifacts
+  from a single PyInstaller bundle on every tagged release:
+  AppImage (universal), `.deb` (Debian/Ubuntu) and `.rpm`
+  (Fedora/RHEL/openSUSE) — all via `fpm`. PKGBUILDs for AUR
+  (`packaging/aur/themeforge` stable + `themeforge-git` git tip)
+  to publish to the Arch User Repository. Local build script:
+  `scripts/build-linux-appimage.sh`.
 - **🖥️ Cross-platform refactor + macOS alpha.** New
   `platform_compat.py` module centralises every OS-specific call
   (file manager, terminal launcher, shell exec, VS Code launcher,

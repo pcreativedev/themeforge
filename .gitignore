@@ -36,12 +36,25 @@ ANTES-DE-PUBLICAR.md
 # Builds privados
 builds/
 
-# PyInstaller / macOS build artefactos
+# PyInstaller / build artefactos
 build/
 dist/
 *.spec
 icon.iconset/
 assets/themeforge.icns
+# AppImage build outputs
+*.AppImage
+ThemeForge.AppDir/
+appimagetool-*.AppImage
+pkgroot/
+# .deb / .rpm outputs (built locally)
+*.deb
+*.rpm
+# AUR PKGBUILD scratch dirs
+packaging/aur/*/pkg/
+packaging/aur/*/src/
+packaging/aur/*/*.pkg.tar.zst
+packaging/aur/*/*.tar.gz
 out/
 
 

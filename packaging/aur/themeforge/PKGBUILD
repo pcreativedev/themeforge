@@ -1,0 +1,61 @@
+# Maintainer: pcreativedev <contact@pcreative.dev>
+pkgname=themeforge
+pkgver=0.1.0
+pkgrel=1
+pkgdesc="PyQt6 GUI for scaffolding template projects across 60+ stacks, driven by AI agents (Claude Code, Codex, Gemini, OpenCode)"
+arch=('any')
+url="https://github.com/pcreativedev/themeforge"
+license=('GPL3')
+depends=(
+    'python'
+    'python-pyqt6'
+    'python-pyqt6-webengine'
+    'python-pyqt6-charts'
+    'nodejs'
+    'npm'
+    'git'
+)
+optdepends=(
+    'gh: GitHub integration (repo create/push)'
+    'docker: WordPress wp-env environments'
+)
+source=("$pkgname-$pkgver.tar.gz::https://github.com/pcreativedev/themeforge/archive/refs/tags/v$pkgver.tar.gz")
+sha256sums=('SKIP')  # update with `updpkgsums` once a real release is tagged
+options=('!strip')   # PyQt6 binaries are upstream-stripped
+
+package() {
+    cd "$srcdir/themeforge-$pkgver"
+
+    # Install the Python sources to /opt/themeforge
+    install -d "$pkgdir/opt/$pkgname"
+    cp -r --no-preserve=ownership \
+        *.py assets context docs examples scripts terminal templates \
+        LICENSE NOTICE.md README.md CHANGELOG.md ROADMAP.md \
+        "$pkgdir/opt/$pkgname/"
+
+    # /usr/bin launcher
+    install -d "$pkgdir/usr/bin"
+    cat > "$pkgdir/usr/bin/$pkgname" <<EOF
+#!/bin/sh
+cd /opt/$pkgname && exec python3 themeforge.py "\$@"
+EOF
+    chmod +x "$pkgdir/usr/bin/$pkgname"
+
+    # Desktop entry
+    install -d "$pkgdir/usr/share/applications"
+    sed "s|__INSTALL_PATH__|/opt/$pkgname|g" \
+        assets/themeforge.desktop.template \
+        > "$pkgdir/usr/share/applications/$pkgname.desktop"
+    # System pkg: Exec is the wrapper, not python3 directly
+    sed -i "s|^Exec=.*|Exec=$pkgname %F|" "$pkgdir/usr/share/applications/$pkgname.desktop"
+    sed -i "s|^Icon=.*|Icon=$pkgname|" "$pkgdir/usr/share/applications/$pkgname.desktop"
+
+    # Icons (hicolor theme)
+    for sz in 16 32 48 64 128 256; do
+        install -Dm644 "assets/themeforge-${sz}.png" \
+            "$pkgdir/usr/share/icons/hicolor/${sz}x${sz}/apps/$pkgname.png"
+    done
+
+    # License
+    install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+}

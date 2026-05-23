@@ -1,0 +1,66 @@
+# Maintainer: pcreativedev <contact@pcreative.dev>
+pkgname=themeforge-git
+_pkgname=themeforge
+pkgver=r1.000000
+pkgrel=1
+pkgdesc="PyQt6 GUI for scaffolding template projects (git tip)"
+arch=('any')
+url="https://github.com/pcreativedev/themeforge"
+license=('GPL3')
+depends=(
+    'python'
+    'python-pyqt6'
+    'python-pyqt6-webengine'
+    'python-pyqt6-charts'
+    'nodejs'
+    'npm'
+    'git'
+)
+optdepends=(
+    'gh: GitHub integration (repo create/push)'
+    'docker: WordPress wp-env environments'
+)
+provides=("$_pkgname")
+conflicts=("$_pkgname")
+makedepends=('git')
+source=("$_pkgname::git+https://github.com/pcreativedev/themeforge.git")
+sha256sums=('SKIP')
+options=('!strip')
+
+pkgver() {
+    cd "$srcdir/$_pkgname"
+    printf "r%s.%s" \
+        "$(git rev-list --count HEAD)" \
+        "$(git rev-parse --short HEAD)"
+}
+
+package() {
+    cd "$srcdir/$_pkgname"
+
+    install -d "$pkgdir/opt/$_pkgname"
+    cp -r --no-preserve=ownership \
+        *.py assets context docs examples scripts terminal templates \
+        LICENSE NOTICE.md README.md CHANGELOG.md ROADMAP.md \
+        "$pkgdir/opt/$_pkgname/"
+
+    install -d "$pkgdir/usr/bin"
+    cat > "$pkgdir/usr/bin/$_pkgname" <<EOF
+#!/bin/sh
+cd /opt/$_pkgname && exec python3 themeforge.py "\$@"
+EOF
+    chmod +x "$pkgdir/usr/bin/$_pkgname"
+
+    install -d "$pkgdir/usr/share/applications"
+    sed "s|__INSTALL_PATH__|/opt/$_pkgname|g" \
+        assets/themeforge.desktop.template \
+        > "$pkgdir/usr/share/applications/$_pkgname.desktop"
+    sed -i "s|^Exec=.*|Exec=$_pkgname %F|" "$pkgdir/usr/share/applications/$_pkgname.desktop"
+    sed -i "s|^Icon=.*|Icon=$_pkgname|" "$pkgdir/usr/share/applications/$_pkgname.desktop"
+
+    for sz in 16 32 48 64 128 256; do
+        install -Dm644 "assets/themeforge-${sz}.png" \
+            "$pkgdir/usr/share/icons/hicolor/${sz}x${sz}/apps/$_pkgname.png"
+    done
+
+    install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+}
