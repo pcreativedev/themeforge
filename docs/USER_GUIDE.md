@@ -321,6 +321,33 @@ slug; ThemeForge doesn't redistribute them.
 (<https://github.com/midudev/autoskills>) under **CC BY-NC 4.0**. See
 §18 for the implication and how to disable in commercial builds.
 
+### Design intelligence (`uipro` — UI/UX Pro Max)
+
+A second, complementary skill: **UI UX Pro Max** by
+[nextlevelbuilder](https://github.com/nextlevelbuilder)
+(<https://github.com/nextlevelbuilder/ui-ux-pro-max-skill>, MIT).
+Whereas `autoskills` covers *technical* skills (Next.js patterns,
+WordPress block themes, Shopify Liquid, …), `uipro` covers the
+**visual** side: design systems, UI styles, color palettes, font
+pairings, anti-patterns to avoid.
+
+When the **uipro UI/UX Pro Max** checkbox is on (auto-checked for any
+stack with a visual surface — disabled by default only for
+backend-only stacks), ThemeForge runs
+`npx --yes uipro-cli init --ai <agent>` immediately after autoskills.
+This drops 161 reasoning rules + 67 UI styles + 161 palettes + 57
+font pairings into the agent's context — so when the agent starts
+writing CSS / Tailwind / SwiftUI / Flutter widgets, it does so with
+a coherent design system already in mind.
+
+Supported agents (auto-mapped by ThemeForge):
+`claude`, `claude-api` → `claude` · `codex`, `codex-api` → `codex` ·
+`gemini` → `gemini` · `opencode`, `openrouter` → `opencode`.
+
+UI UX Pro Max is **MIT** licensed and invoked at runtime (never
+bundled), so it imposes no extra licensing constraints on themes
+generated with ThemeForge.
+
 ---
 
 ## 9. Reference analysis (conversational)

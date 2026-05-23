@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **autoskills coverage expanded to Gemini + OpenCode.** `autoskills`
+  v0.3.6+ supports `gemini` / `opencode` / `cursor` / `windsurf` /
+  `copilot` agents. Updated `ai_providers.py` to set
+  `autoskills_flag` for `gemini`, `opencode` and `openrouter` (was
+  previously `None`). All 7 ThemeForge providers now get the full
+  autoskills + uipro skill stack on scaffold.
+- **🎨 UI UX Pro Max integration.** New *"uipro UI/UX Pro Max"*
+  checkbox in the project form (auto-checked for any stack with a
+  visual UI surface; OFF only for `Backend · API` stacks). When on,
+  ThemeForge runs `npx --yes uipro-cli init --ai <agent>` after
+  autoskills, dropping the design-intelligence skill from
+  [`nextlevelbuilder/ui-ux-pro-max-skill`](https://github.com/nextlevelbuilder/ui-ux-pro-max-skill)
+  (MIT) into the project — 161 reasoning rules, 67 UI styles, 161
+  paletas, 57 font pairings, 25 chart types. Complements
+  `autoskills` (technical) with design intelligence. Provider mapping
+  handles claude/claude-api/codex/codex-api/gemini/opencode/openrouter.
+  Attribution in NOTICE + USER_GUIDE §8.
+
 ## [1.0.0] - 2026-05-23
 
 Initial public release.

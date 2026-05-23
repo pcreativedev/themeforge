@@ -88,7 +88,7 @@ PROVIDERS: dict[str, dict] = {
         "short": "Gemini",
         "command": "gemini",
         "context_file": "GEMINI.md",
-        "autoskills_flag": None,   # autoskills aún no soporta gemini
+        "autoskills_flag": "gemini",  # autoskills v0.3.6+ ya soporta gemini
         "auth_kind": "oauth_or_api",
         # gemini lanza OAuth browser en el primer arranque; no hay subcomando login
         "login_argv": ["gemini"],
@@ -102,7 +102,7 @@ PROVIDERS: dict[str, dict] = {
         "short": "OpenCode",
         "command": "opencode",
         "context_file": "AGENTS.md",
-        "autoskills_flag": None,
+        "autoskills_flag": "opencode",  # autoskills v0.3.6+ ya soporta opencode
         "auth_kind": "oauth",   # opencode auth login es interactivo
         "login_argv": ["opencode", "auth", "login"],
         "logout_argv": ["opencode", "auth", "logout"],
@@ -113,7 +113,7 @@ PROVIDERS: dict[str, dict] = {
         "short": "OpenRouter",
         "command": "opencode",
         "context_file": "AGENTS.md",
-        "autoskills_flag": None,
+        "autoskills_flag": "opencode",  # autoskills v0.3.6+ — vía opencode binary
         "auth_kind": "api",
         "env_var": "OPENROUTER_API_KEY",
         "key_id": "openrouter",

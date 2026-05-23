@@ -1127,6 +1127,7 @@ def write_setup_script(
     is_licensed_product: bool = False,
     licensing_create_gh_repo: bool = False,
     licensing_force_all_modes: bool = False,
+    run_uipro: bool = False,
 ) -> Path:
     """Si embedded=True, el script se ejecuta dentro de la terminal
     embebida del ProjectWindow (no necesita `read` final ni dejar la
@@ -1256,8 +1257,10 @@ def write_setup_script(
     if mode == "recreate":
         parts.append('grep -q "^reference/" .gitignore 2>/dev/null || echo "reference/" >> .gitignore')
 
-    # Skills predeclaradas — solo si el provider soporta autoskills (claude/codex).
-    # gemini/opencode/openrouter aún no son soportados por skills/autoskills.
+    # Skills predeclaradas — autoskills v0.3.6+ soporta claude/codex/gemini/
+    # opencode (+ cursor/windsurf/copilot). El `elif` queda como red de
+    # seguridad por si en el futuro un provider nuevo arranca con
+    # autoskills_flag=None mientras se valida soporte upstream.
     skills_flag = agent.get("autoskills_flag")
     if stack["skills"] and skills_flag:
         parts.append('echo ""')
@@ -1317,6 +1320,31 @@ def write_setup_script(
             f'npx --yes autoskills -a {skills_flag}"'
         )
         parts.append('fi')
+
+    # ── uipro UI/UX Pro Max (opcional, paralelo a autoskills) ─────────
+    # Skill de diseño (161 reasoning rules, 67 estilos, 161 paletas).
+    # Solo se ejecuta si el provider mapea a uno soportado por uipro-cli.
+    if run_uipro:
+        # ThemeForge agent key → uipro --ai value
+        UIPRO_AGENT_MAP = {
+            "claude": "claude", "claude-api": "claude",
+            "codex": "codex", "codex-api": "codex",
+            "gemini": "gemini",
+            "opencode": "opencode", "openrouter": "opencode",
+        }
+        uipro_flag = UIPRO_AGENT_MAP.get(agent_key)
+        if uipro_flag:
+            parts.append("")
+            parts.append('echo "──── UI/UX Pro Max ────"')
+            parts.append('echo "→ Ejecutando uipro-cli init (design system + 67 styles)…"')
+            parts.append(
+                f'npx --yes uipro-cli init --ai {uipro_flag} '
+                f'|| echo "(uipro-cli falló — sigue sin él)"'
+            )
+        else:
+            parts.append(
+                f'echo "→ Saltando uipro: provider \'{agent_key}\' no soportado por uipro-cli."'
+            )
 
     # ── Skills cross-cutting → raíz (solo necesario en mono-repos) ──
     # autoskills YA crea symlinks en `.claude/skills/` del cwd donde se
@@ -2053,12 +2081,19 @@ class ThemeForge(QWidget):
         self.autoskills_check = QCheckBox("npx autoskills (auto-instalar skills del stack)")
         self.autoskills_check.setChecked(True)
 
+        self.uipro_check = QCheckBox(
+            "uipro UI/UX Pro Max (design system + 67 styles + 161 paletas)"
+        )
+        # Auto-check para stacks UI; OFF para backend puro.
+        self.uipro_check.setChecked(self._is_ui_stack(self._stack_key))
+
         form = QFormLayout()
         form.addRow("Nombre:", self.name_edit)
         form.addRow("Stack:", self.stack_button)
         form.addRow("Tipo:", self.type_combo)
         form.addRow("Provider:", self.provider_picker)
         form.addRow("", self.autoskills_check)
+        form.addRow("", self.uipro_check)
 
         # ── Modo ─────────────────────────────────────────────────────
         mode_box = QGroupBox("Modo")
@@ -2294,11 +2329,22 @@ class ThemeForge(QWidget):
             "text-align:left; padding:6px 10px; font-weight:bold;"
         )
 
+    def _is_ui_stack(self, stack_key: str) -> bool:
+        """Returns True if the stack has a visual UI surface (frontend,
+        mobile, e-commerce, CMS, game, desktop, etc.) where UI/UX Pro Max
+        adds value. Backend-only stacks return False."""
+        s = STACKS.get(stack_key) or {}
+        cat = s.get("category", "")
+        return cat not in ("Backend · API", "Sin definir", "")
+
     def _open_stack_picker(self):
         dlg = StackPickerDialog(self, initial=self._stack_key)
         if dlg.exec() == StackPickerDialog.DialogCode.Accepted and dlg.selected_key:
             self._stack_key = dlg.selected_key
             self._refresh_stack_button()
+            # Re-evaluate uipro auto-check based on new stack category
+            if hasattr(self, "uipro_check"):
+                self.uipro_check.setChecked(self._is_ui_stack(self._stack_key))
             self._update_preview()
 
     def _mode_changed(self, _id, checked):
@@ -2617,6 +2663,7 @@ class ThemeForge(QWidget):
         ttype = self.type_combo.currentText()
         agent_key = self.provider_picker.current_key()
         run_autoskills = self.autoskills_check.isChecked()
+        run_uipro = self.uipro_check.isChecked()
         ref_kind = self.ref_kind_combo.currentData() if mode == "recreate" else None
         ref_val = self.ref_path_edit.text().strip() if mode == "recreate" else None
         existing_repo = self._current_repo_id() if mode == "existing" else None
@@ -2690,6 +2737,7 @@ class ThemeForge(QWidget):
                 is_licensed_product=is_licensed,
                 licensing_create_gh_repo=licensing_gh,
                 licensing_force_all_modes=licensing_force_all,
+                run_uipro=run_uipro,
             )
         except Exception as e:
             QMessageBox.critical(self, "Error generando setup", str(e))

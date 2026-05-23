@@ -183,6 +183,13 @@ from midudev's repository.
 
 ### Other open-source we stand on
 
+- [UI UX Pro Max](https://github.com/nextlevelbuilder/ui-ux-pro-max-skill)
+  by **[nextlevelbuilder](https://github.com/nextlevelbuilder)** (MIT)
+  — the design-intelligence skill that gives the AI agent a complete
+  design system (161 reasoning rules, 67 UI styles, 161 paletas,
+  57 font pairings) before it writes a single line of CSS. Invoked
+  by ThemeForge as `npx uipro-cli init --ai <agent>` when the
+  *"uipro UI/UX Pro Max"* checkbox is on.
 - [pixel-office-openclaw](https://github.com/neomatrix25/pixel-office-openclaw)
   by **neomatrix25** (MIT) — the lovable pixel-art visualizer that
   turns Claude Code sessions into avatars in a virtual office.

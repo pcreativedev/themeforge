@@ -53,6 +53,7 @@ each project's official channel.
 | Codex CLI (OpenAI) | Apache 2.0 | <https://github.com/openai/codex> | AI agent (`codex`) |
 | Gemini CLI (Google) | Apache 2.0 | <https://github.com/google-gemini/gemini-cli> | AI agent (`gemini`) |
 | OpenCode CLI | MIT | <https://github.com/sst/opencode> | AI agent (`opencode`, npm pkg `opencode-ai`) |
+| UI UX Pro Max | MIT | <https://github.com/nextlevelbuilder/ui-ux-pro-max-skill> | Optional design skill (`uipro-cli init --ai <agent>`) for 161 reasoning rules + 67 UI styles + 161 paletas. Invoked when the "uipro" checkbox is enabled in the project form. |
 | GitHub CLI (`gh`) | MIT | <https://github.com/cli/cli> | Repo create / push from the ProjectWindow |
 | `paru` | GPL v3 | <https://github.com/Morganamilo/paru> | AUR helper hint in docs |
 
