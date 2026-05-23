@@ -105,18 +105,39 @@ GPL v3 — see [`LICENSE`](LICENSE) (forced by the PyQt6 dependency).
 
 ## Credits
 
-ThemeForge wouldn't exist without:
+### ⭐ Special thanks to [midudev](https://github.com/midudev)
 
-- [autoskills](https://github.com/midudev/autoskills) by **midudev**
-  (CC BY-NC 4.0)
+ThemeForge wires every new project to **[autoskills](https://github.com/midudev/autoskills)**
+by **[Miguel Ángel Durán (midudev)](https://github.com/midudev)** —
+the tool that bridges the gap between *"a fresh empty repo"* and
+*"an AI agent that actually knows what it's doing"*. Autoskills
+delivers curated Anthropic / Vercel / WordPress / Shopify skill
+packs straight into the agent's context on day one, so the model
+doesn't have to rediscover modern frontend best practices on every
+project.
+
+Without midudev's work this project would be **half the tool it is**
+— scaffolding without context is just a glorified `npm create`.
+**Gracias, midu.** 🙌
+
+[`autoskills`](https://github.com/midudev/autoskills) is licensed
+CC BY-NC 4.0 — we never bundle it; ThemeForge invokes it via
+`npx --yes autoskills` so each user pulls the latest version straight
+from midudev's repository.
+
+### Other open-source we stand on
+
 - [pixel-office-openclaw](https://github.com/neomatrix25/pixel-office-openclaw)
-  by **neomatrix25** (MIT)
-- xterm.js, node-pty, ws (all MIT)
-- The Claude Code, Codex, Gemini and OpenCode teams for the agent
-  CLIs
+  by **neomatrix25** (MIT) — the lovable pixel-art visualizer that
+  turns Claude Code sessions into avatars in a virtual office.
+- [xterm.js](https://xtermjs.org/), [node-pty](https://github.com/microsoft/node-pty),
+  [ws](https://github.com/websockets/ws) — the embedded terminal stack (all MIT).
+- The Claude Code, Codex, Gemini and OpenCode teams for shipping
+  rock-solid AI CLIs we can compose into a builder.
 
 Full third-party attribution in
-[`docs/USER_GUIDE.md` §20](docs/USER_GUIDE.md#20-credits-and-third-party-licenses).
+[`docs/USER_GUIDE.md` §20](docs/USER_GUIDE.md#20-credits-and-third-party-licenses)
+and [`NOTICE.md`](NOTICE.md).
 
 ## Status
 
