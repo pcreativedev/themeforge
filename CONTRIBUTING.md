@@ -36,18 +36,54 @@ double-check before sharing.
 
 ### Setup
 
-```bash
-git clone https://github.com/pcreativedev/themeforge.git
-cd themeforge
-# Optional: virtual env. PyQt6 from distro packages tends to be
-# easier than via pip due to the bundled Qt libraries.
-sudo pacman -S python python-pyqt6 python-pyqt6-webengine    # Arch / CachyOS
-# or
-sudo apt install python3 python3-pyqt6 python3-pyqt6.qtwebengine
+1. **Fork the repo** on GitHub:
+   <https://github.com/pcreativedev/themeforge/fork>
+2. **Clone your fork** and add `upstream` so you can pull future
+   updates without going through your fork:
 
-cd terminal && npm install && cd ..
-./launch.sh
-```
+   ```bash
+   # Replace YOUR-USER with your GitHub username
+   git clone https://github.com/YOUR-USER/themeforge.git
+   cd themeforge
+   git remote add upstream https://github.com/pcreativedev/themeforge.git
+
+   # Verify
+   git remote -v
+   # origin    git@github.com:YOUR-USER/themeforge.git (fetch/push)
+   # upstream  https://github.com/pcreativedev/themeforge.git (fetch/push)
+   ```
+3. **Install dependencies.** PyQt6 from distro packages tends to be
+   easier than via pip due to the bundled Qt libraries:
+
+   ```bash
+   # Arch / CachyOS
+   sudo pacman -S python python-pyqt6 python-pyqt6-webengine python-pyqt6-charts
+   # Debian / Ubuntu
+   sudo apt install python3 python3-pyqt6 python3-pyqt6.qtwebengine
+
+   cd terminal && npm install && cd ..
+   ./launch.sh
+   ```
+4. **Create a branch off `main`** and work there (never push to your
+   fork's `main` directly — keep it clean so you can `git pull
+   upstream main` whenever):
+
+   ```bash
+   git checkout main
+   git pull upstream main
+   git checkout -b feat/your-change
+   ```
+5. **Push to your fork and open a PR** against
+   `pcreativedev/themeforge:main`:
+
+   ```bash
+   git push origin feat/your-change
+   # Then open: https://github.com/pcreativedev/themeforge/compare/main...YOUR-USER:feat/your-change
+   ```
+   Or with the GitHub CLI:
+   ```bash
+   gh pr create --repo pcreativedev/themeforge --base main --fill
+   ```
 
 ### Branch naming
 
