@@ -184,6 +184,19 @@ per agent. See §13 of USER_GUIDE.
 
 ### Future updates
 
+- **LibreUIUX integration (Claude-only)** — evaluate adding optional
+  bundling of [HermeticOrmus/LibreUIUX-Claude-Code](https://github.com/HermeticOrmus/LibreUIUX-Claude-Code)
+  (MIT): 74 skills + 152 agents + 76 slash commands + 70 plugins
+  curated for Claude Code UI/UX work. Asymmetry caveat: upstream
+  targets `.claude/{agents,commands,skills}/` only — would break the
+  "full provider parity" rule unless we either:
+  (a) ship as a Claude-only optional toggle (disabled for
+       codex/gemini/opencode/openrouter),
+  (b) source equivalent content for other providers from somewhere
+       else, or
+  (c) keep it as a documented community resource without auto-install.
+  Decision deferred. Volume is also large (296+ files), so a
+  selective subset picker may be the right UX.
 - **Token / cost extraction.** Parse stream-json from Claude
   (`--output-format stream-json`) and equivalent from Codex to
   extract `input_tokens`, `output_tokens`, model, and compute cost
