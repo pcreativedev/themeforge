@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-05-23
+
+Initial public release.
+
 ### Added
 
 - **Gallery: card view with thumbnails.** Toggle between dense list
