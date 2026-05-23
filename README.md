@@ -1,24 +1,55 @@
-# ThemeForge
+<p align="center">
+    <img src="assets/themeforge-banner-1600.png" alt="ThemeForge" width="800">
+</p>
 
-A PyQt6 desktop GUI that scaffolds **modern template projects** for
-ThemeForest / CodeCanyon / Creative Market / Gumroad and drives them
-end-to-end with **AI coding agents** (Claude Code, Codex, Gemini,
-OpenCode).
+<p align="center">
+  <strong>Forge production-ready web templates with AI agents.</strong>
+</p>
+
+<p align="center">
+  <a href="https://github.com/pcreativedev/themeforge/actions/workflows/build-linux.yml"><img src="https://img.shields.io/github/actions/workflow/status/pcreativedev/themeforge/build-linux.yml?branch=main&label=Linux&logo=linux&logoColor=white&style=for-the-badge" alt="Linux build"></a>
+  <a href="https://github.com/pcreativedev/themeforge/actions/workflows/build-macos.yml"><img src="https://img.shields.io/github/actions/workflow/status/pcreativedev/themeforge/build-macos.yml?branch=main&label=macOS&logo=apple&logoColor=white&style=for-the-badge" alt="macOS build"></a>
+  <a href="https://github.com/pcreativedev/themeforge/releases"><img src="https://img.shields.io/github/v/release/pcreativedev/themeforge?include_prereleases&style=for-the-badge" alt="Latest release"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-GPL_v3-blue.svg?style=for-the-badge" alt="GPL v3"></a>
+  <a href="https://www.python.org/"><img src="https://img.shields.io/badge/Python-3.11+-yellow.svg?style=for-the-badge&logo=python&logoColor=white" alt="Python 3.11+"></a>
+</p>
+
+<p align="center">
+  <a href="docs/USER_GUIDE.md">User guide</a> ·
+  <a href="ROADMAP.md">Roadmap</a> ·
+  <a href="CHANGELOG.md">Changelog</a> ·
+  <a href="../../releases">Releases</a> ·
+  <a href="CONTRIBUTING.md">Contributing</a> ·
+  <a href="NOTICE.md">Third-party</a>
+</p>
+
+---
+
+**ThemeForge** is a PyQt6 desktop GUI that scaffolds modern template
+projects for **ThemeForest / CodeCanyon / Creative Market / Gumroad**
+and drives them end-to-end with **AI coding agents** (Claude Code,
+Codex, Gemini, OpenCode).
 
 Pick a stack, pick a mode (from scratch / recreate-from-reference /
 adopt-local / existing-repo), pick an AI provider, and ThemeForge:
 
-- Runs the official scaffold of the stack (Next.js / Astro / Laravel /
-  WordPress / Flutter / Tauri / + ~55 more).
-- Drops a `CLAUDE.md` (or `AGENTS.md`) with project context, market
-  research, requirements and anti-copy rules.
-- Optionally analyses a reference template **interactively** with the
-  AI (multi-turn) and injects the conversation into the project.
-- Opens a per-project window with embedded **preview** (multi-tab
-  browser), embedded **terminal** (xterm.js + node-pty), one-click
-  **GitHub push/create**, and optional **pixel-art session visualizer**.
-- Lets you wire your own **licensing system** into every generated
-  theme (Lemon Squeezy / Polar / Paddle / custom endpoint).
+- 🏗️ **Runs the official scaffold** of the stack (Next.js / Astro /
+  Laravel / WordPress / Flutter / Tauri / + ~55 more).
+- 🧠 **Drops a `CLAUDE.md`** (or `AGENTS.md`) with project context,
+  market research, requirements and anti-copy rules.
+- 💬 **Analyses a reference template interactively** with the AI
+  (multi-turn dialog) and injects the conversation into the project.
+- 🖼️ **Opens a per-project window** with embedded multi-tab preview,
+  embedded terminal (xterm.js + node-pty), one-click GitHub push,
+  and optional pixel-art session visualizer.
+- 💰 **Tracks AI cost** with QtCharts donut / bar / stacked charts
+  pulling from your local Claude Code + Codex session stores.
+- 🤝 **Compares agents side-by-side** — same prompt, multiple models
+  in parallel.
+- 🚀 **Deploys demos** to Netlify / Vercel / Cloudflare Pages / Surge
+  with one click.
+- 🔐 **Wires your own licensing system** into every generated theme
+  (Lemon Squeezy / Polar / Paddle / custom endpoint).
 
 📖 **[Read the full user guide → `docs/USER_GUIDE.md`](docs/USER_GUIDE.md)**
 
