@@ -2079,29 +2079,29 @@ class ThemeForge(QWidget):
 
         self.provider_picker = ProviderPicker(self, label="Provider IA:")
 
-        self.autoskills_check = QCheckBox("npx autoskills (auto-instalar skills del stack)")
+        self.autoskills_check = QCheckBox("npx autoskills (auto-install skills for the stack)")
         self.autoskills_check.setChecked(True)
 
         self.uipro_check = QCheckBox(
-            "uipro UI/UX Pro Max (design system + 67 styles + 161 paletas)"
+            "uipro UI/UX Pro Max (design system · 67 styles · 161 palettes)"
         )
         # Auto-check para stacks UI; OFF para backend puro.
         self.uipro_check.setChecked(self._is_ui_stack(self._stack_key))
 
         self.mcp_check = QCheckBox(
-            "📡 Pre-configurar MCP servers (.mcp.json para Claude Code / Cursor / Windsurf)"
+            "📡 Pre-configure MCP servers (.mcp.json for Claude Code / Cursor / Windsurf)"
         )
         self.mcp_check.setToolTip(
-            "ThemeForge genera un `.mcp.json` en el root del proyecto con un "
-            "set curado de MCP servers relevantes al stack:\n"
-            "  · filesystem · fetch · memory · github (todos)\n"
+            "ThemeForge generates a `.mcp.json` at the project root with a "
+            "curated set of MCP servers relevant to the stack:\n"
+            "  · filesystem · fetch · memory · github (always)\n"
             "  · playwright · chrome-devtools · figma-context · browsermcp (web/CMS)\n"
-            "  · shopify-dev (solo Shopify)\n"
-            "  · postgres (cuando haya BD)\n"
-            "  · themeforge (siempre — expone create_project/deploy_demo/etc.)\n\n"
-            "Tu cliente AI (Claude Code, Cursor, Windsurf) lo lee al arrancar "
-            "y los MCPs se descargan vía npx/uvx al primer uso. Compatible con "
-            "GPL v3: todos los MCPs son MIT/Apache-2.0, nunca bundle-eados."
+            "  · shopify-dev (Shopify only)\n"
+            "  · postgres (when a DB is provisioned)\n"
+            "  · themeforge (always — exposes create_project / deploy_demo / etc.)\n\n"
+            "Your AI client (Claude Code, Cursor, Windsurf) reads it on startup "
+            "and downloads each MCP via npx/uvx on first use. GPL-v3 compatible: "
+            "every MCP is MIT/Apache-2.0, never bundled — config only."
         )
         self.mcp_check.setChecked(True)
 
@@ -2111,18 +2111,18 @@ class ThemeForge(QWidget):
         # tipo, theme, dev prompt) en una sola llamada.
         self.vibe_input = QPlainTextEdit()
         self.vibe_input.setPlaceholderText(
-            "✨ Vibe scaffolder (opcional) — describe en lenguaje natural "
-            "lo que quieres construir y la IA pre-rellenará el form.\n"
-            "Ej: 'Landing premium para clínica dental en Madrid, paleta "
-            "cálida, conversion-optimized'"
+            "✨ Vibe scaffolder (optional) — describe in natural language "
+            "what you want to build and the AI pre-fills the form.\n"
+            "Example: 'Premium landing page for a dental clinic in Madrid, "
+            "warm palette, conversion-optimized'"
         )
         self.vibe_input.setMaximumHeight(70)
-        self.btn_vibe = QPushButton("✨ Pre-rellenar form con IA")
+        self.btn_vibe = QPushButton("✨ Pre-fill form with AI")
         self.btn_vibe.setToolTip(
-            "Manda una descripción a la IA activa (Claude/Codex/Gemini/"
-            "OpenCode) y rellena automáticamente: stack, tipo de template, "
-            "theme de la app, toggles autoskills/uipro y un dev prompt "
-            "para el agente."
+            "Sends a description to the active AI (Claude / Codex / "
+            "Gemini / OpenCode) and auto-fills: stack, template type, "
+            "app theme, autoskills/uipro toggles and a dev prompt for "
+            "the agent."
         )
         self.btn_vibe.clicked.connect(self._on_vibe)
         # Persisted dev_prompt from vibe (used as ai_analysis in scratch mode)
@@ -2132,12 +2132,12 @@ class ThemeForge(QWidget):
         # Widgets above remain as instance attributes so all the signal
         # wiring and validation logic stays untouched.
 
-        # ── Modo ─────────────────────────────────────────────────────
-        mode_box = QGroupBox("Modo")
-        self.mode_scratch = QRadioButton("Desde cero — solo scaffolding + agente")
-        self.mode_recreate = QRadioButton("Recrear referencia — estudiar y reimplementar")
-        self.mode_adopt = QRadioButton("Adoptar template local — copiar tal cual y trabajar in-place (soporta mono-repos)")
-        self.mode_existing = QRadioButton("Trabajar sobre repo existente de GitHub")
+        # ── Mode ─────────────────────────────────────────────────────
+        mode_box = QGroupBox("Mode")
+        self.mode_scratch = QRadioButton("From scratch — scaffold + agent only")
+        self.mode_recreate = QRadioButton("Recreate from reference — study and re-implement")
+        self.mode_adopt = QRadioButton("Adopt local template — copy as-is and work in-place (mono-repos supported)")
+        self.mode_existing = QRadioButton("Work on existing GitHub repo")
         self.mode_scratch.setChecked(True)
         self.mode_group = QButtonGroup(self)
         self.mode_group.addButton(self.mode_scratch, 0)
@@ -2265,19 +2265,20 @@ class ThemeForge(QWidget):
 
         # ── Postgres opcional ────────────────────────────────────────
         self.postgres_check = QCheckBox(
-            "🐘 Provisionar Postgres (container Docker dedicado + DATABASE_URL en .env)"
+            "🐘 Provision Postgres (dedicated Docker container + DATABASE_URL in .env)"
         )
         self.postgres_check.setToolTip(
-            "Levanta un container postgres:17-alpine con puerto único para este "
-            "proyecto e inyecta DATABASE_URL en .env. Útil para stacks que no "
-            "vienen con BD por defecto pero que la vas a usar (Next, Nuxt, "
-            "Express, Laravel, Rails…). Requiere docker accesible sin sudo."
+            "Spins up a postgres:17-alpine container with a unique port for "
+            "this project and injects DATABASE_URL into .env. Useful for "
+            "stacks that don't ship a DB by default but you intend to use "
+            "one (Next, Nuxt, Express, Laravel, Rails…). Requires Docker "
+            "accessible without sudo."
         )
         self.postgres_check.setChecked(False)
 
         # ── licensing integration ────────────────────────────────────
         self.licensing_check = QCheckBox(
-            "🔑 Activar sistema de licencias (genera verify-license + setup wizard según el stack)"
+            "🔑 Enable licensing system (generates verify-license + setup wizard for the stack)"
         )
         self.licensing_check.setToolTip(
             "Marca esto si vas a vender el theme bajo tu sistema de licencias "
@@ -2328,12 +2329,12 @@ class ThemeForge(QWidget):
         self.preview.setMaximumHeight(170)
         self.preview.setStyleSheet("background:#1e1e1e;color:#cfcfcf;font-family:monospace;")
 
-        # ── Botones ──────────────────────────────────────────────────
-        self.create_btn = QPushButton("Crear proyecto y lanzar agente")
+        # ── Buttons ──────────────────────────────────────────────────
+        self.create_btn = QPushButton("Create project and launch agent")
         self.create_btn.clicked.connect(self.create_project)
         self.create_btn.setMinimumHeight(40)
         self.create_btn.setStyleSheet("font-weight:bold;")
-        self.cancel_btn = QPushButton("Salir")
+        self.cancel_btn = QPushButton("Quit")
         self.cancel_btn.clicked.connect(self.close)
         btns = QHBoxLayout()
         btns.addWidget(self.cancel_btn); btns.addStretch(); btns.addWidget(self.create_btn)
@@ -2348,10 +2349,10 @@ class ThemeForge(QWidget):
         vibe_lay = QVBoxLayout(vibe_tab)
         vibe_intro = QLabel(
             "<h3>✨ Vibe scaffolder</h3>"
-            "<small>Describe en lenguaje natural lo que quieres construir y "
-            "la IA pre-rellenará el resto de pestañas (Stack, Tipo, Theme, "
-            "skills) + un dev prompt completo. <b>Opcional</b> — si prefieres "
-            "config manual, salta a la pestaña <b>🏗️ Setup</b>.</small>"
+            "<small>Describe in natural language what you want to build "
+            "and the AI pre-fills the other sub-tabs (Stack, Type, Theme, "
+            "skills) plus a full dev prompt. <b>Optional</b> — if you "
+            "prefer to configure manually, jump to the <b>🏗️ Setup</b> tab.</small>"
         )
         vibe_intro.setTextFormat(Qt.TextFormat.RichText)
         vibe_intro.setWordWrap(True)
@@ -2363,33 +2364,33 @@ class ThemeForge(QWidget):
         vibe_btn_row.addWidget(self.btn_vibe)
         vibe_lay.addLayout(vibe_btn_row)
         vibe_lay.addStretch()
-        self.new_project_subtabs.addTab(vibe_tab, "✨ Vibe")
+        self.new_project_subtabs.addTab(vibe_tab, "✨ Vibe")  # same in English
 
         # Sub-tab 2: 🏗️ Setup (lo básico)
         setup_tab = QWidget()
         setup_form = QFormLayout(setup_tab)
-        setup_form.addRow("Nombre:", self.name_edit)
+        setup_form.addRow("Name:", self.name_edit)
         setup_form.addRow("Stack:", self.stack_button)
-        setup_form.addRow("Tipo:", self.type_combo)
+        setup_form.addRow("Type:", self.type_combo)
         setup_form.addRow("Provider:", self.provider_picker)
         setup_form.addRow("", self.autoskills_check)
         setup_form.addRow("", self.uipro_check)
         setup_form.addRow("", self.mcp_check)
-        self.new_project_subtabs.addTab(setup_tab, "🏗️ Setup")
+        self.new_project_subtabs.addTab(setup_tab, "🏗️ Setup")  # same in English
 
         # Sub-tab 3: 📦 Modo (el viejo mode_box, ahora dedicado)
         mode_tab = QWidget()
         mode_tab_lay = QVBoxLayout(mode_tab)
         mode_tab_lay.addWidget(mode_box)
         mode_tab_lay.addStretch()
-        self.new_project_subtabs.addTab(mode_tab, "📦 Modo")
+        self.new_project_subtabs.addTab(mode_tab, "📦 Mode")
 
         # Sub-tab 4: 🔌 Extras (postgres + licensing)
         extras_tab = QWidget()
         extras_lay = QVBoxLayout(extras_tab)
         extras_hint = QLabel(
-            "<small>Toggles avanzados que solo aplican si los necesitas. "
-            "Para la mayoría de templates puedes dejarlos en off.</small>"
+            "<small>Advanced toggles that only apply if you need them. "
+            "For most templates you can leave these off.</small>"
         )
         extras_hint.setTextFormat(Qt.TextFormat.RichText)
         extras_hint.setWordWrap(True)
@@ -2401,17 +2402,17 @@ class ThemeForge(QWidget):
         extras_lay.addWidget(self.licensing_gh_check)
         extras_lay.addWidget(self.licensing_force_check)
         extras_lay.addStretch()
-        self.new_project_subtabs.addTab(extras_tab, "🔌 Extras")
+        self.new_project_subtabs.addTab(extras_tab, "🔌 Extras")  # same
 
         # Sub-tab 5: 👁 Preview (vista previa antes de crear)
         preview_tab = QWidget()
         preview_lay = QVBoxLayout(preview_tab)
         preview_lay.addWidget(QLabel(
-            "<small>Vista previa del comando de scaffold que se ejecutará. "
-            "Confirma desde el botón <b>Crear proyecto</b> abajo.</small>"
+            "<small>Preview of the scaffold command that will run. "
+            "Confirm with the <b>Create project</b> button below.</small>"
         ))
         preview_lay.addWidget(self.preview, 1)
-        self.new_project_subtabs.addTab(preview_tab, "👁 Preview")
+        self.new_project_subtabs.addTab(preview_tab, "👁 Preview")  # same
 
         # ── Root ─────────────────────────────────────────────────────
         root = QVBoxLayout()
@@ -4425,11 +4426,11 @@ class ThemeForgeApp(QWidget):
         # in the current theme's accent color and is re-called when the user
         # switches theme via Settings.
         self._tab_specs: list[tuple[QWidget, str, str]] = [
-            (self.builder,     "box",      "Nuevo proyecto"),
-            (self.gallery,     "gallery",  "Galería"),
-            (self.cost,        "dollar",   "Coste IA"),
-            (self.multi_agent, "users",    "Comparar"),
-            (self.licensing,   "key",      "licencias"),
+            (self.builder,     "box",      "New project"),
+            (self.gallery,     "gallery",  "Gallery"),
+            (self.cost,        "dollar",   "AI cost"),
+            (self.multi_agent, "users",    "Compare"),
+            (self.licensing,   "key",      "Licensing"),
             (self.settings,    "settings", "Settings"),
         ]
         for widget, icon_name, label in self._tab_specs:
