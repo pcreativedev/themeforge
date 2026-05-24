@@ -2088,7 +2088,32 @@ class ThemeForge(QWidget):
         # Auto-check para stacks UI; OFF para backend puro.
         self.uipro_check.setChecked(self._is_ui_stack(self._stack_key))
 
+        # ── Vibe scaffolder (input opcional) ────────────────────────
+        # Si el user describe lo que quiere en lenguaje natural y le
+        # da al botón, una IA pre-rellena el resto del form (stack,
+        # tipo, theme, dev prompt) en una sola llamada.
+        self.vibe_input = QPlainTextEdit()
+        self.vibe_input.setPlaceholderText(
+            "✨ Vibe scaffolder (opcional) — describe en lenguaje natural "
+            "lo que quieres construir y la IA pre-rellenará el form.\n"
+            "Ej: 'Landing premium para clínica dental en Madrid, paleta "
+            "cálida, conversion-optimized'"
+        )
+        self.vibe_input.setMaximumHeight(70)
+        self.btn_vibe = QPushButton("✨ Pre-rellenar form con IA")
+        self.btn_vibe.setToolTip(
+            "Manda una descripción a la IA activa (Claude/Codex/Gemini/"
+            "OpenCode) y rellena automáticamente: stack, tipo de template, "
+            "theme de la app, toggles autoskills/uipro y un dev prompt "
+            "para el agente."
+        )
+        self.btn_vibe.clicked.connect(self._on_vibe)
+        # Persisted dev_prompt from vibe (used as ai_analysis in scratch mode)
+        self._vibe_dev_prompt: str = ""
+
         form = QFormLayout()
+        form.addRow("✨ Vibe:", self.vibe_input)
+        form.addRow("", self.btn_vibe)
         form.addRow("Nombre:", self.name_edit)
         form.addRow("Stack:", self.stack_button)
         form.addRow("Tipo:", self.type_combo)
@@ -2347,6 +2372,94 @@ class ThemeForge(QWidget):
             if hasattr(self, "uipro_check"):
                 self.uipro_check.setChecked(self._is_ui_stack(self._stack_key))
             self._update_preview()
+
+    def _on_vibe(self):
+        """✨ Vibe scaffolder: el user describe el proyecto en lenguaje
+        natural, una IA propone stack + tipo + theme + dev prompt, y
+        el form se auto-rellena. El dev_prompt se inyecta luego como
+        ai_analysis en CLAUDE.md cuando se crea el proyecto."""
+        text = self.vibe_input.toPlainText().strip()
+        if not text:
+            QMessageBox.information(
+                self, "Vibe scaffolder",
+                "Escribe primero una descripción de lo que quieres construir.",
+            )
+            return
+        agent_key = self.provider_picker.current_key()
+        state, info = aip.detect_status(agent_key)
+        if state != "ok":
+            QMessageBox.warning(
+                self, "Vibe scaffolder",
+                f"Provider {agent_key} no listo: {info}",
+            )
+            return
+
+        try:
+            from vibe_scaffolder import VibeDialog
+        except Exception as e:
+            QMessageBox.critical(self, "Vibe scaffolder", f"No se pudo cargar: {e}")
+            return
+
+        # Builtin themes for the agent to pick from
+        try:
+            import themes as _t
+            theme_names = [t.name for t in _t.list_themes() if not t.is_user]
+        except Exception:
+            theme_names = ["themeforge-dark"]
+
+        dlg = VibeDialog(self, text, agent_key, STACKS, TEMPLATE_TYPES, theme_names)
+        if dlg.exec() != QDialog.DialogCode.Accepted or not dlg.proposal:
+            return
+        proposal = dlg.proposal
+
+        # Apply stack
+        if proposal.stack_key in STACKS:
+            self._stack_key = proposal.stack_key
+            self._refresh_stack_button()
+        # Apply template type
+        idx = self.type_combo.findText(proposal.template_type)
+        if idx >= 0:
+            self.type_combo.setCurrentIndex(idx)
+        # Apply toggles
+        self.autoskills_check.setChecked(proposal.run_autoskills)
+        if hasattr(self, "uipro_check"):
+            # Override the auto-check based on what the AI proposed
+            self.uipro_check.setChecked(proposal.run_uipro)
+
+        # Store dev_prompt for injection as ai_analysis in scratch mode
+        self._vibe_dev_prompt = proposal.dev_prompt
+        # Reuse the _last_analysis pipeline: (None, text) means "use in scratch"
+        self._last_analysis = (None, proposal.dev_prompt)
+
+        # Apply theme hint live (optional — user can always revert)
+        if proposal.theme_hint:
+            try:
+                import themes as _t
+                pack = _t.load_theme(proposal.theme_hint)
+                _t.apply_theme(QApplication.instance(), pack)
+                _t.save_current_theme(proposal.theme_hint)
+                _t.clear_icon_cache()
+                _t.theme_signals.theme_changed.emit(proposal.theme_hint)
+            except Exception as e:
+                print(f"[vibe] theme switch failed: {e}")
+
+        # Auto-suggest a project name if empty
+        if not self.name_edit.text().strip():
+            # Derive a snake-case name from the first words of the dev_prompt
+            slug = re.sub(r"[^a-z0-9]+", "-",
+                          " ".join(proposal.dev_prompt.split()[:4]).lower())
+            slug = slug.strip("-")[:32]
+            if slug:
+                self.name_edit.setText(slug)
+
+        QMessageBox.information(
+            self, "✨ Vibe aplicado",
+            f"Form pre-rellenado con la propuesta:\n\n"
+            f"  Stack: {STACKS[proposal.stack_key]['name']}\n"
+            f"  Tipo:  {proposal.template_type}\n"
+            f"  Theme: {proposal.theme_hint}\n\n"
+            f"El dev prompt se inyectará en CLAUDE.md cuando crees el proyecto."
+        )
 
     def _mode_changed(self, _id, checked):
         is_recreate = self.mode_recreate.isChecked()
@@ -2717,14 +2830,18 @@ class ThemeForge(QWidget):
         licensing_gh = is_licensed and self.licensing_gh_check.isChecked()
         licensing_force_all = is_licensed and self.licensing_force_check.isChecked()
 
-        # Análisis IA inyectable si el path del análisis coincide con
-        # el path activo del modo (recreate → ref_val, adopt → adopt_src).
+        # Análisis IA inyectable. Tres caminos:
+        #   recreate/adopt → path-gated (debe coincidir con la ref activa).
+        #   scratch        → vibe scaffolder (cached_path is None means "vibe").
         ai_analysis_text = None
         if self._last_analysis:
             cached_path, cached_text = self._last_analysis
             if mode == "recreate" and cached_path == (ref_val or ""):
                 ai_analysis_text = cached_text
             elif mode == "adopt" and cached_path == (adopt_src or ""):
+                ai_analysis_text = cached_text
+            elif mode == "scratch" and cached_path is None:
+                # Vibe scaffolder dev_prompt
                 ai_analysis_text = cached_text
 
         try:

@@ -9,6 +9,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **✨ Vibe scaffolder mode.** New input at the top of the "Nuevo
+  proyecto" form: the user types a natural-language description
+  ("Landing premium para clínica dental en Madrid, paleta cálida,
+  conversion-optimized") and clicks **✨ Pre-rellenar form con IA**.
+  The active AI provider returns a structured JSON proposal that
+  auto-populates: stack key, template type, theme of the app,
+  autoskills/uipro toggles, and a polished 150-300 word dev prompt
+  injected into the generated CLAUDE.md/AGENTS.md so the agent
+  starts with full context. New module `vibe_scaffolder.py`:
+  - `build_vibe_prompt()` — composes a structured prompt with the
+    61 available stacks, 21 template types, 8 builtin themes and
+    decision rules (WordPress → wordpress-block, mobile → flutter,
+    premium/wellness → soft-ui theme, etc.).
+  - `parse_vibe_response()` — robust JSON extractor (markdown
+    fences, leading/trailing prose, balanced brace scan as fallback).
+  - `VibeDialog` — streams the AI response live using the
+    `stream_parsers` infrastructure, shows a preview pane on
+    completion with stack/type/theme + reasoning, lets the user
+    Apply or Discard. The dev_prompt feeds the existing
+    `ai_analysis` injection pipeline so it lands inside CLAUDE.md
+    without extra plumbing.
 - **📥 App theme system Sprint 5 — Figma import + DTCG support.**
   Two new modules:
   - `themes/figma_import.py` — DTCG v2025.10 JSON parser (W3C Design
