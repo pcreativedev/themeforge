@@ -64,10 +64,10 @@ class SettingsPanel(QWidget):
         self.status_text.setMinimumHeight(280)
         self.status_text.setStyleSheet("background:#1e1e25;color:#e6e6e6;font-family:monospace;font-size:12px;")
 
-        self.btn_refresh = QPushButton("↻ Refrescar status")
+        self.btn_refresh = QPushButton("↻ Refresh status")
         self.btn_refresh.clicked.connect(self.refresh_status)
 
-        status_box = QGroupBox("Status del sistema")
+        status_box = QGroupBox("System status")
         sb = QVBoxLayout()
         sb.addWidget(self.status_text)
         sb.addWidget(self.btn_refresh)
@@ -98,7 +98,7 @@ class SettingsPanel(QWidget):
             self.theme_help.setTextFormat(Qt.TextFormat.RichText)
             self.theme_help.setWordWrap(True)
 
-            self.btn_theme_edit = QPushButton("✏️ Personalizar tema actual…")
+            self.btn_theme_edit = QPushButton("✏️ Customize current theme…")
             self.btn_theme_edit.setToolTip(
                 "Abre el editor visual: color pickers + sliders + dropdowns "
                 "de variants. Los cambios se aplican en vivo a toda la app. "
@@ -106,7 +106,7 @@ class SettingsPanel(QWidget):
             )
             self.btn_theme_edit.clicked.connect(self._open_theme_editor)
 
-            self.btn_theme_figma = QPushButton("📥 Importar desde Figma…")
+            self.btn_theme_figma = QPushButton("📥 Import from Figma…")
             self.btn_theme_figma.setToolTip(
                 "Importa un theme desde un archivo DTCG JSON (exportado por "
                 "el plugin Tokens Studio de Figma, plan gratuito) o "
@@ -122,7 +122,7 @@ class SettingsPanel(QWidget):
             except Exception:
                 pass
 
-            theme_box = QGroupBox("🎨 Tema de la app")
+            theme_box = QGroupBox("🎨 App theme")
             tb = QHBoxLayout()
             tb.addWidget(QLabel("Theme:"))
             tb.addWidget(self.theme_combo, 1)
@@ -152,7 +152,7 @@ class SettingsPanel(QWidget):
         skill_btns.addWidget(self.skill_add_btn)
         skill_btns.addWidget(self.skill_remove_btn)
 
-        skills_box = QGroupBox("Skills predeclaradas por stack")
+        skills_box = QGroupBox("Predeclared skills per stack")
         sbox = QHBoxLayout()
         sl = QVBoxLayout(); sl.addWidget(QLabel("Stack:")); sl.addWidget(self.stack_list)
         sr = QVBoxLayout(); sr.addWidget(QLabel("Skills (npx skills add):")); sr.addWidget(self.skills_list); sr.addLayout(skill_btns)
@@ -166,7 +166,7 @@ class SettingsPanel(QWidget):
         self.btn_pixel_install.clicked.connect(self._pixel_install)
         self.btn_pixel_launch = QPushButton("▶ Arrancar")
         self.btn_pixel_launch.clicked.connect(self._pixel_launch)
-        self.btn_pixel_open = QPushButton("🌐 Abrir dashboard")
+        self.btn_pixel_open = QPushButton("🌐 Open dashboard")
         self.btn_pixel_open.clicked.connect(self._pixel_open)
         self.btn_pixel_stop = QPushButton("✕ Parar")
         self.btn_pixel_stop.clicked.connect(self._pixel_stop)
@@ -187,16 +187,16 @@ class SettingsPanel(QWidget):
         pixel_box.setLayout(pbox)
 
         # Atajos
-        self.btn_open_themeforge = QPushButton("📁 Abrir ~/Proyectos/themeforge")
+        self.btn_open_themeforge = QPushButton("📁 Open ~/Proyectos/themeforge")
         self.btn_open_themeforge.clicked.connect(
             lambda: pc.open_in_file_manager(Path.home() / "Proyectos" / "themeforge"))
-        self.btn_open_context = QPushButton("📚 Abrir context/")
+        self.btn_open_context = QPushButton("📚 Open context/")
         self.btn_open_context.clicked.connect(
             lambda: pc.open_in_file_manager(Path.home() / "Proyectos" / "themeforge" / "context"))
-        self.btn_edit_stacks = QPushButton("📝 Editar stacks.py")
+        self.btn_edit_stacks = QPushButton("📝 Edit stacks.py")
         self.btn_edit_stacks.clicked.connect(self._edit_stacks)
 
-        shortcuts_box = QGroupBox("Atajos")
+        shortcuts_box = QGroupBox("Shortcuts")
         sbtn = QHBoxLayout()
         sbtn.addWidget(self.btn_open_themeforge)
         sbtn.addWidget(self.btn_open_context)

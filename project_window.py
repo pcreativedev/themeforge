@@ -230,53 +230,54 @@ class ProjectWindow(QWidget):
         title.setTextFormat(Qt.TextFormat.RichText)
 
         # Toolbar superior
-        self.btn_open_folder = QPushButton("📁 Carpeta")
+        self.btn_open_folder = QPushButton("📁 Folder")
         self.btn_open_folder.clicked.connect(self._open_folder)
         self.btn_open_vscode = QPushButton("VSCode")
         self.btn_open_vscode.clicked.connect(self._open_vscode)
         self.btn_refresh_profile = QPushButton("🔄 Re-detectar")
         self.btn_refresh_profile.setToolTip(
-            "Volver a detectar el perfil de preview (tras completar el setup, "
-            "instalar dependencias, etc.)"
+            "Re-detect the preview profile (after running setup, installing "
+            "dependencies, etc.)"
         )
         self.btn_refresh_profile.clicked.connect(self._refresh_profile)
         self.btn_preflight = QPushButton("🔬 Pre-flight")
         self.btn_preflight.setToolTip(
-            "Ejecuta una batería de checks contra `REQUISITOS-THEMEFOREST.md` "
-            "y buenas prácticas: README, LICENSE, documentation/, screenshots/, "
-            "jQuery legacy, Bootstrap legacy, GA/FB tracking, prefers-reduced-motion, "
-            ".env no committeado, tamaño total, placeholders sin sustituir, "
-            "lighthouse/html-validator disponibles. Rápido (filesystem + grep)."
+            "Runs a battery of checks against marketplace-readiness rules + "
+            "best practices: README, LICENSE, documentation/, screenshots/, "
+            "legacy jQuery, legacy Bootstrap, hardcoded GA/FB tracking, "
+            "prefers-reduced-motion, .env committed by accident, total size, "
+            "unresolved placeholders, lighthouse / html-validator availability. "
+            "Fast (filesystem + grep)."
         )
         self.btn_preflight.clicked.connect(self._run_preflight)
 
         self.btn_zip = QPushButton("📦 ZIP")
         self.btn_zip.setToolTip(
-            "Empaquetar este proyecto en un ZIP listo para marketplace.\n"
-            "Excluye automáticamente: node_modules, .git, dist, .next, "
-            "build, .env, .cache, .vscode, .idea, .cursor, .claude, "
-            "CLAUDE.md/AGENTS.md/MEMORY.md, *.log, .DS_Store, "
-            "vendor, target, etc.\n"
-            "Salida: ~/Proyectos/themes-builds/<slug>-<timestamp>.zip"
+            "Package this project into a marketplace-ready ZIP.\n"
+            "Auto-excludes: node_modules, .git, dist, .next, build, .env, "
+            ".cache, .vscode, .idea, .cursor, .claude, CLAUDE.md / "
+            "AGENTS.md / MEMORY.md, *.log, .DS_Store, vendor, target, etc.\n"
+            "Output: ~/Proyectos/themes-builds/<slug>-<timestamp>.zip"
         )
         self.btn_zip.clicked.connect(self._build_zip)
 
         self.btn_deploy_demo = QPushButton("🚀 Demo")
         self.btn_deploy_demo.setToolTip(
-            "Desplegar una demo pública del proyecto en Netlify / Vercel / "
-            "Cloudflare Pages / Surge.sh para compartir la URL con compradores "
-            "o clientes. Autodetecta el comando de build y la carpeta dist; "
-            "puedes editarlos en el diálogo."
+            "Deploy a public demo of the project to Netlify / Vercel / "
+            "Cloudflare Pages / Surge.sh so you can share the URL with "
+            "buyers or clients. Auto-detects build command and dist "
+            "directory; you can override both in the dialog."
         )
         self.btn_deploy_demo.clicked.connect(self._deploy_demo)
 
         self.btn_github = QPushButton("📦 GitHub")
         self.btn_github.setToolTip(
-            "Crear repo privado en GitHub y subir el código. "
-            "Detecta si ya existe remote 'origin' y solo hace push en ese caso."
+            "Create a private GitHub repo and push the code. Detects "
+            "whether an 'origin' remote already exists and only pushes "
+            "in that case."
         )
         self.btn_github.clicked.connect(self._github_create_or_push)
-        self.btn_open_external_term = QPushButton("Konsole externa")
+        self.btn_open_external_term = QPushButton("External terminal")
         self.btn_open_external_term.clicked.connect(self._open_external_terminal)
 
         toolbar = QHBoxLayout()
@@ -320,9 +321,9 @@ class ProjectWindow(QWidget):
         self.btn_stop.clicked.connect(self.stop_preview)
         self.btn_stop.setEnabled(False)
         self.btn_reload = QPushButton("↻")
-        self.btn_reload.setToolTip("Recargar el tab activo")
+        self.btn_reload.setToolTip("Reload the active tab")
         self.btn_reload.clicked.connect(self._reload_current_tab)
-        self.btn_open_browser = QPushButton("🚀 Abrir en navegador")
+        self.btn_open_browser = QPushButton("🚀 Open in browser")
         self.btn_open_browser.setToolTip(
             "Abre la preview en Chromium/Firefox externo en modo app "
             "(ventana sin barra de URL). Performance nativa — sin lag de "
@@ -342,10 +343,10 @@ class ProjectWindow(QWidget):
 
         # Fila de viewports + screenshot + devtools
         self.btn_screenshot = QPushButton("📸")
-        self.btn_screenshot.setToolTip("Capturar el preview a PNG")
+        self.btn_screenshot.setToolTip("Capture the preview to PNG")
         self.btn_screenshot.clicked.connect(self._capture_screenshot)
         self.btn_devtools = QPushButton("🔧 DevTools")
-        self.btn_devtools.setToolTip("Abrir DevTools del webview")
+        self.btn_devtools.setToolTip("Open the webview DevTools")
         self.btn_devtools.clicked.connect(self._open_devtools)
 
         vp_row = QHBoxLayout()
@@ -377,7 +378,7 @@ class ProjectWindow(QWidget):
         btn_add_tab = QToolButton()
         btn_add_tab.setText("+")
         btn_add_tab.setAutoRaise(True)
-        btn_add_tab.setToolTip("Nueva pestaña (usa la URL de la barra)")
+        btn_add_tab.setToolTip("New tab (uses the URL from the bar)")
         btn_add_tab.clicked.connect(lambda: self._new_preview_tab())
         self.preview_tabs.setCornerWidget(btn_add_tab, Qt.Corner.TopRightCorner)
 
@@ -454,8 +455,8 @@ class ProjectWindow(QWidget):
                 self.pixel_view = QWebEngineView()
                 self.pixel_view.setHtml(
                     "<body style='background:#0c0c0d;color:#888;font:13px monospace;padding:2em'>"
-                    "<h2 style='color:#fff'>🎮 Pixel Office no instalado</h2>"
-                    "<p>Activa desde Ajustes de ThemeForge → 🎮 Office → Instalar.</p>"
+                    "<h2 style='color:#fff'>🎮 Pixel Office not installed</h2>"
+                    "<p>Enable from ThemeForge Settings → 🎮 Office → Install.</p>"
                     "<p style='color:#555'>Upstream MIT: "
                     "<a style='color:#62b4ff' href='https://github.com/neomatrix25/pixel-office-openclaw'>"
                     "neomatrix25/pixel-office-openclaw</a></p>"

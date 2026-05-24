@@ -2229,7 +2229,7 @@ class ThemeForge(QWidget):
         self.repo_combo = QComboBox()
         self.repo_combo.setEditable(True)
         self.repo_combo.setPlaceholderText("owner/repo o selecciona de la lista…")
-        self.repo_load_btn = QPushButton("↻ Cargar mis repos")
+        self.repo_load_btn = QPushButton("↻ Load my repos")
         self.repo_load_btn.clicked.connect(self._load_repos)
         repo_row = QHBoxLayout()
         repo_row.addWidget(self.repo_combo, 1)
@@ -2785,10 +2785,10 @@ class ThemeForge(QWidget):
                     "autenticado (`gh auth status`) y que la cuenta "
                     "tenga repositorios."
                 )
-                self.repo_load_btn.setText("↻ Cargar mis repos")
+                self.repo_load_btn.setText("↻ Load my repos")
         except Exception as e:
             QMessageBox.critical(self, "GitHub", f"Error cargando repos: {e}")
-            self.repo_load_btn.setText("↻ Cargar mis repos")
+            self.repo_load_btn.setText("↻ Load my repos")
         finally:
             self.repo_load_btn.setEnabled(True)
 
@@ -3067,7 +3067,7 @@ class GalleryPanel(QWidget):
         self.info = QLabel("Selecciona un template (doble-click abre la ventana del proyecto)")
         self.info.setStyleSheet("color:#888;")
 
-        self.btn_refresh = QPushButton("↻ Refrescar")
+        self.btn_refresh = QPushButton("↻ Refresh")
         self.btn_refresh.clicked.connect(self.refresh)
         self.btn_fav = QPushButton("★ Favorito")
         self.btn_fav.setToolTip("Marcar/desmarcar como favorito")
@@ -3764,7 +3764,7 @@ class _CostTrackerPanel(QWidget):
             self.provider_filter.addItem(p, userData=p)
         self.provider_filter.currentIndexChanged.connect(lambda _i: self.refresh())
 
-        self.btn_refresh = QPushButton("↻ Re-escanear")
+        self.btn_refresh = QPushButton("↻ Re-scan")
         self.btn_refresh.clicked.connect(self.refresh)
 
         top_row = QHBoxLayout()
@@ -3775,13 +3775,13 @@ class _CostTrackerPanel(QWidget):
 
         # Tres tablas: by_provider, by_model, by_project
         self.table_providers = self._make_table(
-            ["Proveedor", "Coste", "Eventos", "Tokens in", "Tokens out", "Notas"],
+            ["Provider", "Cost", "Events", "Tokens in", "Tokens out", "Notes"],
             [160, 100, 80, 110, 110, -1])
         self.table_models = self._make_table(
-            ["Modelo", "Coste", "Eventos", "Tokens in", "Tokens out", "Tarifa"],
+            ["Model", "Cost", "Events", "Tokens in", "Tokens out", "Pricing"],
             [220, 100, 80, 110, 110, 100])
         self.table_projects = self._make_table(
-            ["Proyecto", "Coste", "Eventos", "Proveedor"],
+            ["Project", "Cost", "Events", "Provider"],
             [430, 100, 80, 100])
 
         # 3 charts QtCharts (mejor look + animations + hover):
@@ -3913,7 +3913,7 @@ class _CostTrackerPanel(QWidget):
             self.table_models.setItem(r, 2, QTableWidgetItem(f"{data['events']:,}"))
             self.table_models.setItem(r, 3, QTableWidgetItem(f"{data['in']:,}"))
             self.table_models.setItem(r, 4, QTableWidgetItem(f"{data['out']:,}"))
-            tarifa = "✓ conocida" if data.get("pricing_known", True) else "⚠ default"
+            tarifa = "✓ known" if data.get("pricing_known", True) else "⚠ default"
             it = QTableWidgetItem(tarifa)
             if not data.get("pricing_known", True):
                 it.setForeground(QColor("#fbbf24"))
@@ -3979,7 +3979,7 @@ class _CostTrackerPanel(QWidget):
 
         items = [(p, d["cost"]) for p, d in report.by_provider.items() if d["cost"] > 0]
         if not items:
-            self._empty_chart(self.chart_donut, "Coste por proveedor")
+            self._empty_chart(self.chart_donut, "Cost per provider")
             return
 
         total = sum(v for _, v in items)
@@ -3995,7 +3995,7 @@ class _CostTrackerPanel(QWidget):
 
         chart = QChart()
         chart.addSeries(series)
-        chart.setTitle(f"Coste por proveedor — Total ${total:,.2f}")
+        chart.setTitle(f"Cost per provider — Total ${total:,.2f}")
         chart.setTheme(QChart.ChartTheme.ChartThemeDark)
         chart.setBackgroundVisible(False)
         chart.legend().setAlignment(_Qt.AlignmentFlag.AlignRight)
@@ -4025,7 +4025,7 @@ class _CostTrackerPanel(QWidget):
             labels.append(short[:42])
             values.append(data["cost"])
 
-        bar_set = QBarSet("Coste")
+        bar_set = QBarSet("Cost")
         bar_set.append(values)
         bar_set.setColor(QColor(self._PROJECT_COLORS[0]))
 
@@ -4037,7 +4037,7 @@ class _CostTrackerPanel(QWidget):
 
         chart = QChart()
         chart.addSeries(series)
-        chart.setTitle("Top 10 proyectos por coste")
+        chart.setTitle("Top 10 projects by cost")
         chart.setTheme(QChart.ChartTheme.ChartThemeDark)
         chart.setBackgroundVisible(False)
         chart.setAnimationOptions(QChart.AnimationOption.SeriesAnimations)
@@ -4092,7 +4092,7 @@ class _CostTrackerPanel(QWidget):
 
         chart = QChart()
         chart.addSeries(series)
-        chart.setTitle("Coste por día (últimos 30) — stacked por proveedor")
+        chart.setTitle("Daily cost (last 30 days) — stacked by provider")
         chart.setTheme(QChart.ChartTheme.ChartThemeDark)
         chart.setBackgroundVisible(False)
         chart.setAnimationOptions(QChart.AnimationOption.SeriesAnimations)
