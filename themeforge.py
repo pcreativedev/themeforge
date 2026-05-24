@@ -2088,6 +2088,23 @@ class ThemeForge(QWidget):
         # Auto-check para stacks UI; OFF para backend puro.
         self.uipro_check.setChecked(self._is_ui_stack(self._stack_key))
 
+        self.mcp_check = QCheckBox(
+            "📡 Pre-configurar MCP servers (.mcp.json para Claude Code / Cursor / Windsurf)"
+        )
+        self.mcp_check.setToolTip(
+            "ThemeForge genera un `.mcp.json` en el root del proyecto con un "
+            "set curado de MCP servers relevantes al stack:\n"
+            "  · filesystem · fetch · memory · github (todos)\n"
+            "  · playwright · chrome-devtools · figma-context · browsermcp (web/CMS)\n"
+            "  · shopify-dev (solo Shopify)\n"
+            "  · postgres (cuando haya BD)\n"
+            "  · themeforge (siempre — expone create_project/deploy_demo/etc.)\n\n"
+            "Tu cliente AI (Claude Code, Cursor, Windsurf) lo lee al arrancar "
+            "y los MCPs se descargan vía npx/uvx al primer uso. Compatible con "
+            "GPL v3: todos los MCPs son MIT/Apache-2.0, nunca bundle-eados."
+        )
+        self.mcp_check.setChecked(True)
+
         # ── Vibe scaffolder (input opcional) ────────────────────────
         # Si el user describe lo que quiere en lenguaje natural y le
         # da al botón, una IA pre-rellena el resto del form (stack,
@@ -2357,6 +2374,7 @@ class ThemeForge(QWidget):
         setup_form.addRow("Provider:", self.provider_picker)
         setup_form.addRow("", self.autoskills_check)
         setup_form.addRow("", self.uipro_check)
+        setup_form.addRow("", self.mcp_check)
         self.new_project_subtabs.addTab(setup_tab, "🏗️ Setup")
 
         # Sub-tab 3: 📦 Modo (el viejo mode_box, ahora dedicado)
@@ -2959,6 +2977,19 @@ class ThemeForge(QWidget):
         # historia intacta. Si no, esperamos a que el setup la cree.
         if mode == "existing":
             project_dir.mkdir(parents=True, exist_ok=True)
+
+        # Pre-configurar MCP servers para Claude Code / Cursor / Windsurf.
+        # Drop `.mcp.json` con un set curado relevante al stack. El user
+        # puede deshabilitar el toggle desde Setup sub-tab.
+        if getattr(self, "mcp_check", None) and self.mcp_check.isChecked():
+            try:
+                import mcp_catalog as _mc
+                project_dir.mkdir(parents=True, exist_ok=True)
+                stack_meta = STACKS.get(stack_key, {})
+                recs = _mc.recommend_for_stack(stack_key, stack_meta)
+                _mc.write_mcp_json(project_dir, recs)
+            except Exception as e:
+                print(f"[mcp] could not write .mcp.json: {e}", file=sys.stderr)
 
         # Abrir el ProjectWindow embebiendo el setup en su primera pestaña
         # de terminal en lugar de lanzar una Konsole externa.

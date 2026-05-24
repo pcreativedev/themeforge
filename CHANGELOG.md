@@ -7,6 +7,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **📡 MCP server + curated catalog of community MCPs.** Two new
+  capabilities for the Model Context Protocol ecosystem (2026's
+  fastest-growing standard for AI tool exposure):
+
+  1. **`mcp_server.py`** — ThemeForge's own stdio MCP server. Exposes
+     8 tools (`list_stacks`, `list_themes`, `list_recent_projects`,
+     `list_supported_providers`, `estimate_cost`, `suggest_stack`,
+     `run_preflight`, `build_zip`) to any MCP client (Claude Code,
+     Cursor, Windsurf, OpenCode). Built on Anthropic's official
+     `mcp` Python SDK + FastMCP. Runs as a subprocess of the client
+     — no VPS, no network, no remote endpoint.
+
+  2. **`mcp_catalog.py`** — curated registry of 12 community MCP
+     servers organized by stack relevance (universal / web-frontend /
+     wordpress / shopify / database / design). When the
+     **📡 Pre-configurar MCP servers** toggle in Setup sub-tab is on
+     (default), ThemeForge writes a `.mcp.json` in every scaffolded
+     project pointing at the right MCPs. The user's AI client reads
+     it on startup and downloads each MCP via `npx` / `uvx` / `docker`
+     on first invocation — ThemeForge never bundles their source,
+     just generates the config.
+
+  Catalog (license-verified at curation time):
+    - **Universal (any stack):** filesystem (MIT), fetch (MIT),
+      memory (MIT), github (MIT), themeforge (GPL-3.0).
+    - **Web frontend / CMS:** playwright (Apache-2.0), chrome-devtools
+      (Apache-2.0), figma-context (MIT), browsermcp (Apache-2.0).
+    - **Shopify:** Shopify/dev-mcp (official).
+    - **Backend with DB:** postgres (MIT, crystaldba).
+
+  All licenses fully compatible with ThemeForge's GPL v3 — they're
+  subprocess invocations, not embedded code. Discovery reference:
+  [punkpeye/awesome-mcp-servers](https://github.com/punkpeye/awesome-mcp-servers).
+
 ### Fixed
 
 - **🔽 QComboBox dropdown arrow now visible across all themes.**

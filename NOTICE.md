@@ -57,6 +57,34 @@ each project's official channel.
 | **Lucide icons** | ISC | <https://github.com/lucide-icons/lucide> | 38 SVG icons bundled in `assets/icons/lucide/` and used for the main-window tabs and Settings widgets. SVGs use `currentColor` so they re-tint to the active theme's accent. ISC is functionally equivalent to MIT — full attribution preserved in the SVG files. |
 | W3C DTCG spec | (community) | <https://www.designtokens.org/tr/drafts/format/> | Theme JSON format reference for the Figma import path. ThemeForge parses tokens following the DTCG v2025.10 spec (`$type` + `$value` with `$`-prefixed metadata). |
 | Tokens Studio for Figma | (referenced, not bundled) | <https://docs.tokens.studio/> | Recommended Figma plugin for exporting design tokens as DTCG JSON to feed ThemeForge's Figma import dialog. Not redistributed. |
+| **MCP SDK** (`python-mcp`) | MIT | <https://github.com/modelcontextprotocol/python-sdk> | Anthropic's official MCP Python SDK. Used by `mcp_server.py` to expose ThemeForge actions (list_stacks / estimate_cost / run_preflight / build_zip / suggest_stack / …) as tools callable from any MCP client. |
+
+## MCP catalog (referenced, not bundled)
+
+ThemeForge can pre-configure a curated set of community MCP servers
+per scaffolded project (writes `.mcp.json` in the project root). The
+upstream code is **never** bundled — your AI client (Claude Code,
+Cursor, Windsurf, OpenCode) downloads each MCP on demand via `npx`,
+`uvx`, or `docker`. We just generate the config. All licenses are
+permissive and verified at curation time (see `mcp_catalog.py`).
+
+| MCP | License | Upstream |
+|---|---|---|
+| Filesystem (mcp official) | MIT | <https://github.com/modelcontextprotocol/servers> |
+| Fetch (mcp official) | MIT | <https://github.com/modelcontextprotocol/servers-archived/tree/main/src/fetch> |
+| Memory (mcp official) | MIT | <https://github.com/modelcontextprotocol/servers-archived/tree/main/src/memory> |
+| GitHub (official) | MIT | <https://github.com/github/github-mcp-server> |
+| Playwright (Microsoft official) | Apache-2.0 | <https://github.com/microsoft/playwright-mcp> |
+| Chrome DevTools (Google official) | Apache-2.0 | <https://github.com/ChromeDevTools/chrome-devtools-mcp> |
+| Figma Context | MIT | <https://github.com/GLips/Figma-Context-MCP> |
+| Shopify Dev (official) | (per Shopify open-source standard; verify upstream) | <https://github.com/Shopify/dev-mcp> |
+| Postgres (crystaldba) | MIT | <https://github.com/crystaldba/postgres-mcp> |
+| Browser MCP | Apache-2.0 | <https://github.com/browsermcp/mcp> |
+
+Discovery / curation reference: [`punkpeye/awesome-mcp-servers`](https://github.com/punkpeye/awesome-mcp-servers)
+(directory of 1500+ community servers maintained by Frank Fiegel). All
+12 entries in our curated catalog can be inspected (and the catalog
+extended) in `mcp_catalog.py`.
 | GitHub CLI (`gh`) | MIT | <https://github.com/cli/cli> | Repo create / push from the ProjectWindow |
 | `paru` | GPL v3 | <https://github.com/Morganamilo/paru> | AUR helper hint in docs |
 
