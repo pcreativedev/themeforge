@@ -124,6 +124,9 @@ jobs:
             --add-data "terminal;terminal" `
             --collect-submodules PyQt6 `
             --collect-data PyQt6 `
+            --hidden-import video_splash `
+            --hidden-import dependency_setup `
+            --hidden-import dependency_wizard `
             --exclude-module PyQt6.Qt3DCore `
             --exclude-module PyQt6.Qt3DRender `
             --exclude-module PyQt6.Qt3DInput `
