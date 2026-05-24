@@ -101,7 +101,7 @@ AppImage runs on most distros from 2022 onwards.
 
 | Platform | Status | Notes |
 |---|---|---|
-| 🐧 **Linux** | ✅ **Stable (v1.0)** | Primary development platform. Tested on CachyOS / Arch / Ubuntu / Fedora. Pre-built AppImage / .deb / .rpm on the [Releases](../../releases) page, or run from source with `python3 themeforge.py`. |
+| 🐧 **Linux** | ✅ **Stable** | Primary development platform. Tested on CachyOS / Arch / Ubuntu / Fedora. Pre-built AppImage / .deb / .rpm on the [Releases](../../releases) page (latest tag shown by the badge above), or run from source with `python3 themeforge.py`. |
 | 🍎 **macOS** | ⚠️ **Alpha** | Cross-platform refactor complete (subprocess, file manager, terminal, paths all dispatched per OS). Pre-built `.app` available from the [Releases](../../releases) page (built via GitHub Actions on `macos-latest`). **Not yet tested on real Macs** — expect rough edges; report issues. App is **not code-signed** — first launch will require `Cmd+click → Open` to bypass Gatekeeper. |
 | 🪟 **Windows** | 🔴 **Backlog** | Tracked in [`ROADMAP.md`](ROADMAP.md#cross-platform-support). Estimated 3-5 days of additional refactor (PowerShell wrapper, path conventions, no-bash). PRs welcome. |
 
@@ -223,9 +223,10 @@ and [`NOTICE.md`](NOTICE.md).
 
 ## Status
 
-**Linux:** Stable (v1.0) — production-quality for the documented
+**Linux:** Stable — production-quality for the documented
 workflows on the main distros (Arch / Ubuntu / Fedora). Rough edges
 expected on niche distros or exotic Qt / Wayland combinations.
+The "Release" badge above auto-tracks the latest published tag.
 
 **macOS:** Alpha — the cross-platform refactor is in. Pre-built .app
 ships from CI but hasn't been tested on real Macs yet. If you're a
