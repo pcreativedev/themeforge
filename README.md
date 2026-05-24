@@ -102,8 +102,36 @@ AppImage runs on most distros from 2022 onwards.
 | Platform | Status | Notes |
 |---|---|---|
 | 🐧 **Linux** | ✅ **Stable** | Primary development platform. Tested on CachyOS / Arch / Ubuntu / Fedora. Pre-built AppImage / .deb / .rpm on the [Releases](../../releases) page (latest tag shown by the badge above), or run from source with `python3 themeforge.py`. |
-| 🍎 **macOS** | ⚠️ **Alpha** | Cross-platform refactor complete (subprocess, file manager, terminal, paths all dispatched per OS). Pre-built `.app` available from the [Releases](../../releases) page (built via GitHub Actions on `macos-latest`). **Not yet tested on real Macs** — expect rough edges; report issues. App is **not code-signed** — first launch will require `Cmd+click → Open` to bypass Gatekeeper. |
-| 🪟 **Windows** | ⚠️ **Alpha** | All filesystem paths use `%APPDATA%/themeforge`, shell calls go through `cmd /c`, process control through PowerShell helpers, and an Inno Setup installer is built via GitHub Actions on `windows-latest`. **Not yet tested on real Windows** — expect rough edges; report issues. Installer is **not code-signed** — first launch will trigger a SmartScreen warning ("More info → Run anyway"). |
+| 🍎 **macOS** | ⚠️ **Alpha** | Cross-platform refactor complete (subprocess, file manager, terminal, paths all dispatched per OS). Pre-built `.app` from the [Releases](../../releases) page (built on `macos-latest`). **Not yet validated on real Macs** — expect rough edges. Not code-signed → first launch needs `Cmd+click → Open` (Gatekeeper). |
+| 🪟 **Windows** | ⚠️ **Alpha** | Real `.exe` installer (Program Files, Add/Remove programs, Start-menu shortcuts). Bundles Node.js + git so the heavy runtimes need no download; software-OpenGL fallback for GPU-less environments; embedded terminal via prebuilt node-pty + Git Bash. **Validated end-to-end on a Windows 10 VM** (create project → scaffold → preview → terminal → AI agent); not yet on a wide range of real hardware. Not code-signed → SmartScreen warning on first run ("More info → Run anyway"). |
+
+### What "alpha" means here
+
+**Linux is the stable, daily-driver platform** — it's where ThemeForge is
+developed and tested. macOS and Windows are **alpha**: the cross-platform
+work is done and the apps build + run, but they haven't gone through the
+same real-world mileage as Linux.
+
+Concretely, for macOS / Windows:
+
+- **The builds come straight from CI** (GitHub Actions on `macos-latest` /
+  `windows-latest`) on every release tag — they're real, installable
+  artifacts, not mock-ups.
+- **Windows** has been validated end-to-end on a Windows 10 VM (install →
+  create project → scaffold a Next.js theme → live preview → embedded
+  terminal → AI agent reading the project context). Still untested across
+  many GPU/driver/edition combos, so edge cases are expected.
+- **macOS** hasn't been run on real Apple hardware yet — the `.app` builds
+  in CI but needs beta testers to shake out issues.
+- **Neither is code-signed yet.** On first launch you'll hit Gatekeeper
+  (macOS: `Cmd+click → Open`) or SmartScreen (Windows: `More info → Run
+  anyway`). Code-signing is tracked in [`ROADMAP.md`](ROADMAP.md).
+- **Some stacks need extra runtimes** (PHP, Java, Rust, Go, Bun, Deno,
+  Ruby, Hugo…). The built-in dependency wizard installs them via
+  winget / brew, or the per-stack scaffold tells you what's missing.
+
+If you run it on macOS or Windows, **please report what works and what
+doesn't** — that feedback is exactly what moves these from alpha to stable.
 
 ## Quick install
 
@@ -265,7 +293,9 @@ project a huge favour. See [`ROADMAP.md`](ROADMAP.md#cross-platform-support)
 for the open items.
 
 **Windows:** Alpha — Inno Setup installer ships from CI on every
-release tag. Hasn't been tested on real Windows hardware yet. If
+release tag. Validated end-to-end on a Windows 10 VM (install →
+create project → scaffold → preview → terminal → AI agent), but not
+yet across a wide range of physical hardware / GPU / editions. If
 you're a Windows user willing to try it and report issues, you'd
 be doing the project a huge favour. See
 [`ROADMAP.md`](ROADMAP.md#windows--next-steps) for the open items.
