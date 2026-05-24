@@ -71,9 +71,9 @@ class FigmaImportDialog(QDialog):
         self.mappings_table.setMinimumHeight(280)
 
         self.summary_lbl = QLabel(
-            "<small>Pega/abre un JSON de Tokens Studio o usa la API "
-            "REST de Figma para parsear tokens. Las filas marcadas "
-            "(✓) se aplicarán al nuevo tema.</small>"
+            "<small>Paste/open a Tokens Studio JSON or use the Figma "
+            "REST API to parse tokens. Checked (✓) rows will be applied "
+            "to the new theme.</small>"
         )
         self.summary_lbl.setTextFormat(Qt.TextFormat.RichText)
         self.summary_lbl.setWordWrap(True)
@@ -83,20 +83,20 @@ class FigmaImportDialog(QDialog):
         self.author_edit = QLineEdit("Imported")
         self.desc_edit = QLineEdit("Auto-imported via DTCG / Figma REST")
         meta_form = QFormLayout()
-        meta_form.addRow("Nombre del tema:", self.name_edit)
-        meta_form.addRow("Autor:", self.author_edit)
-        meta_form.addRow("Descripción:", self.desc_edit)
+        meta_form.addRow("Theme name:", self.name_edit)
+        meta_form.addRow("Author:", self.author_edit)
+        meta_form.addRow("Description:", self.desc_edit)
 
         # ── Buttons ─────────────────────────────────────────────────
         bb = QDialogButtonBox()
         self.btn_preview = bb.addButton(
-            "👁  Preview en vivo", QDialogButtonBox.ButtonRole.ActionRole
+            "👁  Live preview", QDialogButtonBox.ButtonRole.ActionRole
         )
         self.btn_save = bb.addButton(
-            "💾 Guardar como tema", QDialogButtonBox.ButtonRole.AcceptRole
+            "💾 Save as theme", QDialogButtonBox.ButtonRole.AcceptRole
         )
         self.btn_cancel = bb.addButton(
-            "Cancelar", QDialogButtonBox.ButtonRole.RejectRole
+            "Cancel", QDialogButtonBox.ButtonRole.RejectRole
         )
         self.btn_preview.clicked.connect(self._on_preview)
         self.btn_save.clicked.connect(self._on_save)
@@ -109,7 +109,7 @@ class FigmaImportDialog(QDialog):
         # ── Root layout ────────────────────────────────────────────
         root = QVBoxLayout(self)
         root.addWidget(self.tabs)
-        root.addWidget(QLabel("<b>Mapeos detectados:</b>"))
+        root.addWidget(QLabel("<b>Detected mappings:</b>"))
         root.addWidget(self.summary_lbl)
         root.addWidget(self.mappings_table, 1)
         root.addLayout(meta_form)
@@ -120,9 +120,9 @@ class FigmaImportDialog(QDialog):
         w = QWidget()
         lay = QVBoxLayout(w)
         info = QLabel(
-            "Pega aquí el JSON exportado por el plugin <a href='https://docs.tokens.studio/'>"
-            "<b>Tokens Studio for Figma</b></a>, o ábrelo desde un archivo.<br>"
-            "<small>Compatible con formato DTCG v2025.10 (W3C Design Tokens Community Group).</small>"
+            "Paste here the JSON exported by the <a href='https://docs.tokens.studio/'>"
+            "<b>Tokens Studio for Figma</b></a> plugin, or open it from a file.<br>"
+            "<small>Compatible with DTCG v2025.10 (W3C Design Tokens Community Group).</small>"
         )
         info.setTextFormat(Qt.TextFormat.RichText)
         info.setOpenExternalLinks(True)
@@ -132,8 +132,8 @@ class FigmaImportDialog(QDialog):
         self.dtcg_textarea.setPlaceholderText('{\n  "color": {\n    "brand": {\n      "primary": {"$type": "color", "$value": "#0066cc"}\n    }\n  }\n}')
 
         btn_row = QHBoxLayout()
-        btn_load = QPushButton("📂 Abrir archivo JSON…")
-        btn_parse = QPushButton("⚡ Parsear y proponer mapeos")
+        btn_load = QPushButton("📂 Open JSON file…")
+        btn_parse = QPushButton("⚡ Parse and propose mappings")
         btn_load.clicked.connect(self._on_load_dtcg_file)
         btn_parse.clicked.connect(self._on_parse_dtcg)
         btn_row.addWidget(btn_load)
@@ -150,12 +150,12 @@ class FigmaImportDialog(QDialog):
         w = QWidget()
         lay = QVBoxLayout(w)
         info = QLabel(
-            "Llama directamente a la API REST de Figma "
+            "Calls the Figma REST API directly "
             "(<code>GET /v1/files/.../variables/local</code>).<br>"
-            "<small>Requiere plan <b>Figma Enterprise</b> y un <a href="
+            "<small>Requires <b>Figma Enterprise</b> plan and a <a href="
             "'https://www.figma.com/developers/api#access-tokens'>Personal "
-            "Access Token</a> con scope <code>file_variables:read</code>. "
-            "Para planes gratuitos/Pro usa la pestaña anterior.</small>"
+            "Access Token</a> with scope <code>file_variables:read</code>. "
+            "For Free / Pro plans use the previous tab.</small>"
         )
         info.setTextFormat(Qt.TextFormat.RichText)
         info.setOpenExternalLinks(True)
@@ -163,7 +163,7 @@ class FigmaImportDialog(QDialog):
 
         self.rest_url_edit = QLineEdit()
         self.rest_url_edit.setPlaceholderText(
-            "https://www.figma.com/design/<file-key>/Project-Name  o solo el file key"
+            "https://www.figma.com/design/<file-key>/Project-Name  or just the file key"
         )
         self.rest_pat_edit = QLineEdit()
         self.rest_pat_edit.setPlaceholderText("figd_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx")
@@ -191,17 +191,17 @@ class FigmaImportDialog(QDialog):
             try:
                 self.dtcg_textarea.setPlainText(open(path, encoding="utf-8").read())
             except Exception as e:
-                QMessageBox.warning(self, "Error", f"No pude leer el archivo: {e}")
+                QMessageBox.warning(self, "Error", f"Couldn't read the file: {e}")
 
     def _on_parse_dtcg(self):
         raw = self.dtcg_textarea.toPlainText().strip()
         if not raw:
-            QMessageBox.information(self, "Vacío", "Pega o carga un JSON primero.")
+            QMessageBox.information(self, "Empty", "Paste or load a JSON first.")
             return
         try:
             data = json.loads(raw)
         except Exception as e:
-            QMessageBox.critical(self, "JSON inválido", f"No se puede parsear:\n{e}")
+            QMessageBox.critical(self, "Invalid JSON", f"Could not parse:\n{e}")
             return
         self._process_dtcg(data)
 
@@ -209,12 +209,12 @@ class FigmaImportDialog(QDialog):
         url = self.rest_url_edit.text().strip()
         pat = self.rest_pat_edit.text().strip()
         if not url or not pat:
-            QMessageBox.warning(self, "Faltan datos", "Necesito URL y PAT.")
+            QMessageBox.warning(self, "Missing data", "URL and PAT are required.")
             return
         key = fi.extract_file_key(url)
         if not key:
-            QMessageBox.warning(self, "URL inválida",
-                                "No pude extraer el file key de la URL.")
+            QMessageBox.warning(self, "Invalid URL",
+                                "Could not extract the file key from the URL.")
             return
         self.btn_save.setEnabled(False)
         QApplication.processEvents()
@@ -235,8 +235,8 @@ class FigmaImportDialog(QDialog):
             return
         if not self._tokens:
             QMessageBox.information(
-                self, "Sin tokens",
-                "El JSON parseó pero no encontré tokens con $value."
+                self, "No tokens",
+                "The JSON parsed but no tokens with $value were found."
             )
             return
 
@@ -247,11 +247,11 @@ class FigmaImportDialog(QDialog):
         n_total = len(self._tokens)
         n_mapped = len(self._mappings)
         self.summary_lbl.setText(
-            f"<small><b>{n_total}</b> tokens parseados · "
-            f"<b>{n_mapped}</b> mapeos propuestos "
-            f"({n_color} colores · {n_shape} dimensiones) · "
-            f"<b>{n_total - n_mapped}</b> sin slot asignado "
-            f"(se ignoran salvo que los re-targetees manualmente).</small>"
+            f"<small><b>{n_total}</b> tokens parsed · "
+            f"<b>{n_mapped}</b> mappings proposed "
+            f"({n_color} colors · {n_shape} dimensions) · "
+            f"<b>{n_total - n_mapped}</b> with no slot assigned "
+            f"(ignored unless you re-target them manually).</small>"
         )
 
     def _refresh_table(self):
@@ -332,13 +332,13 @@ class FigmaImportDialog(QDialog):
     def _on_save(self):
         mappings = self._collect_accepted_mappings()
         if not mappings:
-            QMessageBox.warning(self, "Vacío", "No hay mapeos seleccionados.")
+            QMessageBox.warning(self, "Empty", "No mappings selected.")
             return
         name = self.name_edit.text().strip() or "Imported from Figma"
         slug = re.sub(r"[^a-zA-Z0-9-]+", "-", name.lower()).strip("-") or "imported"
         slug, ok = QInputDialog.getText(
-            self, "Slug del tema",
-            "Slug (a-z, 0-9, guiones):", text=slug,
+            self, "Theme slug",
+            "Slug (a-z, 0-9, hyphens):", text=slug,
         )
         if not ok or not slug.strip():
             return
@@ -355,8 +355,8 @@ class FigmaImportDialog(QDialog):
         target = themes.ensure_user_themes_dir() / f"{slug}.json"
         if target.exists():
             r = QMessageBox.question(
-                self, "Sobrescribir",
-                f"Ya existe {target.name}. ¿Sobrescribir?",
+                self, "Overwrite",
+                f"{target.name} already exists. Overwrite?",
                 QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
             )
             if r != QMessageBox.StandardButton.Yes:
@@ -372,13 +372,13 @@ class FigmaImportDialog(QDialog):
             themes.clear_icon_cache()
             themes.theme_signals.theme_changed.emit(slug)
             QMessageBox.information(
-                self, "Importado",
-                f"Tema guardado en:\n{target}\n\n"
-                f"Aparece como '{name}' (custom) en el dropdown de Settings."
+                self, "Imported",
+                f"Theme saved at:\n{target}\n\n"
+                f"It appears as '{name}' (custom) in the Settings dropdown."
             )
             self.accept()
         except Exception as e:
-            QMessageBox.critical(self, "Error al guardar", str(e))
+            QMessageBox.critical(self, "Save error", str(e))
 
     def reject(self) -> None:
         # Restore the original theme if we previewed

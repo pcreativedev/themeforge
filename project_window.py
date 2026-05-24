@@ -1506,7 +1506,7 @@ class ProjectWindow(QWidget):
                     "en la galería (vista 🖼️ Cards)."
                 )
             else:
-                QMessageBox.warning(self, "Screenshot", "No se pudo guardar la captura.")
+                QMessageBox.warning(self, "Screenshot", "Could not save the screenshot.")
         except Exception as e:
             QMessageBox.critical(self, "Screenshot error", str(e))
 

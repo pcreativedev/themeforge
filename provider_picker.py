@@ -212,9 +212,9 @@ class ProviderPicker(QWidget):
                 if not ok:
                     QMessageBox.warning(
                         self, "API key",
-                        f"Key guardada pero el registro en el CLI falló:\n{msg}",
+                        f"Key saved but the CLI registration failed:\n{msg}",
                     )
-            # Aplicar al entorno actual para que los procesos hijos las hereden
+            # Apply to current environment so child processes inherit it
             aip.apply_all_known_keys()
-            QMessageBox.information(self, "API key", "Key guardada y exportada al entorno.")
+            QMessageBox.information(self, "API key", "Key saved and exported to env.")
         self._refresh_status()

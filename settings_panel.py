@@ -162,18 +162,18 @@ class SettingsPanel(QWidget):
         # Office
         self.pixel_status_label = QLabel("(cargando…)")
         self.pixel_status_label.setStyleSheet("color:#aaa;font-family:monospace;font-size:12px;")
-        self.btn_pixel_install = QPushButton("📦 Instalar / Actualizar")
+        self.btn_pixel_install = QPushButton("📦 Install / Update")
         self.btn_pixel_install.clicked.connect(self._pixel_install)
-        self.btn_pixel_launch = QPushButton("▶ Arrancar")
+        self.btn_pixel_launch = QPushButton("▶ Start")
         self.btn_pixel_launch.clicked.connect(self._pixel_launch)
         self.btn_pixel_open = QPushButton("🌐 Open dashboard")
         self.btn_pixel_open.clicked.connect(self._pixel_open)
-        self.btn_pixel_stop = QPushButton("✕ Parar")
+        self.btn_pixel_stop = QPushButton("✕ Stop")
         self.btn_pixel_stop.clicked.connect(self._pixel_stop)
         self.btn_pixel_refresh = QPushButton("↻")
         self.btn_pixel_refresh.clicked.connect(self._pixel_refresh)
 
-        pixel_box = QGroupBox("🎮 Office (visualizador pixel-art de sesiones Claude Code)")
+        pixel_box = QGroupBox("🎮 Office (pixel-art visualizer of Claude Code sessions)")
         pbox = QVBoxLayout()
         pbox.addWidget(self.pixel_status_label)
         pbtn = QHBoxLayout()
@@ -339,21 +339,21 @@ class SettingsPanel(QWidget):
         try:
             import pixel_office
         except Exception as e:
-            QMessageBox.critical(self, "Office", f"No se pudo importar pixel_office: {e}")
+            QMessageBox.critical(self, "Office", f"Could not import pixel_office: {e}")
             return
         if QMessageBox.question(
-            self, "Instalar Office",
-            f"Voy a clonar el repo en {pixel_office.INSTALL_DIR} y ejecutar npm install.\n\n"
-            "Esto registra hooks de Claude Code globalmente en ~/.claude/settings.json.\n\n"
-            "¿Continuar?",
+            self, "Install Office",
+            f"I'll clone the repo into {pixel_office.INSTALL_DIR} and run npm install.\n\n"
+            "This registers Claude Code hooks globally in ~/.claude/settings.json.\n\n"
+            "Continue?",
         ) != QMessageBox.StandardButton.Yes:
             return
         self.btn_pixel_install.setEnabled(False)
-        self.btn_pixel_install.setText("Instalando…")
+        self.btn_pixel_install.setText("Installing…")
         QWidget.repaint(self)
         ok, msg = pixel_office.install()
         self.btn_pixel_install.setEnabled(True)
-        self.btn_pixel_install.setText("📦 Instalar / Actualizar")
+        self.btn_pixel_install.setText("📦 Install / Update")
         if ok:
             QMessageBox.information(self, "Office", msg)
         else:
@@ -364,11 +364,11 @@ class SettingsPanel(QWidget):
         try:
             import pixel_office
         except Exception as e:
-            QMessageBox.critical(self, "Office", f"No se pudo importar pixel_office: {e}")
+            QMessageBox.critical(self, "Office", f"Could not import pixel_office: {e}")
             return
         proc = pixel_office.launch_background()
         if proc is None and not pixel_office.is_dashboard_up():
-            QMessageBox.warning(self, "Office", "No se pudo arrancar — ¿está instalado y npm en PATH?")
+            QMessageBox.warning(self, "Office", "Failed to start — is it installed, and is npm on PATH?")
         self._pixel_refresh()
 
     def _pixel_open(self):
@@ -376,7 +376,7 @@ class SettingsPanel(QWidget):
             import pixel_office
             pc.open_url(pixel_office.DASHBOARD_URL)
         except Exception as e:
-            QMessageBox.warning(self, "Office", f"No se pudo abrir el navegador: {e}")
+            QMessageBox.warning(self, "Office", f"Could not open the browser: {e}")
 
     def _pixel_stop(self):
         # Mata cualquier `npm start` cuya cwd sea el directorio de pixel-office-openclaw.

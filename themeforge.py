@@ -2606,11 +2606,11 @@ class ThemeForge(QWidget):
         package.json y la IA recomendará stack moderno."""
         path_str = self.adopt_path_edit.text().strip()
         if not path_str:
-            QMessageBox.warning(self, "ThemeForge", "Indica primero la carpeta a adoptar.")
+            QMessageBox.warning(self, "ThemeForge", "Specify the folder to adopt first.")
             return
         path = Path(path_str)
         if not path.is_dir():
-            QMessageBox.warning(self, "ThemeForge", f"La carpeta no existe:\n{path}")
+            QMessageBox.warning(self, "ThemeForge", f"Folder does not exist:\n{path}")
             return
         try:
             from reference_analyzer import gather_facts, build_prompt
@@ -2679,7 +2679,7 @@ class ThemeForge(QWidget):
             )
             return
         if kind == "folder" and not path.is_dir():
-            QMessageBox.warning(self, "ThemeForge", f"La carpeta no existe:\n{path}")
+            QMessageBox.warning(self, "ThemeForge", f"Folder does not exist:\n{path}")
             return
         if kind == "zip" and not (path.is_file() and path_str.lower().endswith(".zip")):
             QMessageBox.warning(self, "ThemeForge", "El .zip no existe o no es un .zip.")
@@ -2757,7 +2757,7 @@ class ThemeForge(QWidget):
 
     def _load_repos(self):
         if not self._github_user:
-            QMessageBox.warning(self, "GitHub", "No hay sesión activa con gh. Ejecuta `gh auth login` antes.")
+            QMessageBox.warning(self, "GitHub", "No active gh session. Run `gh auth login` first.")
             return
         self.repo_load_btn.setText("Cargando…")
         self.repo_load_btn.setEnabled(False)
@@ -2867,7 +2867,7 @@ class ThemeForge(QWidget):
         if mode == "existing":
             repo_id = self._current_repo_id()
             if not repo_id or "/" not in repo_id:
-                QMessageBox.warning(self, "ThemeForge", "Selecciona o escribe un repo como owner/name.")
+                QMessageBox.warning(self, "ThemeForge", "Pick or type a repo as owner/name.")
                 return
             slug = repo_id.split("/")[-1]
         else:
@@ -2900,7 +2900,7 @@ class ThemeForge(QWidget):
                 QMessageBox.warning(self, "ThemeForge", "Indica la referencia.")
                 return
             if ref_kind == "folder" and not Path(ref_val).is_dir():
-                QMessageBox.warning(self, "ThemeForge", f"La carpeta no existe:\n{ref_val}")
+                QMessageBox.warning(self, "ThemeForge", f"Folder does not exist:\n{ref_val}")
                 return
             if ref_kind == "zip" and not (Path(ref_val).is_file() and ref_val.lower().endswith(".zip")):
                 QMessageBox.warning(self, "ThemeForge", "El .zip no existe o no es un .zip.")
@@ -2910,7 +2910,7 @@ class ThemeForge(QWidget):
                 return
         elif mode == "adopt":
             if not adopt_src or not Path(adopt_src).is_dir():
-                QMessageBox.warning(self, "ThemeForge", f"La carpeta a adoptar no existe:\n{adopt_src}")
+                QMessageBox.warning(self, "ThemeForge", f"Folder to adopt does not exist:\n{adopt_src}")
                 return
 
         # ── Provisión automática de BD ─────────────────────────────────

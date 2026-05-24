@@ -32,13 +32,13 @@ from themes.tokens import (
 
 # ─── Token group definitions (drive the form layout) ────────────────
 _COLOR_GROUPS: list[tuple[str, list[tuple[str, str]]]] = [
-    ("Fondos", [
+    ("Backgrounds", [
         ("bg_primary",   "Background primary"),
         ("bg_secondary", "Background secondary"),
         ("bg_tertiary",  "Background tertiary"),
         ("bg_elevated",  "Background elevated (menus, tooltips)"),
     ]),
-    ("Textos", [
+    ("Text", [
         ("fg_primary",   "Foreground primary"),
         ("fg_secondary", "Foreground secondary (muted)"),
         ("fg_disabled",  "Foreground disabled"),
@@ -49,13 +49,13 @@ _COLOR_GROUPS: list[tuple[str, list[tuple[str, str]]]] = [
         ("accent_active","Accent on press / active"),
         ("accent_fg",    "Foreground on accent (contrast)"),
     ]),
-    ("Semánticos", [
+    ("Semantic", [
         ("success", "Success / OK"),
         ("warning", "Warning"),
         ("danger",  "Danger / error"),
         ("info",    "Info"),
     ]),
-    ("Bordes y selección", [
+    ("Borders & selection", [
         ("border",          "Border"),
         ("border_strong",   "Border strong (hover)"),
         ("selection_bg",    "Selection background"),
@@ -216,7 +216,7 @@ class ThemeEditorDialog(QDialog):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("✏️ Personalizar tema")
+        self.setWindowTitle("✏️ Customize theme")
         self.resize(720, 720)
 
         # Capture the active theme as the "original" to restore on cancel
@@ -227,7 +227,7 @@ class ThemeEditorDialog(QDialog):
         self._working = themes.load_theme(self._original_name)
 
         # ── Metadata ────────────────────────────────────────────────
-        meta_box = QGroupBox("Metadatos")
+        meta_box = QGroupBox("Metadata")
         meta_form = QFormLayout()
         self.name_edit = QLineEdit(self._working.name + " (custom)")
         self.author_edit = QLineEdit(self._working.author or "pcreativedev")
@@ -270,7 +270,7 @@ class ThemeEditorDialog(QDialog):
             )
             self._shape_sliders[attr] = sl
             shape_lay.addWidget(sl)
-        shape_box = QGroupBox("Forma")
+        shape_box = QGroupBox("Shape")
         shape_box.setLayout(shape_lay)
 
         # ── Components ──────────────────────────────────────────────
@@ -285,7 +285,7 @@ class ThemeEditorDialog(QDialog):
             cb.currentTextChanged.connect(lambda _v, a=attr: self._on_changed())
             self._component_combos[attr] = cb
             comp_form.addRow(label + ":", cb)
-        comp_box = QGroupBox("Componentes")
+        comp_box = QGroupBox("Components")
         comp_box.setLayout(comp_form)
 
         # ── Scroll wrapper ──────────────────────────────────────────
@@ -304,15 +304,15 @@ class ThemeEditorDialog(QDialog):
         # ── Footer ──────────────────────────────────────────────────
         hint = QLabel(
             "<small>Los cambios se aplican a toda la app al instante. "
-            "Guarda para conservarlos como tema custom, o cancela para "
-            "volver al tema actual.</small>"
+            "Save to keep them as a custom theme, or cancel to revert "
+            "to the current theme.</small>"
         )
         hint.setWordWrap(True)
         hint.setTextFormat(Qt.TextFormat.RichText)
 
         bb = QDialogButtonBox(parent=self)
-        self.btn_save = bb.addButton("💾 Guardar como…", QDialogButtonBox.ButtonRole.AcceptRole)
-        self.btn_cancel = bb.addButton("Cancelar", QDialogButtonBox.ButtonRole.RejectRole)
+        self.btn_save = bb.addButton("💾 Save as…", QDialogButtonBox.ButtonRole.AcceptRole)
+        self.btn_cancel = bb.addButton("Cancel", QDialogButtonBox.ButtonRole.RejectRole)
         self.btn_save.clicked.connect(self._save)
         self.btn_cancel.clicked.connect(self._cancel)
 
@@ -360,8 +360,8 @@ class ThemeEditorDialog(QDialog):
         pack = self._working
         default_slug = _slugify(pack.name)
         slug, ok = QInputDialog.getText(
-            self, "Guardar tema",
-            "Slug del tema (a-z, 0-9, guiones):",
+            self, "Save theme",
+            "Theme slug (a-z, 0-9, hyphens):",
             text=default_slug,
         )
         if not ok or not slug.strip():
@@ -370,8 +370,8 @@ class ThemeEditorDialog(QDialog):
         target = themes.ensure_user_themes_dir() / f"{slug}.json"
         if target.exists():
             r = QMessageBox.question(
-                self, "Sobrescribir",
-                f"Ya existe {target.name}. ¿Sobrescribir?",
+                self, "Overwrite",
+                f"{target.name} already exists. Overwrite?",
                 QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
             )
             if r != QMessageBox.StandardButton.Yes:
@@ -387,13 +387,13 @@ class ThemeEditorDialog(QDialog):
             themes.clear_icon_cache()
             themes.theme_signals.theme_changed.emit(slug)
             QMessageBox.information(
-                self, "Guardado",
-                f"Tema guardado en:\n{target}\n\n"
-                "Aparecerá en el dropdown de Settings con el sufijo (custom).",
+                self, "Saved",
+                f"Theme saved at:\n{target}\n\n"
+                "It will appear in the Settings dropdown with the (custom) suffix.",
             )
             self.accept()
         except Exception as e:
-            QMessageBox.critical(self, "Error al guardar", str(e))
+            QMessageBox.critical(self, "Save error", str(e))
 
     def _cancel(self) -> None:
         """Restore the theme that was active when the dialog opened."""
