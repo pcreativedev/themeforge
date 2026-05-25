@@ -7,6 +7,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.2] - 2026-05-25
+
+### Added
+
+- **First-run onboarding wizard.** A 5-step wizard (welcome → dependencies
+  → AI credentials → defaults → finish) runs the first time ThemeForge
+  starts, so new users land in a configured app. Re-openable from
+  *Settings → 🧙 Setup wizard*.
+- **AI credentials manager.** A panel (in onboarding and *Settings → 🔑 AI
+  credentials*) listing all 7 providers with live status and per-provider
+  actions: install the CLI, log in via OAuth in a terminal, or add / edit /
+  remove an API key.
+- **Form defaults.** Default stack, provider and template type are saved to
+  `preferences.json` and pre-selected in the "New project" form.
+
+### Changed / Fixed
+
+- **Dependency wizard — Linux.** `npm install -g` now installs to `~/.local`
+  (`NPM_CONFIG_PREFIX`) to avoid `EACCES` without sudo; system package
+  managers that need a sudo password (paru / pacman / apt / dnf) run in a
+  single terminal so the password is typed once, with a clear completion
+  banner.
+- **Dependency wizard — macOS.** Homebrew's `bin` directories are added to
+  `PATH` at startup (GUI apps launched from Finder don't inherit the login
+  shell `PATH`), so `brew` and tools installed with it are detected;
+  Homebrew is bootstrapped in a terminal if missing; keg-only formula paths
+  (`python@3.12`, `openjdk`, `ruby`) are included.
+- **Dependency wizard — Windows.** `winget` calls pass
+  `--disable-interactivity`; a step whose package was already installed
+  (non-zero `winget` exit) is treated as success when the binary is now on
+  `PATH`. Validated end-to-end on a Windows 10 VM.
+
 ## [1.2.1] - 2026-05-25
 
 ### Added

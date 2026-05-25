@@ -129,7 +129,33 @@ def _add_user_bin_dirs_to_path() -> None:
         os.environ["PATH"] = os.pathsep.join(extra) + os.pathsep + os.environ.get("PATH", "")
 
 
+def _add_macos_brew_to_path() -> None:
+    """En macOS las apps lanzadas desde Finder/Dock NO heredan el PATH del
+    shell de login, así que `/opt/homebrew/bin` (Apple Silicon) o
+    `/usr/local/bin` (Intel) NO están en el PATH y la app no encuentra `brew`
+    ni nada instalado con él (todo sale como "no instalado"). Añadimos las
+    rutas estándar de Homebrew + los `bin` de las fórmulas keg-only que sí
+    instalamos (python@3.12, openjdk, ruby), que brew NO enlaza a <prefix>/bin.
+    Corriendo en Linux/Windows → no-op."""
+    if sys.platform != "darwin":
+        return
+    candidates = [
+        "/opt/homebrew/bin", "/opt/homebrew/sbin",   # Apple Silicon
+        "/usr/local/bin", "/usr/local/sbin",         # Intel
+    ]
+    for prefix in ("/opt/homebrew", "/usr/local"):
+        candidates += [
+            f"{prefix}/opt/python@3.12/libexec/bin",  # python keg-only
+            f"{prefix}/opt/openjdk/bin",              # java keg-only
+            f"{prefix}/opt/ruby/bin",                 # ruby keg-only
+        ]
+    extra = [d for d in candidates if os.path.isdir(d)]
+    if extra:
+        os.environ["PATH"] = os.pathsep.join(extra) + os.pathsep + os.environ.get("PATH", "")
+
+
 _add_bundled_tools_to_path()
+_add_macos_brew_to_path()
 _add_user_bin_dirs_to_path()
 
 # IMPORTANTE: QtWebEngineWidgets debe importarse ANTES de crear QApplication,
@@ -2480,8 +2506,11 @@ class ThemeForge(QWidget):
         self.name_edit.textChanged.connect(self._update_preview)
         self.name_edit.textChanged.connect(self._maybe_autodetect_licensing)
 
-        # En vez de combo: botón que abre el picker modal categorizado
-        self._stack_key = "nextjs-tailwind"  # default
+        # En vez de combo: botón que abre el picker modal categorizado.
+        # El default se lee de las preferencias (configurable en el wizard
+        # de bienvenida / Settings); fallback a nextjs-tailwind.
+        import app_prefs as _ap
+        self._stack_key = _ap.default_stack() if _ap.default_stack() in STACKS else "nextjs-tailwind"
         self.stack_button = QPushButton()
         self.stack_button.setMinimumHeight(36)
         self.stack_button.clicked.connect(self._open_stack_picker)
@@ -2490,6 +2519,11 @@ class ThemeForge(QWidget):
         self.type_combo = QComboBox()
         for t in TEMPLATE_TYPES:
             self.type_combo.addItem(t)
+        _dt = _ap.default_type()
+        if _dt:
+            _idx = self.type_combo.findText(_dt)
+            if _idx >= 0:
+                self.type_combo.setCurrentIndex(_idx)
 
         # Nicho — editable: el user puede elegir uno de la lista O escribir
         # el suyo a mano. El valor se inyecta en CLAUDE.md/AGENTS.md como
@@ -2512,6 +2546,10 @@ class ThemeForge(QWidget):
         )
 
         self.provider_picker = ProviderPicker(self, label="Provider IA:")
+        try:
+            self.provider_picker.set_current_key(_ap.default_provider())
+        except Exception:
+            pass
 
         self.autoskills_check = QCheckBox("npx autoskills (auto-install skills for the stack)")
         self.autoskills_check.setChecked(True)
@@ -5151,15 +5189,16 @@ def main():
     w = ThemeForgeApp()
 
     def _enter_app():
-        # First-run setup: si faltan herramientas REQUERIDAS (Node/git),
-        # abre el wizard de dependencias modal antes de mostrar la app.
-        # Detecta + instala Node, git, gh, los CLIs de IA y netlify vía
-        # winget/brew/paru según el OS. Si todo está, no molesta.
+        # Primer arranque: asistente de bienvenida completo (deps +
+        # credenciales IA + defaults). Arranques posteriores: solo el wizard
+        # de dependencias si faltan herramientas REQUERIDAS (Node/git).
         try:
-            from dependency_wizard import maybe_run_first_run_setup
-            maybe_run_first_run_setup(w)
+            from onboarding_wizard import maybe_run_onboarding
+            if not maybe_run_onboarding(w):
+                from dependency_wizard import maybe_run_first_run_setup
+                maybe_run_first_run_setup(w)
         except Exception as e:
-            print(f"[deps] wizard error: {e}", file=sys.stderr)
+            print(f"[onboarding] error: {e}", file=sys.stderr)
         w.show()
         w.raise_()
         w.activateWindow()

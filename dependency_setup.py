@@ -19,6 +19,7 @@ el plan con QProcess y muestra progreso. Mantener la lógica aquí pura
 """
 from __future__ import annotations
 
+import os
 import shutil
 import subprocess
 from dataclasses import dataclass, field
@@ -208,6 +209,27 @@ def detect_present() -> list[Tool]:
     return [t for t in TOOLS if is_installed(t)]
 
 
+def macos_brew_path() -> str | None:
+    """Ruta absoluta de `brew` en macOS, incluso si no está en el PATH del
+    proceso (las apps GUI lanzadas desde Finder no heredan el PATH del shell).
+    Busca en PATH y en las ubicaciones estándar de Homebrew."""
+    found = shutil.which("brew")
+    if found:
+        return found
+    for cand in ("/opt/homebrew/bin/brew", "/usr/local/bin/brew"):
+        if os.path.exists(cand):
+            return cand
+    return None
+
+
+# Comando oficial de instalación de Homebrew, no interactivo (no pide
+# confirmar; sí pedirá la contraseña sudo en la terminal una vez).
+HOMEBREW_BOOTSTRAP = (
+    'NONINTERACTIVE=1 /bin/bash -c '
+    '"$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"'
+)
+
+
 def native_package_manager() -> tuple[str, list[str]] | None:
     """Devuelve (nombre, argv_base_install) del gestor nativo del OS, o
     None si no se encuentra ninguno.
@@ -218,13 +240,18 @@ def native_package_manager() -> tuple[str, list[str]] | None:
     """
     if pc.IS_WINDOWS:
         if shutil.which("winget"):
+            # --disable-interactivity: winget no hace preguntas interactivas
+            # propias (recomendado para automatización). UAC del instalador
+            # puede seguir apareciendo si el paquete pide elevación.
             return "winget", ["winget", "install", "--silent",
+                              "--disable-interactivity",
                               "--accept-source-agreements",
                               "--accept-package-agreements", "--id"]
         return None
     if pc.IS_MACOS:
-        if shutil.which("brew"):
-            return "brew", ["brew", "install"]
+        brew = macos_brew_path()
+        if brew:
+            return "brew", [brew, "install"]
         return None
     # Linux
     if shutil.which("paru"):
@@ -258,6 +285,12 @@ class InstallStep:
     label: str            # texto para la UI ("Instalando Node.js…")
     argv: list[str]       # comando a ejecutar
     tool_key: str         # qué tool cubre
+    # True → debe correr en una TERMINAL (gestor de sistema que pide
+    # contraseña sudo por TTY: paru/pacman/apt/dnf). QProcess silencioso
+    # no puede teclear el password.
+    needs_terminal: bool = False
+    # Variables de entorno extra (p.ej. NPM_CONFIG_PREFIX para npm sin sudo).
+    env: dict | None = None
 
 
 def install_plan(tools: list[Tool]) -> tuple[list[InstallStep], list[str]]:
@@ -275,6 +308,18 @@ def install_plan(tools: list[Tool]) -> tuple[list[InstallStep], list[str]]:
     steps: list[InstallStep] = []
     warnings: list[str] = []
 
+    # macOS sin Homebrew: hay que instalarlo PRIMERO (lo necesitan casi todas
+    # las tools nativas). Lo hacemos en una terminal porque pide contraseña
+    # sudo; luego el usuario re-detecta y se instala el resto contra brew.
+    if pc.IS_MACOS and macos_brew_path() is None:
+        return ([InstallStep(
+            "Instalando Homebrew (gestor de paquetes de macOS)…",
+            ["/bin/bash", "-c", HOMEBREW_BOOTSTRAP],
+            "homebrew", needs_terminal=True)],
+            ["Homebrew no está instalado. Lo instalo primero en una terminal "
+             "(teclea tu contraseña ahí). Cuando termine, pulsa 🔄 Re-detectar "
+             "y se instalará el resto."])
+
     pm = native_package_manager()
     pm_name = pm[0] if pm else None
     pm_base = pm[1] if pm else None
@@ -286,6 +331,15 @@ def install_plan(tools: list[Tool]) -> tuple[list[InstallStep], list[str]]:
     npm_installs_needed = any(t.npm and not _native_pkg_id(t, pm_name or "") for t in tools_sorted)
     node_will_be_installed = any(t.key == "node" for t in tools_sorted)
 
+    # Gestores Linux que piden contraseña sudo por TTY → deben correr en
+    # una terminal, no en QProcess silencioso (si no: "a terminal is required
+    # to read the password"). winget (Win) y brew (Mac) NO necesitan sudo.
+    _needs_term_pms = {"paru", "yay", "pacman", "apt", "dnf"}
+    # npm global sin sudo en Unix: instalar en un prefix de usuario (~/.local)
+    # para evitar EACCES en /usr/lib/node_modules. ~/.local/bin ya va al PATH.
+    _npm_env = (None if pc.IS_WINDOWS
+                else {"NPM_CONFIG_PREFIX": os.path.join(os.path.expanduser("~"), ".local")})
+
     for t in tools_sorted:
         native_id = _native_pkg_id(t, pm_name or "") if pm_name else None
         if native_id:
@@ -295,7 +349,9 @@ def install_plan(tools: list[Tool]) -> tuple[list[InstallStep], list[str]]:
             else:
                 # pacman/apt pueden recibir varios paquetes ("nodejs npm")
                 argv = pm_base + native_id.split()
-            steps.append(InstallStep(f"Instalando {t.name} ({pm_name})…", argv, t.key))
+            steps.append(InstallStep(
+                f"Instalando {t.name} ({pm_name})…", argv, t.key,
+                needs_terminal=(pm_name in _needs_term_pms)))
         elif pc.IS_WINDOWS and t.win_ps_install:
             # Instalador nativo PowerShell (Claude/Codex) — no depende de npm.
             steps.append(InstallStep(
@@ -309,12 +365,14 @@ def install_plan(tools: list[Tool]) -> tuple[list[InstallStep], list[str]]:
                 _win_direct_install_argv(t), t.key))
         elif t.npm:
             # npm global. En Windows lo lanzamos por `cmd /c` para que resuelva
-            # npm.cmd (QProcess no encuentra "npm" a secas en Windows).
+            # npm.cmd (QProcess no encuentra "npm" a secas en Windows). En Unix
+            # con NPM_CONFIG_PREFIX=~/.local para no necesitar sudo.
             if pc.IS_WINDOWS:
                 argv = ["cmd", "/c", "npm", "install", "-g", t.npm]
             else:
                 argv = ["npm", "install", "-g", t.npm]
-            steps.append(InstallStep(f"Instalando {t.name} (npm)…", argv, t.key))
+            steps.append(InstallStep(f"Instalando {t.name} (npm)…", argv, t.key,
+                                     env=_npm_env))
         else:
             warnings.append(
                 f"{t.name}: sin método de instalación automática para "

@@ -75,12 +75,25 @@ class SettingsPanel(QWidget):
         )
         self.btn_deps.clicked.connect(self._open_dependency_wizard)
 
+        self.btn_creds = QPushButton("🔑 AI credentials…")
+        self.btn_creds.setToolTip(
+            "Estado y gestión de credenciales de cada proveedor de IA: "
+            "login OAuth, API keys, instalar el CLI."
+        )
+        self.btn_creds.clicked.connect(self._open_credentials)
+
+        self.btn_wizard = QPushButton("🧙 Setup wizard…")
+        self.btn_wizard.setToolTip("Reabrir el asistente de configuración inicial.")
+        self.btn_wizard.clicked.connect(self._open_onboarding)
+
         status_box = QGroupBox("System status")
         sb = QVBoxLayout()
         sb.addWidget(self.status_text)
         sb_btns = QHBoxLayout()
         sb_btns.addWidget(self.btn_refresh)
         sb_btns.addWidget(self.btn_deps)
+        sb_btns.addWidget(self.btn_creds)
+        sb_btns.addWidget(self.btn_wizard)
         sb.addLayout(sb_btns)
         status_box.setLayout(sb)
 
@@ -415,6 +428,30 @@ class SettingsPanel(QWidget):
             self.refresh_status()
         except Exception as e:
             QMessageBox.critical(self, "Setup dependencies", f"Error: {e}")
+
+    def _open_credentials(self):
+        """Abre el gestor de credenciales IA en un diálogo."""
+        try:
+            from PyQt6.QtWidgets import QDialog, QVBoxLayout
+            from credentials_panel import CredentialsWidget
+            dlg = QDialog(self)
+            dlg.setWindowTitle("ThemeForge — Credenciales de IA")
+            dlg.setMinimumSize(640, 480)
+            lay = QVBoxLayout(dlg)
+            lay.addWidget(CredentialsWidget(dlg))
+            dlg.exec()
+            self.refresh_status()
+        except Exception as e:
+            QMessageBox.critical(self, "AI credentials", f"Error: {e}")
+
+    def _open_onboarding(self):
+        """Reabre el asistente de configuración inicial."""
+        try:
+            from onboarding_wizard import OnboardingWizard
+            OnboardingWizard(self).exec()
+            self.refresh_status()
+        except Exception as e:
+            QMessageBox.critical(self, "Setup wizard", f"Error: {e}")
 
     def _open_theme_editor(self):
         """Open the visual theme editor dialog. Changes apply live;

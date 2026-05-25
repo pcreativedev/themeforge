@@ -10,7 +10,9 @@ Se abre automáticamente en el primer arranque si faltan tools requeridas
 """
 from __future__ import annotations
 
-from PyQt6.QtCore import Qt, QProcess
+import shlex
+
+from PyQt6.QtCore import Qt, QProcess, QProcessEnvironment
 from PyQt6.QtGui import QFont
 from PyQt6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel, QCheckBox, QPushButton,
@@ -169,26 +171,23 @@ class DependencyWizard(QDialog):
             )
             return
 
-        self._steps = steps
+        # Separar: los que necesitan sudo/TTY (paru/pacman/apt/dnf) van a
+        # UNA terminal al final (el usuario teclea la contraseña una vez); el
+        # resto (npm/winget/brew) por QProcess silencioso.
+        self._term_steps = [s for s in steps if s.needs_terminal]
+        self._steps = [s for s in steps if not s.needs_terminal]
         self._step_idx = 0
         self._btn_install.setEnabled(False)
         self._btn_refresh.setEnabled(False)
         self._btn_close.setEnabled(False)
-        self._log_line(f"▶ Plan: {len(steps)} paso(s). Empezando…\n")
+        self._log_line(f"▶ Plan: {len(steps)} paso(s) "
+                       f"({len(self._steps)} directos, {len(self._term_steps)} "
+                       f"en terminal). Empezando…\n")
         self._run_next_step()
 
     def _run_next_step(self):
         if self._step_idx >= len(self._steps):
-            self._log_line("\n✅ Instalación completada. Pulsa 🔄 Re-detectar para verificar.")
-            self._btn_refresh.setEnabled(True)
-            self._btn_close.setEnabled(True)
-            self._btn_install.setEnabled(True)
-            QMessageBox.information(
-                self, "Setup",
-                "Instalación terminada.\n\n"
-                "Puede que tengas que reiniciar ThemeForge (o abrir una "
-                "terminal nueva) para que el PATH actualizado se vea."
-            )
+            self._launch_terminal_steps()
             return
 
         step = self._steps[self._step_idx]
@@ -197,6 +196,12 @@ class DependencyWizard(QDialog):
 
         self._proc = QProcess(self)
         self._proc.setProcessChannelMode(QProcess.ProcessChannelMode.MergedChannels)
+        # Env extra (p.ej. NPM_CONFIG_PREFIX=~/.local para npm sin sudo).
+        if step.env:
+            qenv = QProcessEnvironment.systemEnvironment()
+            for k, v in step.env.items():
+                qenv.insert(k, str(v))
+            self._proc.setProcessEnvironment(qenv)
         self._proc.readyReadStandardOutput.connect(self._on_proc_output)
         self._proc.finished.connect(self._on_step_finished)
         self._proc.errorOccurred.connect(self._on_proc_error)
@@ -204,6 +209,49 @@ class DependencyWizard(QDialog):
         program = step.argv[0]
         args = step.argv[1:]
         self._proc.start(program, args)
+
+    def _launch_terminal_steps(self):
+        """Lanza los pasos que requieren sudo en UNA terminal (la contraseña
+        se teclea ahí). Combina todos los comandos con && para pedirla 1 vez."""
+        if not self._term_steps:
+            self._finish_install()
+            return
+        cmds = " && ".join(" ".join(shlex.quote(a) for a in s.argv)
+                           for s in self._term_steps)
+        # Banner final SIEMPRE (con `;`, aunque algún paso falle): Konsole
+        # usa --hold y deja la sesión muerta sin prompt, así que sin este
+        # aviso el usuario cree que se quedó colgada. Le decimos que terminó.
+        banner = (
+            "echo '' ; "
+            "echo '════════════════════════════════════════════════' ; "
+            "echo '  ✅ Runtimes instalados.' ; "
+            "echo '  Cierra esta ventana y pulsa 🔄 Re-detectar en ThemeForge.' ; "
+            "echo '════════════════════════════════════════════════'"
+        )
+        cmds_with_banner = f"{cmds} ; {banner}"
+        self._log_line("\n── Pasos con permisos de administrador (sudo):")
+        self._log_line(f"   {cmds}")
+        try:
+            pc.open_in_terminal(str(pc.app_config_dir()),
+                                command=cmds_with_banner, hold=True)
+            self._log_line("   → Abrí una terminal: teclea tu contraseña ahí.\n")
+            QMessageBox.information(
+                self, "Setup",
+                "Los runtimes que necesitan permisos de administrador "
+                "(Rust, Go, Deno, Ruby, Hugo…) se están instalando en una "
+                "terminal aparte.\n\nTeclea tu contraseña sudo ahí. Cuando "
+                "termine, pulsa 🔄 Re-detectar.",
+            )
+        except Exception as e:
+            self._log_line(f"   ✗ no se pudo abrir terminal: {e}\n")
+            self._log_line(f"   Ejecuta a mano:\n   {cmds}\n")
+        self._finish_install()
+
+    def _finish_install(self):
+        self._log_line("\n✅ Instalación lanzada. Pulsa 🔄 Re-detectar para verificar.")
+        self._btn_refresh.setEnabled(True)
+        self._btn_close.setEnabled(True)
+        self._btn_install.setEnabled(True)
 
     def _on_proc_output(self):
         if not self._proc:
@@ -215,20 +263,38 @@ class DependencyWizard(QDialog):
 
     def _on_step_finished(self, code: int, _status):
         step = self._steps[self._step_idx]
-        if code == 0:
-            self._log_line(f"   ✓ {step.label.replace('Instalando ', '').rstrip('…')} OK\n")
-            # Tras instalar algo (sobre todo Node), refrescar el PATH desde
-            # el registro para que los siguientes pasos npm vean los nuevos
-            # binarios sin tener que reiniciar la app.
-            self._refresh_windows_path()
+        name = step.label.replace('Instalando ', '').rstrip('…')
+        # Refrescar el PATH (Windows) ANTES de re-comprobar, para que el
+        # binario recién instalado se vea sin reiniciar la app.
+        self._refresh_windows_path()
+        # winget devuelve exit≠0 cuando el paquete YA estaba instalado /
+        # actualizado; brew a veces también. No nos fiamos solo del código:
+        # si el binario está ahora en PATH, lo damos por bueno.
+        tool = next((t for t in ds.TOOLS if t.key == step.tool_key), None)
+        if code == 0 or (tool is not None and ds.is_installed(tool)):
+            self._log_line(f"   ✓ {name} OK\n")
         else:
             self._log_line(f"   ✗ falló (exit {code}) — continúo con el resto\n")
         self._step_idx += 1
         self._run_next_step()
 
     def _refresh_windows_path(self):
-        """Relee PATH de HKLM + HKCU y lo aplica a os.environ para que los
-        QProcess siguientes hereden los binarios recién instalados."""
+        """Refresca el PATH del proceso para que los binarios recién
+        instalados se vean sin reiniciar la app.
+
+        - macOS: añade los bin estándar de Homebrew (las apps GUI no los
+          heredan del shell de login).
+        - Windows: relee PATH de HKLM + HKCU del registro.
+        """
+        if pc.IS_MACOS:
+            import os
+            cur = os.environ.get("PATH", "")
+            for d in ("/opt/homebrew/bin", "/opt/homebrew/sbin",
+                      "/usr/local/bin", "/usr/local/sbin"):
+                if os.path.isdir(d) and d not in cur.split(os.pathsep):
+                    cur = d + os.pathsep + cur
+            os.environ["PATH"] = cur
+            return
         if not pc.IS_WINDOWS:
             return
         try:
