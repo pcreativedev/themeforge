@@ -696,7 +696,7 @@ STACKS = {
         "language": "Python",
         "scaffold": [
             "python3 -m venv .venv",
-            ". .venv/bin/activate && pip install --quiet fastapi uvicorn[standard] sqlalchemy alembic psycopg2-binary python-jose passlib[bcrypt]",
+            ". .venv/*/activate && pip install --quiet fastapi uvicorn[standard] sqlalchemy alembic psycopg2-binary python-jose passlib[bcrypt]",
             'mkdir -p app && printf "%s\\n" "from fastapi import FastAPI" "" "app = FastAPI(title=\\"__PROJECT__\\")" "" "@app.get(\\"/\\")" "def read_root():" "    return {\\"ok\\": True}" > app/main.py',
             "echo '.venv/' > .gitignore",
         ],
@@ -725,9 +725,9 @@ STACKS = {
         "language": "Python",
         "scaffold": [
             "python3 -m venv .venv",
-            ". .venv/bin/activate && pip install --quiet django django-tailwind[reload]",
-            ". .venv/bin/activate && django-admin startproject config .",
-            ". .venv/bin/activate && python manage.py startapp theme",
+            ". .venv/*/activate && pip install --quiet django django-tailwind[reload]",
+            ". .venv/*/activate && django-admin startproject config .",
+            ". .venv/*/activate && python manage.py startapp theme",
             "echo '.venv/' > .gitignore",
         ],
         "min_version": "Django 5.x",

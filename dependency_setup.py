@@ -143,16 +143,21 @@ TOOLS: list[Tool] = [
          "Stack Hugo (sitios estáticos).",
          required=False, category="stack",
          winget="Hugo.Hugo.Extended", brew="hugo", pacman="hugo", apt="hugo", dnf="hugo"),
-    # PHP/Composer: sin winget oficial fiable → en Windows el wizard avisará
-    # (instalación manual). brew/pacman/apt sí los cubren en Mac/Linux.
+    # PHP: winget `PHP.PHP.8.4` (build oficial portable + PATH). En Windows va
+    # en el bloque winget elevado. Composer NO está en winget → instalador
+    # oficial Composer-Setup.exe (necesita PHP en PATH; por eso PHP, que es
+    # winget/elevado, se instala antes que Composer, que es win_url/_steps).
     Tool("php", "PHP", "php",
          "Stacks Laravel y WordPress (block theme / plugin).",
          required=False, category="stack",
+         winget="PHP.PHP.8.4",
          brew="php", pacman="php", apt="php-cli", dnf="php-cli"),
     Tool("composer", "Composer", "composer",
          "Gestor de paquetes PHP (Laravel). Requiere PHP.",
          required=False, category="stack",
-         brew="composer", pacman="composer", apt="composer", dnf="composer"),
+         brew="composer", pacman="composer", apt="composer", dnf="composer",
+         win_url="https://getcomposer.org/Composer-Setup.exe",
+         win_kind="exe", win_args="/VERYSILENT /SUPPRESSMSGBOXES /NORESTART"),
 ]
 
 
@@ -243,7 +248,7 @@ def native_package_manager() -> tuple[str, list[str]] | None:
             # --disable-interactivity: winget no hace preguntas interactivas
             # propias (recomendado para automatización). UAC del instalador
             # puede seguir apareciendo si el paquete pide elevación.
-            return "winget", ["winget", "install", "--silent",
+            return "winget", ["winget", "install", "--silent", "--exact",
                               "--disable-interactivity",
                               "--accept-source-agreements",
                               "--accept-package-agreements", "--id"]
@@ -291,6 +296,10 @@ class InstallStep:
     needs_terminal: bool = False
     # Variables de entorno extra (p.ej. NPM_CONFIG_PREFIX para npm sin sudo).
     env: dict | None = None
+    # True → debe correr ELEVADO (Windows winget). El wizard junta todos los
+    # pasos elevados en UNA sesión `Start-Process -Verb RunAs` → un solo UAC,
+    # en vez de uno por paquete.
+    elevated: bool = False
 
 
 def install_plan(tools: list[Tool]) -> tuple[list[InstallStep], list[str]]:
@@ -351,7 +360,8 @@ def install_plan(tools: list[Tool]) -> tuple[list[InstallStep], list[str]]:
                 argv = pm_base + native_id.split()
             steps.append(InstallStep(
                 f"Instalando {t.name} ({pm_name})…", argv, t.key,
-                needs_terminal=(pm_name in _needs_term_pms)))
+                needs_terminal=(pm_name in _needs_term_pms),
+                elevated=(pm_name == "winget")))
         elif pc.IS_WINDOWS and t.win_ps_install:
             # Instalador nativo PowerShell (Claude/Codex) — no depende de npm.
             steps.append(InstallStep(

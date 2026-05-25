@@ -171,19 +171,105 @@ class DependencyWizard(QDialog):
             )
             return
 
-        # Separar: los que necesitan sudo/TTY (paru/pacman/apt/dnf) van a
-        # UNA terminal al final (el usuario teclea la contraseña una vez); el
-        # resto (npm/winget/brew) por QProcess silencioso.
-        self._term_steps = [s for s in steps if s.needs_terminal]
-        self._steps = [s for s in steps if not s.needs_terminal]
-        self._step_idx = 0
         self._btn_install.setEnabled(False)
         self._btn_refresh.setEnabled(False)
         self._btn_close.setEnabled(False)
+
+        # Windows: si algún paso requiere admin (winget, instaladores .exe/.msi)
+        # lo hacemos TODO en UNA ventana elevada (un solo UAC) lanzada con
+        # ShellExecuteW("runas") — la vía Win32 estándar y fiable, DESACOPLADA
+        # de Qt (no es un QProcess hijo que Qt mate al cambiar de ventana).
+        # Meter winget + npm + instaladores en el mismo .ps1 (con un refresh de
+        # PATH entre medias) resuelve además el orden Node→npm.
+        if pc.IS_WINDOWS and any(s.elevated for s in steps):
+            self._log_line(f"▶ Plan: {len(steps)} paso(s) — todo en una "
+                           "ventana elevada (un solo UAC).\n")
+            self._launch_windows_elevated_all(steps)
+            return
+
+        # Linux/Mac (o Windows solo-npm): QProcess directo + terminal sudo.
+        self._term_steps = [s for s in steps if s.needs_terminal]
+        self._steps = [s for s in steps if not s.needs_terminal]
+        self._step_idx = 0
         self._log_line(f"▶ Plan: {len(steps)} paso(s) "
                        f"({len(self._steps)} directos, {len(self._term_steps)} "
                        f"en terminal). Empezando…\n")
         self._run_next_step()
+
+    def _launch_windows_elevated_all(self, steps):
+        """Windows: instala TODO en una única ventana elevada (un solo UAC).
+
+        Construye un .ps1 con 1) los `winget install`, 2) un refresh de PATH
+        (para ver Node/PHP recién instalados), 3) los `npm -g` y 4) los
+        instaladores .exe (Composer). Lo lanza con `ShellExecuteW(.., "runas")`
+        → UAC fiable y proceso DESACOPLADO de la app Qt (no es un QProcess hijo
+        que muera). El usuario ve el progreso y, al cerrar, pulsa Re-detectar.
+        """
+        import ctypes
+        winget = [s for s in steps if s.elevated]
+        rest = [s for s in steps if not s.elevated]
+        lines = [
+            "$ErrorActionPreference = 'Continue'",
+            # winget vive en WindowsApps (PATH de usuario): asegurarlo en la
+            # sesión elevada por si el token admin no lo hereda.
+            '$env:PATH = "$env:LOCALAPPDATA\\Microsoft\\WindowsApps;" + $env:PATH',
+            "",
+        ]
+        if winget:
+            lines.append("Write-Host '== winget ==' -ForegroundColor Cyan")
+            lines += [" ".join(s.argv) for s in winget]
+            lines += [
+                "",
+                "# Refrescar PATH para ver Node/PHP recién instalados",
+                '$env:PATH = [Environment]::GetEnvironmentVariable("Path","Machine")'
+                ' + ";" + [Environment]::GetEnvironmentVariable("Path","User")'
+                ' + ";" + $env:PATH',
+                "",
+            ]
+        for s in rest:
+            # win_url / win_ps_install llegan como ['powershell',..,'-Command',INNER]
+            # → escribimos el INNER tal cual (ya es PowerShell). npm llega como
+            # ['cmd','/c','npm',...] → lo unimos literal.
+            if s.argv and s.argv[0].lower().startswith("powershell"):
+                lines.append(s.argv[-1])
+            else:
+                lines.append(" ".join(s.argv))
+        lines += [
+            "",
+            "Write-Host ''",
+            "Write-Host '=== Instalacion terminada. Pulsa Enter para cerrar. ===' "
+            "-ForegroundColor Green",
+            "Read-Host | Out-Null",
+        ]
+        try:
+            batch = pc.app_config_dir() / "winget_batch.ps1"
+            batch.parent.mkdir(parents=True, exist_ok=True)
+            batch.write_text("\r\n".join(lines), encoding="utf-8")
+        except Exception as e:
+            self._log_line(f"✗ no pude escribir el batch elevado: {e}\n")
+            self._finish_install()
+            return
+        self._log_line("── Instalando winget + npm + instaladores en una "
+                       "ventana elevada…")
+        self._log_line("   Aprueba el UAC. Cuando la ventana diga 'terminada', "
+                       "ciérrala y pulsa 🔄 Re-detectar.\n")
+        params = f'-NoProfile -ExecutionPolicy Bypass -File "{batch}"'
+        try:
+            r = int(ctypes.windll.shell32.ShellExecuteW(
+                None, "runas", "powershell.exe", params, None, 1))
+        except Exception as e:
+            r = 0
+            self._log_line(f"✗ ShellExecuteW falló: {e}\n")
+        if r <= 32:
+            self._log_line(f"⚠ No se pudo abrir la ventana elevada (código {r}). "
+                           "¿Rechazaste el UAC? Pulsa Instalar para reintentar.\n")
+        else:
+            QMessageBox.information(
+                self, "Setup",
+                "Se abrió una ventana elevada que instala todo "
+                "(winget + npm + Composer).\n\nAprueba el UAC. Cuando la "
+                "ventana diga 'terminada', ciérrala y pulsa 🔄 Re-detectar.")
+        self._finish_install()
 
     def _run_next_step(self):
         if self._step_idx >= len(self._steps):

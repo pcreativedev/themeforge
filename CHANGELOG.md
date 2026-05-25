@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed / Fixed
+
+- **Dependency wizard — Windows winget in a single elevated window.** Instead
+  of one UAC prompt per package, all admin installs (winget + npm + installers)
+  now run in one elevated PowerShell launched via `ShellExecuteW("runas")` — a
+  single UAC, with a PATH refresh between winget and npm so Node/PHP are found.
+- **PHP and Composer on Windows.** PHP installs via winget (`PHP.PHP.8.4`);
+  Composer via the official `Composer-Setup.exe` (silent), after PHP so it is
+  detected. `winget install` now also passes `--exact`.
+- **venv path on Windows.** Python stacks (FastAPI, Django) activate the venv
+  via `. .venv/*/activate`, which resolves to `Scripts` on Windows and `bin`
+  on Unix.
+- **Embedded terminal scrollbar.** The xterm.js viewport scrollbar is now
+  visible and styled in the QtWebEngine view (was effectively hidden).
+
 ## [1.2.2] - 2026-05-25
 
 ### Added
