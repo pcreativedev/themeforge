@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **✨ Vibe scaffolder — "🚀 Crear proyecto ya".** The Vibe dialog can now create
+  the project in one click straight from the proposal (applies it, forces *from
+  scratch* mode and launches creation), in addition to the existing "Aplicar al
+  form".
 - **🚀 Operator (Hermes) — optional autonomous missions.** Optional integration
   with [Hermes Agent](https://github.com/NousResearch/hermes-agent) (Nous, MIT) as
   an orchestration brain. A new **Operator** tab (Mission Control) takes a
@@ -30,6 +34,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed / Fixed
 
+- **Vibe no longer restyles the app.** The proposed `theme_hint` is now only a
+  suggestion for the generated project (it is already part of the dev prompt); it
+  no longer applies/persists itself onto ThemeForge's own UI, which could leave
+  the IDE stuck on a light theme. The Settings theme picker is unchanged.
+- **Monorepo preview picks the customer-facing sub-app.** When opening a
+  monorepo, the default active sub-app is now scored to favour the public site
+  (`web`, `landing`, `frontend`…) over back-office apps (`admin`, `api`,
+  `dashboard`…), so the preview opens the storefront, not the panel.
 - **Dependency setup — auto-detect package manager.** The scaffold/open flow now
   detects **pnpm / yarn / bun / npm** (a `workspace:*` dependency or
   `pnpm-lock.yaml` ⇒ pnpm, with `corepack enable`). Dependency install is now

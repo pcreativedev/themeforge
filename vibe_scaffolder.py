@@ -223,6 +223,7 @@ class VibeDialog(QDialog):
         self.resize(820, 640)
 
         self.proposal: VibeProposal | None = None
+        self.create_now = False  # True si el user pulsa "🚀 Crear proyecto ya"
         self._buf = ""
         self._stdout_buffer = ""
         self._parser = sp.parser_for(aip.PROVIDERS[agent_key]["command"])
@@ -269,9 +270,17 @@ class VibeDialog(QDialog):
         self.btn_apply = self.bb.addButton("✨ Aplicar al form",
                                            QDialogButtonBox.ButtonRole.AcceptRole)
         self.btn_apply.setEnabled(False)
+        self.btn_create = self.bb.addButton("🚀 Crear proyecto ya",
+                                            QDialogButtonBox.ButtonRole.AcceptRole)
+        self.btn_create.setEnabled(False)
+        self.btn_create.setToolTip(
+            "Aplica la propuesta y crea el proyecto directamente en modo "
+            "'from scratch', sin volver al formulario."
+        )
         self.btn_cancel = self.bb.addButton("Cancelar",
                                              QDialogButtonBox.ButtonRole.RejectRole)
         self.btn_apply.clicked.connect(self.accept)
+        self.btn_create.clicked.connect(self._accept_create)
         self.btn_cancel.clicked.connect(self._cancel)
 
         # ── Layout ──────────────────────────────────────────────────
@@ -387,6 +396,12 @@ class VibeDialog(QDialog):
         self.preview_lbl.setText(preview_html)
         self.preview_lbl.show()
         self.btn_apply.setEnabled(True)
+        self.btn_create.setEnabled(True)
+
+    def _accept_create(self):
+        """El user quiere crear el proyecto directamente tras el vibe."""
+        self.create_now = True
+        self.accept()
 
     def _cancel(self):
         try:

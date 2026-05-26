@@ -106,12 +106,25 @@ class ProjectWindow(QWidget):
         self.subprojects = detect_subprojects(self.project_path)
         self._active_sub_idx: int | None = None
         if self.subprojects:
-            # Elegir como activo el primero que tenga profile detectable
-            for i, sub in enumerate(self.subprojects):
-                if sub.get("profile"):
-                    self._active_sub_idx = i
-                    break
-            if self._active_sub_idx is None:
+            # Elegir como activo el sub-app de cara al cliente (web/landing)
+            # por encima de los de back-office (admin/api), para que el preview
+            # de un mono-repo abra la web pública por defecto, no el panel.
+            _FRONT = ("web", "site", "storefront", "frontend", "www", "app",
+                      "client", "landing", "marketing", "shop", "store", "public")
+            _BACK = ("admin", "api", "backend", "server", "dashboard",
+                     "cms", "docs", "studio", "worker")
+
+            def _rank(sub: dict) -> tuple:
+                name = (sub.get("name") or "").lower()
+                has_profile = 1 if sub.get("profile") else 0
+                is_front = 1 if any(k in name for k in _FRONT) else 0
+                not_back = 0 if any(k in name for k in _BACK) else 1
+                return (has_profile, is_front, not_back)
+
+            cands = [i for i, s in enumerate(self.subprojects) if s.get("profile")]
+            if cands:
+                self._active_sub_idx = max(cands, key=lambda i: _rank(self.subprojects[i]))
+            else:
                 self._active_sub_idx = 0
 
         self.profile, self._preview_root = self._compute_active_profile()

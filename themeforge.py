@@ -3067,17 +3067,11 @@ class ThemeForge(QWidget):
         # Reuse the _last_analysis pipeline: (None, text) means "use in scratch"
         self._last_analysis = (None, proposal.dev_prompt)
 
-        # Apply theme hint live (optional — user can always revert)
-        if proposal.theme_hint:
-            try:
-                import themes as _t
-                pack = _t.load_theme(proposal.theme_hint)
-                _t.apply_theme(QApplication.instance(), pack)
-                _t.save_current_theme(proposal.theme_hint)
-                _t.clear_icon_cache()
-                _t.theme_signals.theme_changed.emit(proposal.theme_hint)
-            except Exception as e:
-                print(f"[vibe] theme switch failed: {e}")
+        # NOTA: el `theme_hint` es solo una SUGERENCIA estética para el
+        # proyecto (ya va escrita dentro del dev_prompt que recibe el
+        # agente). NO tocamos el theme de ThemeForge: la app mantiene el
+        # tema que el user tenga elegido en Settings. Antes esto aplicaba
+        # y persistía el theme en la propia UI, lo que la dejaba en blanco.
 
         # Auto-suggest a project name if empty
         if not self.name_edit.text().strip():
@@ -3087,6 +3081,15 @@ class ThemeForge(QWidget):
             slug = slug.strip("-")[:32]
             if slug:
                 self.name_edit.setText(slug)
+
+        # ── ¿Crear directamente? ────────────────────────────────────────
+        # Si el user pulsó "🚀 Crear proyecto ya" en el diálogo, forzamos
+        # modo scratch (el dev_prompt del vibe solo se inyecta en scratch,
+        # ver create_project) y lanzamos la creación sin volver al form.
+        if getattr(dlg, "create_now", False):
+            self.mode_scratch.setChecked(True)
+            self.create_project()
+            return
 
         QMessageBox.information(
             self, "✨ Vibe aplicado",
