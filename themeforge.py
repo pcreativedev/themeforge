@@ -1625,6 +1625,32 @@ def write_setup_script(
         niche=niche,
     )
 
+    # Si se van a instalar skills de agente (autoskills / UI-UX Pro), el
+    # agente DEBE saber que existen y usarlas. Sin esto arranca sin ellas en
+    # contexto: las skills quedan instaladas en `.claude/skills/` pero el
+    # agente no las invoca al empezar.
+    if run_autoskills or run_uipro:
+        _sk = []
+        if run_autoskills:
+            _sk.append("- **autoskills** → skills específicas del stack en "
+                       "`.agents/skills/` (con symlinks en `.claude/skills/`).")
+        if run_uipro:
+            _sk.append("- **UI/UX Pro Max** → design system + estilos en "
+                       "`.claude/skills/` (si tu provider lo soporta).")
+        ctx_md += (
+            "\n\n## Skills instaladas — ÚSALAS desde el principio\n\n"
+            "Durante el setup, ThemeForge ha instalado skills de agente en este "
+            "proyecto:\n\n"
+            + "\n".join(_sk)
+            + "\n\n**OBLIGATORIO antes de escribir código:** lista `.claude/skills/` "
+            "(y en mono-repos también `apps/*/.claude/skills/`). Para cada `SKILL.md` "
+            "que encuentres, léelo y aplícalo durante el build — son la guía de cómo "
+            "construir en este stack y cómo aplicar el design system. Si la carpeta "
+            "está vacía (p. ej. stack=none aún sin scaffold), ejecuta "
+            "`npx --yes autoskills -a <tu-agente>` tras el primer scaffold y entonces "
+            "úsalas. No las ignores.\n"
+        )
+
     parts = []
     parts.append("#!/usr/bin/env bash")
     parts.append("set -e")
@@ -1980,12 +2006,23 @@ def write_setup_script(
     # el análisis IA previo (si lo hay) y CONFIRME al usuario qué
     # entiende que tiene que hacer antes de empezar a tocar código.
     has_analysis = ai_analysis is not None
+    # Si hay skills instaladas (autoskills / UI-UX Pro), recordárselo
+    # explícitamente al arrancar para que las lea y las incluya en el plan.
+    skills_hint = ""
+    if run_autoskills or run_uipro:
+        skills_hint = (
+            f"\n\nIMPORTANTE: ThemeForge ha instalado skills de agente en "
+            f"`.claude/skills/` (mira la sección '## Skills instaladas' de "
+            f"{agent['context_file']}). LÍSTALAS y léelas ANTES de planificar, "
+            f"e indícame cuáles vas a usar en tu plan."
+        )
     if has_analysis:
         initial_prompt = (
             f"Acabas de arrancar en un proyecto recién scaffoldeado por ThemeForge. "
             f"Lee COMPLETAMENTE {agent['context_file']} (especialmente la sección "
             f"'## Análisis IA previo de la referencia' que ya contiene un análisis "
-            f"hecho por otra IA sobre el template original). Luego lee context/ si necesitas. "
+            f"hecho por otra IA sobre el template original). Luego lee context/ si necesitas."
+            f"{skills_hint}"
             f"\n\nAntes de tocar NADA del código:\n"
             f"1. Resume en 4-6 líneas qué entiendes que tienes que hacer en este sprint.\n"
             f"2. Confirma si estás de acuerdo con el stack recomendado o si propones otro.\n"
@@ -1995,7 +2032,8 @@ def write_setup_script(
     else:
         initial_prompt = (
             f"Acabas de arrancar en un proyecto recién scaffoldeado por ThemeForge. "
-            f"Lee COMPLETAMENTE {agent['context_file']} y todo lo que haya en context/. "
+            f"Lee COMPLETAMENTE {agent['context_file']} y todo lo que haya en context/."
+            f"{skills_hint}"
             f"\n\nAntes de tocar NADA del código:\n"
             f"1. Resume en 4-6 líneas qué entiendes que tienes que hacer.\n"
             f"2. Lista los primeros 3-5 pasos concretos que vas a dar.\n"
