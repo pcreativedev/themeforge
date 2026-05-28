@@ -474,7 +474,7 @@ STACKS = {
     },
     "shopify-liquid": {
         "name": "Shopify Liquid (Online Store 2.0 + Dawn)",
-        "category": "E-commerce · Shopify",
+        "category": "E-commerce",
         "language": "Liquid + JS",
         "scaffold": [
             # Dawn = el theme oficial de Shopify (MIT). Es la base que usa el
@@ -664,7 +664,7 @@ STACKS = {
     },
     "shopify-liquid-blank": {
         "name": "Shopify Liquid (Theme Store, sin Dawn)",
-        "category": "E-commerce · Shopify",
+        "category": "E-commerce",
         "language": "Liquid + JS",
         "scaffold": [
             # Estructura OS 2.0 MÍNIMA que cumple los requisitos del Shopify
@@ -962,7 +962,7 @@ STACKS = {
     },
     "shopify-hydrogen": {
         "name": "Shopify Hydrogen (Remix + React)",
-        "category": "E-commerce · Shopify",
+        "category": "E-commerce",
         "language": "TypeScript + React",
         "scaffold": [
             # Scaffold oficial de Shopify para Hydrogen (template skeleton).
@@ -1042,7 +1042,7 @@ STACKS = {
     },
     "shopify-polaris-app": {
         "name": "Shopify App (Polaris + App Bridge + Remix)",
-        "category": "E-commerce · Shopify",
+        "category": "E-commerce",
         "language": "TypeScript + React",
         "scaffold": [
             # Scaffold oficial de apps Shopify (Remix template).
@@ -1110,7 +1110,7 @@ STACKS = {
     },
     "shopify-functions": {
         "name": "Shopify Functions (Rust + Wasm)",
-        "category": "E-commerce · Shopify",
+        "category": "E-commerce",
         "language": "Rust + GraphQL",
         "scaffold": [
             # Scaffold via Shopify CLI. Genera una app contenedora (necesario)
@@ -1250,7 +1250,7 @@ STACKS = {
     },
     "shopify-storefront-webcomponents": {
         "name": "Shopify Storefront Web Components",
-        "category": "E-commerce · Shopify",
+        "category": "E-commerce",
         "language": "HTML + JS vanilla",
         "scaffold": [
             "mkdir -p assets",
@@ -1393,7 +1393,7 @@ STACKS = {
     },
     "shopify-checkout-extension": {
         "name": "Shopify Checkout UI Extension (Plus only)",
-        "category": "E-commerce · Shopify",
+        "category": "E-commerce",
         "language": "TypeScript + React",
         "scaffold": [
             "npx --yes @shopify/create-app@latest --template remix --name __SLUG__ --no-install || "
@@ -1519,7 +1519,7 @@ STACKS = {
     },
     "magento-hyva": {
         "name": "Magento 2 + Hyvä Theme (OSL 3.0)",
-        "category": "E-commerce · Magento",
+        "category": "E-commerce",
         "language": "PHP + Tailwind + Alpine.js",
         "scaffold": [
             # ASUME Magento 2.4.8+ ya instalado en este directorio + composer
@@ -1729,7 +1729,7 @@ STACKS = {
     },
     "saleor-nextjs": {
         "name": "Saleor + Next.js Storefront (BSD-3)",
-        "category": "E-commerce · Saleor",
+        "category": "E-commerce",
         "language": "TypeScript + GraphQL",
         "scaffold": [
             "echo '→ Clonando Saleor Storefront oficial (Next.js 15 + App Router)…'",
@@ -1799,7 +1799,7 @@ STACKS = {
     },
     "vendure": {
         "name": "Vendure (MIT, NestJS + GraphQL)",
-        "category": "E-commerce · Vendure",
+        "category": "E-commerce",
         "language": "TypeScript + NestJS + GraphQL",
         "scaffold": [
             # @vendure/create es interactivo; el flag --skip-init evita prompts
@@ -1859,7 +1859,7 @@ STACKS = {
     },
     "bigcommerce-stencil": {
         "name": "BigCommerce Stencil + Cornerstone (MIT)",
-        "category": "E-commerce · BigCommerce",
+        "category": "E-commerce",
         "language": "Handlebars + SCSS",
         "scaffold": [
             "echo '→ Clonando Cornerstone (theme oficial BigCommerce, MIT)…'",
@@ -2346,7 +2346,7 @@ STACKS = {
     # ════════════════════════════════════════════════════════════════
     "medusa": {
         "name": "Medusa 2 + Next.js Storefront",
-        "category": "E-commerce · Medusa",
+        "category": "E-commerce",
         "language": "TypeScript",
         "scaffold": [
             "npx --yes create-medusa-app@latest . --no-browser --skip-db --with-nextjs-starter",
