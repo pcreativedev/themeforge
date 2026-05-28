@@ -1738,13 +1738,39 @@ class ProjectWindow(QWidget):
         if cur in ("", "about:blank") or cur != url:
             self.webview.setUrl(QUrl(url))
         self.logs.appendPlainText(f"[preview] {self.profile['name']} → {url}")
+        self._reflect_no_server_state()
         return True
+
+    def _reflect_no_server_state(self):
+        """Refleja en los botones Start/Stop si el contenedor (WordPress
+        Docker u otro perfil `no_server`) está realmente corriendo. Sin
+        esto, Start se podía pulsar repetido y Stop nunca se activaba."""
+        if not (self.profile and self.profile.get("no_server")):
+            return
+        running = False
+        try:
+            from wp_provisioner import is_running
+            running = is_running(self.project_path.name)
+        except Exception:
+            running = False
+        self.btn_start.setEnabled(not running)
+        self.btn_stop.setEnabled(running)
 
     def start_preview(self):
         if not self.profile: return
         # WordPress (Docker) y otros perfiles sin servidor: no se arranca
-        # proceso, solo se (re)carga la URL del contenedor ya en marcha.
+        # proceso, pero sí nos aseguramos de que los contenedores estén
+        # arriba (por si se habían parado) y reflejamos el estado en los
+        # botones para que Start/Stop dejen de ser "tontos".
         if self.profile.get("no_server"):
+            slug = self.project_path.name
+            try:
+                from wp_provisioner import start_containers, is_running
+                if not is_running(slug):
+                    self.logs.appendPlainText(f"[preview] arrancando contenedor WordPress de «{slug}»…")
+                    start_containers(slug)
+            except Exception as e:
+                self.logs.appendPlainText(f"[preview] no pude arrancar contenedor: {e}")
             self._load_no_server_preview()
             return
         if self.preview_proc and self.preview_proc.state() != QProcess.ProcessState.NotRunning:
@@ -1929,6 +1955,21 @@ class ProjectWindow(QWidget):
         self.btn_stop.setEnabled(False)
 
     def stop_preview(self):
+        # Perfiles `no_server` (WordPress en Docker): paramos los contenedores
+        # SIN borrarlos ni tocar volúmenes. Restart con Start los vuelve a
+        # levantar con los datos intactos.
+        if self.profile and self.profile.get("no_server"):
+            slug = self.project_path.name
+            try:
+                from wp_provisioner import stop_containers
+                self.logs.appendPlainText(f"\n[preview] parando contenedor WordPress de «{slug}»…")
+                stop_containers(slug)
+            except Exception as e:
+                self.logs.appendPlainText(f"[preview] error parando contenedor: {e}")
+            self.btn_start.setEnabled(True)
+            self.btn_stop.setEnabled(False)
+            self.webview.setUrl(QUrl("about:blank"))
+            return
         if self.profile and self.profile.get("stop"):
             stop = self.profile["stop"]
             self.logs.appendPlainText(f"\n$ {' '.join(stop)}")

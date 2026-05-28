@@ -264,7 +264,95 @@ def _configure_wp(wp: str, net: str, db_pw: str, port: int, slug: str, admin_pw:
             app_password = (r.stdout or "").strip().splitlines()[-1].strip() if r.stdout.strip() else ""
     except Exception:
         pass
+
+    # Auto-login en localhost (solo dev): mu-plugin que loguea como admin si
+    # el host es localhost/127.0.0.1. Evita REST/XML-RPC/cron/AJAX/CLI para no
+    # interferir con el MCP, app passwords ni el wp-cron.
+    try:
+        _install_autologin_mu_plugin(wp)
+    except Exception:
+        pass
+
     return {"installed": True, "mcp_enabled": mcp_enabled, "app_password": app_password}
+
+
+_AUTOLOGIN_MU_PLUGIN = r"""<?php
+/**
+ * Plugin Name: ThemeForge Autologin (dev)
+ * Description: Loguea automáticamente como admin cuando accedes desde
+ *              localhost. Se instala solo en el entorno de desarrollo
+ *              de ThemeForge — NO subir a producción.
+ * Version: 1.0
+ */
+if (!defined('ABSPATH')) { exit; }
+
+add_action('plugins_loaded', function () {
+    if (is_user_logged_in()) { return; }
+    // Solo navegación humana en localhost.
+    if (php_sapi_name() === 'cli') { return; }
+    if (defined('DOING_CRON') && DOING_CRON) { return; }
+    if (defined('DOING_AJAX') && DOING_AJAX) { return; }
+    if (defined('REST_REQUEST') && REST_REQUEST) { return; }
+    $host = isset($_SERVER['HTTP_HOST']) ? $_SERVER['HTTP_HOST'] : '';
+    if (!preg_match('#^(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$#i', $host)) { return; }
+    $uri = isset($_SERVER['REQUEST_URI']) ? $_SERVER['REQUEST_URI'] : '';
+    if (strpos($uri, '/wp-json/') !== false) { return; }
+    if (strpos($uri, '/xmlrpc.php') !== false) { return; }
+    $user = get_user_by('login', 'admin');
+    if (!$user) { return; }
+    wp_set_current_user($user->ID);
+    wp_set_auth_cookie($user->ID, true);
+}, 1);
+"""
+
+
+def _install_autologin_mu_plugin(wp_container: str) -> None:
+    """Escribe el mu-plugin de autologin dentro del contenedor WP."""
+    target = "/var/www/html/wp-content/mu-plugins/themeforge-autologin.php"
+    cmd = (
+        "set -e; mkdir -p /var/www/html/wp-content/mu-plugins && "
+        f"cat > {target} && chown 33:33 {target} && chmod 0644 {target}"
+    )
+    subprocess.run(
+        ["docker", "exec", "-i", wp_container, "bash", "-c", cmd],
+        input=_AUTOLOGIN_MU_PLUGIN.encode("utf-8"),
+        timeout=30,
+        check=False,
+        capture_output=True,
+    )
+
+
+# ─── Ciclo de vida no destructivo (para el botón Stop del preview) ──────
+
+
+def is_running(slug: str) -> bool:
+    """True si el contenedor WP del slug está corriendo."""
+    prov = _load().get(slug)
+    if not prov:
+        return False
+    r = _docker("inspect", "-f", "{{.State.Running}}", prov["wp_container"], timeout=10)
+    return r.returncode == 0 and r.stdout.strip() == "true"
+
+
+def start_containers(slug: str) -> bool:
+    """Arranca DB + WP del slug (sin recrear). Útil para el botón Start del
+    preview cuando el contenedor estaba parado pero no borrado."""
+    prov = _load().get(slug)
+    if not prov:
+        return False
+    _docker("start", prov["db_container"], timeout=30)
+    _docker("start", prov["wp_container"], timeout=30)
+    return is_running(slug)
+
+
+def stop_containers(slug: str) -> bool:
+    """Para DB + WP del slug SIN borrarlos ni tocar los volúmenes."""
+    prov = _load().get(slug)
+    if not prov:
+        return False
+    _docker("stop", prov["wp_container"], timeout=30)
+    _docker("stop", prov["db_container"], timeout=30)
+    return not is_running(slug)
 
 
 def provision_wordpress_for(slug: str, project_dir: str, kind: str = "theme") -> dict:
