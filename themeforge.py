@@ -985,7 +985,7 @@ _FORMAT_WORDPRESS = {
 # Cualquiera de estas tiene un child theme distinto y un ux_pack distinto:
 # si el usuario eligió una a mano, NO la pisamos al detectar "wordpress-theme".
 _WORDPRESS_THEME_STACKS = _FORMAT_WORDPRESS - {"wordpress-plugin"}
-_FORMAT_SHOPIFY = {"shopify-liquid", "shopify-hydrogen", "shopify-polaris-app"}
+_FORMAT_SHOPIFY = {"shopify-liquid", "shopify-liquid-blank", "shopify-hydrogen", "shopify-polaris-app"}
 _FORMAT_SCRIPT_APP = {
     "laravel-inertia", "nestjs-prisma", "fastapi", "django-tailwind", "t3-stack",
     "hono-bun", "hono-cloudflare", "phoenix-liveview", "rails-tailwind", "go-fiber",
@@ -1664,7 +1664,49 @@ construyes loaders y queries.
 - **ThemeForest** acepta Hydrogen como categoría separada (menos
   competencia, ticket más alto: $99-249).
 - **Shopify Theme Store** todavía es solo Liquid; Hydrogen va por el
-  partner channel (custom builds para merchants enterprise).""",
+  partner channel (custom builds para merchants enterprise).
+
+#### Customer Account API — new (no Classic)
+
+Pattern canon de loader auth + rutas account:
+
+```ts
+// app/routes/account.$.tsx
+import {Outlet} from '@remix-run/react';
+import {LoaderFunctionArgs, redirect} from '@shopify/remix-oxygen';
+
+export async function loader({context}: LoaderFunctionArgs) {
+  const {data} = await context.customerAccount.query(CUSTOMER_QUERY);
+  if (!data.customer) throw redirect(await context.customerAccount.loginUrl());
+  return {customer: data.customer};
+}
+
+export default function AccountLayout() {
+  return <Outlet />;
+}
+```
+
+```graphql
+# app/lib/fragments.ts → CUSTOMER_QUERY
+query Customer {
+  customer {
+    id
+    firstName
+    lastName
+    emailAddress { emailAddress }
+    defaultAddress { ...AddressFragment }
+    orders(first: 10) { nodes { id orderNumber processedAt totalPrice { amount currencyCode } } }
+  }
+}
+```
+
+Mutations clave: `customerUpdate`, `customerAddressCreate`,
+`customerAddressUpdate`, `customerAddressDelete`. Logout:
+`context.customerAccount.logout()` redirige al login.
+
+Cuenta passwordless: el customer entra con email + código (Shopify
+envía). El theme NO maneja contraseñas — toda la auth la gestiona el
+endpoint `.customer-account.com` del store.""",
     "shopify-polaris-app": """### Stack: **Shopify App (Polaris + App Bridge + Remix)**
 
 NO es un theme — es una **app embebida** en el Admin de Shopify. Para
@@ -1719,7 +1761,181 @@ o para distribuir en el **Shopify App Store**.
   billing implementado, listing optimizado.
 - **Embedded apps**: <100 ms TTI en el iframe del Admin.
 - Polaris obligatorio (rechazo si usas Material/Chakra/etc. en Admin).
-- Tema light + dark automático (Polaris lo maneja).""",
+- Tema light + dark automático (Polaris lo maneja).
+
+#### Theme App Extensions (TAE) — el camino premium
+
+Permite que el merchant añada **bloques de tu app** dentro de su theme
+desde el theme editor, sin tocar Liquid. Generar:
+
+```bash
+shopify app generate extension --type theme_app_extension --name reviews
+```
+
+Estructura típica:
+
+```
+extensions/reviews/
+├── shopify.extension.toml
+├── blocks/
+│   ├── reviews-list.liquid     # el block que ve el merchant
+│   └── star-rating.liquid
+├── snippets/
+│   └── _review-card.liquid
+├── assets/
+│   ├── reviews.css             # se carga solo en páginas con el block
+│   └── reviews.js
+└── locales/
+    └── en.default.json
+```
+
+Ejemplo `blocks/reviews-list.liquid`:
+
+```liquid
+{% schema %}
+{
+  "name": "Product reviews",
+  "target": "section",   <!-- "section" | "head" -->
+  "stylesheet": "reviews.css",
+  "javascript": "reviews.js",
+  "settings": [
+    { "type": "text",    "id": "title", "label": "Heading", "default": "Reviews" },
+    { "type": "range",   "id": "limit", "label": "Max reviews", "min": 3, "max": 50, "step": 1, "default": 10 },
+    { "type": "color_scheme", "id": "color_scheme", "label": "Color scheme" }
+  ]
+}
+{% endschema %}
+
+<div class="reviews" {% if block.shopify_attributes %}{{ block.shopify_attributes }}{% endif %}>
+  <h2>{{ block.settings.title }}</h2>
+  <!-- fetch a tu endpoint /apps/<your-app-handle>/reviews?product_id={{ product.id }} -->
+</div>
+```
+
+Targets:
+- `section` — el merchant lo añade dentro de cualquier section del theme.
+- `head` — para inyectar scripts/styles globales (analytics, fonts).
+
+El merchant lo añade desde *Theme editor → Add block → Apps → tu-app →
+Reviews*. Tu app NO necesita modificar el theme del merchant.
+
+Deploy: `npm run deploy` empuja la extension junto con el resto de la
+app.""",
+    "shopify-liquid-blank": """### Stack: **Shopify Liquid — Theme Store route** (desde cero, sin Dawn)
+
+A diferencia de `shopify-liquid` (que clona Dawn), este stack scaffoldea
+la **estructura mínima válida OS 2.0 vacía**. **Elegible** para el
+Shopify Theme Store. Más esfuerzo upfront pero mayor margen comercial.
+
+#### Lo que ya tienes scaffoldeado
+
+- `config/{settings_schema,settings_data}.json` con un esqueleto curado
+  (color_scheme_group + font_picker + layout + social + favicon).
+- `layout/theme.liquid` canónico (skip-link, content_for_header, section
+  groups header/footer, title/description SEO).
+- `sections/{header,footer}-group.json` + sus `.liquid` mínimos válidos
+  con `@app` blocks soportados.
+- `blocks/` vacío — listo para que añadas theme blocks reutilizables.
+- `templates/*.json` — 14 templates obligatorios + customers/* todos
+  vacíos (`{ "sections": {}, "order": [] }`). Cumple el requisito de
+  presencia pero TÚ rellenas cada uno con sections/blocks.
+- `locales/en.default.{json,schema.json}` + `es.{json,schema.json}` con
+  las claves base (accessibility, general, cart, products).
+- `assets/base.css` con CSS variables de paleta y skip-link.
+- `package.json` + `.prettierrc.json` + `.theme-check.yml` estricto
+  (16 KB JS cap, ValidJSON, ValidSchema, RequiredLayoutThemeObject,
+  UnreachableCode, ImgWidthAndHeight, MatchingTranslations).
+- `.github/workflows/lighthouse-ci.yml`.
+- `.mcp.json` con los 3 MCPs Shopify (igual que el stack Dawn).
+
+#### Lo que TÚ tienes que construir
+
+Sigue el mismo manual técnico que `shopify-liquid` (arquitectura,
+performance budget, features mandatorias, ejemplos canónicos, dev tools,
+Theme Store submission checklist al final — todo lo de arriba aplica).
+Pero específicamente para Theme Store:
+
+1. **Identidad visual ÚNICA** — diseño no reproducible cosméticamente
+   con cambios de paleta o spacing. Reviewers rechazan themes que son
+   "Dawn con paleta diferente".
+2. **Settings curados** — no inundes con 300 opciones. Themes top
+   tienen entre 30 y 80 settings TOTAL.
+3. **Section presets diferenciados** — cada section principal con 3-5
+   presets que demuestren versatilidad real.
+4. **Demo store profesional** — productos plausibles, fotografía
+   editorial, sin Lorem Ipsum, sin onboarding text.
+5. **Las 18 features mandatorias** del Theme Store (faceted search,
+   predictive search custom, gift cards, selling plans, Shop Pay
+   Installments con `<shopify-payment-terms>`, pickup availability con
+   `<pickup-availability-preview>`, variant images, Follow on Shop, etc.).
+6. **i18n completo** en `locales/*.default.json` + `.schema.json`.
+   ZERO hardcoded strings (auto-reject).
+7. **Documentation HTML estática** para entregar al merchant —
+   instalación + customization + lista de sections + FAQ.
+
+#### MCPs activos (mismos 3)
+
+`shopify-dev` (STDIO) · `shopify-storefront` (HTTP YOUR-SHOP) ·
+`shopify-storefront-catalog` (HTTP UCP YOUR-SHOP).
+
+#### Ejemplo de section premium para empezar
+
+```liquid
+{% comment %} sections/hero-banner.liquid {% endcomment %}
+<section class="hero" style="--bg: {{ section.settings.bg_color.background }}">
+  {%- if section.settings.image -%}
+    {{ section.settings.image | image_url: width: 2200 | image_tag:
+       loading: 'eager', fetchpriority: 'high',
+       widths: '375, 768, 1280, 1920, 2200', sizes: '100vw',
+       class: 'hero__img' }}
+  {%- endif -%}
+  <div class="hero__content">
+    {%- for block in section.blocks -%}
+      {%- case block.type -%}
+        {%- when 'heading' -%}<h1>{{ block.settings.text }}</h1>
+        {%- when 'paragraph' -%}<p>{{ block.settings.text }}</p>
+        {%- when 'button' -%}<a class="btn" href="{{ block.settings.link }}">{{ block.settings.label }}</a>
+        {%- when '@app' -%}{% render block %}
+      {%- endcase -%}
+    {%- endfor -%}
+  </div>
+</section>
+
+{% schema %}
+{
+  "name": "Hero banner",
+  "tag": "section",
+  "class": "section section--hero",
+  "settings": [
+    { "type": "image_picker", "id": "image", "label": "Background image" },
+    { "type": "color_scheme", "id": "bg_color", "label": "Color scheme" }
+  ],
+  "blocks": [
+    { "type": "@app" },
+    { "type": "heading",   "name": "Heading",   "settings": [{ "type": "text", "id": "text", "label": "Heading" }] },
+    { "type": "paragraph", "name": "Paragraph", "settings": [{ "type": "richtext", "id": "text", "label": "Text" }] },
+    { "type": "button",    "name": "Button",
+      "settings": [
+        { "type": "text", "id": "label", "label": "Label" },
+        { "type": "url",  "id": "link",  "label": "Link" }
+      ]
+    }
+  ],
+  "max_blocks": 6,
+  "presets": [
+    { "name": "Hero banner", "category": "Hero",
+      "blocks": [ { "type": "heading" }, { "type": "paragraph" }, { "type": "button" } ] }
+  ],
+  "enabled_on": { "templates": ["index", "page"] }
+}
+{% endschema %}
+```
+
+#### Theme Store submission checklist
+
+Ver la sección homónima en el contexto del stack `shopify-liquid` arriba
+— aplica igual. Diferencia clave: este stack **ya pasa** el filtro
+"Dawn-derived" porque no se ha derivado de Dawn.""",
 }
 
 

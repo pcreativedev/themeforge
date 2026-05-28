@@ -15,6 +15,7 @@ level out of the gate.
 | Stack | Use case | Scaffolded from | Where to sell |
 |---|---|---|---|
 | `shopify-liquid` | Online Store 2.0 themes (the mainstream Shopify path) | Clones [Dawn](https://github.com/Shopify/dawn) (MIT) | ThemeForest + Partner builds. **NOT** Shopify Theme Store (Dawn-derived themes are ineligible per the official policy) |
+| `shopify-liquid-blank` (since v1.5.0) | Online Store 2.0 themes for the **Shopify Theme Store route** | Scaffolds the minimal valid OS 2.0 structure from scratch (no Dawn / no Horizon) | **Shopify Theme Store** (eligible) + ThemeForest |
 | `shopify-hydrogen` | Headless storefronts (Remix + React 19 + Oxygen) | `@shopify/create-hydrogen` (MIT) | ThemeForest "Hydrogen" category + Partner channel |
 | `shopify-polaris-app` | Embedded Admin apps (Polaris + App Bridge + Remix) | `@shopify/create-app --template remix` (MIT) | Shopify App Store + Custom apps |
 
@@ -78,6 +79,15 @@ ThemeForge runs this pipeline:
 | `shopify-dev` | STDIO (`npx @shopify/dev-mcp@latest`) | none | GraphQL schemas for Admin / Storefront / Checkout APIs, Liquid types, section/block schemas, and the **Polaris** design system for embedded apps. |
 | `shopify-storefront` | HTTP (zero-auth) | none | Cart, policies, FAQ for the store URL. Tools: `get_cart`, `update_cart`, `search_shop_policies_and_faqs`. |
 | `shopify-storefront-catalog` | HTTP (UCP, zero-auth) | none | Catalog with **natural-language product search**. Tools: `search_catalog`, `lookup_catalog`, `get_product`. |
+| `shopify-customer-account` (catalog entry, **NOT auto-wired**) | HTTP | **OAuth 2.0 with PKCE** | Order tracking, returns, customer info. ONLY works with the store's **custom domain** (`.myshopify.com` returns 404). Requires **New Customer Accounts** enabled. Discovery: `https://${shopDomain}/.well-known/openid-configuration`. Configure once you've implemented the OAuth flow in your client. |
+
+### What's NOT a separate MCP
+
+- **GraphQL Storefront API queries** — handled by `shopify-dev` MCP
+  (schema introspection + write queries). No separate "Storefront API
+  MCP" exists.
+- **Admin REST/GraphQL queries** — same, handled by `shopify-dev`.
+- **Polaris design system** — bundled inside `shopify-dev`.
 
 The HTTP MCPs are per-store endpoints. **Replace `YOUR-SHOP`** in
 `.mcp.json` with your store subdomain (just `your-shop`, not the full

@@ -225,6 +225,32 @@ CATALOG: list[MCPEntry] = [
         },
         requires_auth=False,
     ),
+    MCPEntry(
+        key="shopify-customer-account",
+        name="Shopify Customer Account MCP (official, OAuth)",
+        license="Hosted by Shopify (per-store, free, OAuth 2.0 PKCE required)",
+        repo="https://shopify.dev/docs/apps/build/storefront-mcp/servers/customer-account",
+        description=(
+            "Shopify's official Customer Account MCP — order tracking, "
+            "returns, account info, addresses. Requires OAuth 2.0 with "
+            "PKCE (not zero-auth). Discovery endpoint: "
+            "https://${shopDomain}/.well-known/openid-configuration. "
+            "ONLY works with the store's custom domain (myshopify.com "
+            "subdomain returns 404). Requires New Customer Accounts "
+            "enabled in the store (Classic accounts not supported). "
+            "Not auto-wired in .mcp.json — configure once OAuth flow is "
+            "implemented in your client."
+        ),
+        relevance=["shopify"],
+        install={
+            "type": "http",
+            "url": "https://YOUR-CUSTOM-DOMAIN.com/customer-account/mcp",
+            "headers": {
+                "Authorization": "Bearer YOUR_OAUTH_TOKEN"
+            },
+        },
+        requires_auth=True,
+    ),
 
     # ── Databases ───────────────────────────────────────────────────
     MCPEntry(
