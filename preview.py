@@ -654,17 +654,14 @@ def _detect_base_profile(project_path: Path) -> PreviewProfile | None:
             "note": "Revisa el compose para ver el puerto real.",
         }
 
-    # 2. WordPress wp-env.
+    # 2. WordPress — el preview lo monta wp_provisioner (Docker), detectado al
+    #    principio de detect_preview_profile() vía wp_provisions.json. Si la
+    #    carpeta TIENE pinta de WP (style.css + theme.json, o .php con
+    #    `Plugin Name:`) pero AÚN no hay provisión registrada, no intentamos
+    #    nada — mejor mostrar "sin preview" que un wp-env roto. Aparecerá en
+    #    cuanto el setup termine de levantar el contenedor.
     if has_wp_env(project_path):
-        return {
-            "name": "WordPress (wp-env)",
-            "command": ["npx", "--yes", "@wordpress/env", "start"],
-            "stop": ["npx", "--yes", "@wordpress/env", "stop"],
-            "url": "http://localhost:{port}",
-            "default_port": 8888,
-            "port_inject": "env:WP_ENV_PORT",  # wp-env honra esto en .wp-env.json
-            "note": "Login: admin / password.",
-        }
+        return None
 
     # 3. package.json
     scripts = parse_package_scripts(project_path)
