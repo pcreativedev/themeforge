@@ -2758,6 +2758,9 @@ class ThemeForge(QWidget):
         # de bienvenida / Settings); fallback a nextjs-tailwind.
         import app_prefs as _ap
         self._stack_key = _ap.default_stack() if _ap.default_stack() in STACKS else "nextjs-tailwind"
+        # True cuando el usuario ha elegido el stack a mano → la auto-detección
+        # de WordPress (al elegir/crear con una referencia) NO lo pisa.
+        self._stack_manually_set = False
         self.stack_button = QPushButton()
         self.stack_button.setMinimumHeight(36)
         self.stack_button.clicked.connect(self._open_stack_picker)
@@ -3153,6 +3156,9 @@ class ThemeForge(QWidget):
             lambda k: (_ap.set_defaults(provider=k), self._update_preview()))
         self.ref_path_edit.textChanged.connect(self._update_preview)
         self.ref_path_edit.textChanged.connect(self._invalidate_analysis_if_path_changed)
+        # Sin análisis IA: al terminar de teclear/pegar una ruta, intenta
+        # detectar WordPress y fijar el stack automáticamente.
+        self.ref_path_edit.editingFinished.connect(self._autodetect_wp_stack)
         self.adopt_path_edit.textChanged.connect(self._update_preview)
         self.repo_combo.editTextChanged.connect(self._update_preview)
         self.github_create_check.toggled.connect(self._update_preview)
@@ -3179,6 +3185,7 @@ class ThemeForge(QWidget):
         dlg = StackPickerDialog(self, initial=self._stack_key)
         if dlg.exec() == StackPickerDialog.DialogCode.Accepted and dlg.selected_key:
             self._stack_key = dlg.selected_key
+            self._stack_manually_set = True
             self._refresh_stack_button()
             # Re-evaluate uipro auto-check based on new stack category
             if hasattr(self, "uipro_check"):
@@ -3320,6 +3327,53 @@ class ThemeForge(QWidget):
             return
         if p:
             self.ref_path_edit.setText(p)
+            self._autodetect_wp_stack()
+
+    def _autodetect_wp_stack(self):
+        """Sin análisis IA: si la referencia (carpeta/.zip, incluida subcarpeta
+        o mono-repo) es un theme/plugin de WordPress, fija el stack a WordPress
+        para que al crear se auto-instale WP en Docker. Respeta una elección
+        manual de stack hecha para ESTA misma referencia."""
+        if not self.mode_recreate.isChecked():
+            return
+        kind = self.ref_kind_combo.currentData()
+        if kind not in ("folder", "zip"):
+            return  # una URL no se puede inspeccionar en local
+        val = self.ref_path_edit.text().strip()
+        if not val:
+            return
+        p = Path(val)
+        if not p.exists():
+            return
+        # Una referencia nueva re-habilita la auto-detección.
+        if val != getattr(self, "_last_ref_for_stack", None):
+            self._stack_manually_set = False
+            self._last_ref_for_stack = val
+        if self._stack_manually_set:
+            return
+        try:
+            from reference_analyzer import detect_wordpress_stack
+            wp_stack = detect_wordpress_stack(p)
+        except Exception:
+            wp_stack = None
+        if not wp_stack or wp_stack == self._stack_key:
+            return
+        self._stack_key = wp_stack
+        self._refresh_stack_button()
+        if hasattr(self, "uipro_check"):
+            self.uipro_check.setChecked(self._is_ui_stack(self._stack_key))
+        self._update_preview()
+        self.analysis_status_lbl.setStyleSheet(
+            "color:#93c5fd; font-size:10pt; font-weight:bold; "
+            "padding:8px 12px; background:#1e293b; border:1px solid #3b82f6; "
+            "border-radius:6px;"
+        )
+        self.analysis_status_lbl.setText(
+            f"🔌 Referencia WordPress detectada → stack fijado a «{STACKS[wp_stack]['name']}». "
+            f"Al crear, ThemeForge auto-instala WordPress en Docker "
+            f"(puedes cambiarlo en el selector de stack)."
+        )
+        self.analysis_status_lbl.setVisible(True)
 
     def _browse_adopt(self):
         p = QFileDialog.getExistingDirectory(self, "Carpeta del template a adoptar", str(HOME))
@@ -3660,6 +3714,24 @@ class ThemeForge(QWidget):
             if not adopt_src or not Path(adopt_src).is_dir():
                 QMessageBox.warning(self, "ThemeForge", f"Folder to adopt does not exist:\n{adopt_src}")
                 return
+
+        # ── Red de seguridad: stack WordPress sin análisis IA ───────────
+        # Si la referencia es un theme/plugin de WordPress y el usuario no
+        # eligió el stack a mano, lo fijamos a WordPress aquí también (por si
+        # no pasó por el browse/editingFinished). Así la auto-instalación de
+        # WP en Docker funciona aunque no se haya analizado con IA.
+        if (mode == "recreate" and not self._stack_manually_set
+                and ref_kind in ("folder", "zip") and ref_val
+                and stack_key not in ("wordpress-block", "wordpress-plugin")):
+            try:
+                from reference_analyzer import detect_wordpress_stack
+                _wp = detect_wordpress_stack(Path(ref_val))
+            except Exception:
+                _wp = None
+            if _wp:
+                stack_key = _wp
+                self._stack_key = _wp
+                self._refresh_stack_button()
 
         # ── Provisión automática de BD ─────────────────────────────────
         # Solo aplica en modo "existing": el repo clonado puede ya tener

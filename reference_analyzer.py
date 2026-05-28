@@ -38,6 +38,81 @@ def _read_lines(p: Path, limit: int = 80) -> list[str]:
         return []
 
 
+def detect_wordpress_stack(path: Path) -> str | None:
+    """Detección RÁPIDA del stack WordPress de una referencia, SIN análisis IA.
+
+    Devuelve ``"wordpress-block"`` (theme), ``"wordpress-plugin"`` o ``None``.
+    A diferencia de :func:`gather_facts`, reconoce el theme/plugin aunque esté
+    en una **subcarpeta**, dentro de un **mono-repo** o de un **.zip** (no solo
+    cuando está en la raíz). Pensada para fijar el stack al elegir la
+    referencia o al crear el proyecto, así que es barata y tolerante a fallos.
+
+    El theme tiene prioridad sobre el plugin: recrear un "tema de WordPress"
+    que trae plugins empaquetados sigue siendo un theme.
+    """
+    try:
+        if path.is_file() and path.suffix.lower() == ".zip":
+            return _detect_wp_in_zip(path)
+        if not path.is_dir():
+            return None
+        # Theme: cualquier style.css con cabecera `Theme Name:`
+        for css in _bounded(path.rglob("style.css"), 80):
+            try:
+                if "Theme Name:" in css.read_text(errors="ignore", encoding="utf-8")[:3000]:
+                    return "wordpress-block"
+            except Exception:
+                continue
+        # Plugin: cualquier .php con cabecera `Plugin Name:`
+        for php in _bounded(path.rglob("*.php"), 600):
+            try:
+                if "Plugin Name:" in php.read_text(errors="ignore", encoding="utf-8")[:3000]:
+                    return "wordpress-plugin"
+            except Exception:
+                continue
+    except Exception:
+        return None
+    return None
+
+
+def _bounded(it, limit: int):
+    """Itera como mucho ``limit`` elementos de un iterador perezoso (rglob)."""
+    n = 0
+    for x in it:
+        if n >= limit:
+            return
+        n += 1
+        yield x
+
+
+def _detect_wp_in_zip(zip_path: Path) -> str | None:
+    try:
+        with zipfile.ZipFile(zip_path) as z:
+            names = z.namelist()
+            # Theme primero: style.css con `Theme Name:`
+            for n in names:
+                if n.endswith("style.css") and not n.endswith("/"):
+                    try:
+                        if "Theme Name:" in z.read(n).decode("utf-8", "ignore")[:3000]:
+                            return "wordpress-block"
+                    except Exception:
+                        continue
+            # Plugin: cualquier .php con `Plugin Name:` (acotado)
+            php_seen = 0
+            for n in names:
+                if n.endswith(".php"):
+                    php_seen += 1
+                    if php_seen > 600:
+                        break
+                    try:
+                        if "Plugin Name:" in z.read(n).decode("utf-8", "ignore")[:3000]:
+                            return "wordpress-plugin"
+                    except Exception:
+                        continue
+    except Exception:
+        return None
+    return None
+
+
 def _facts_for_node(path: Path) -> dict[str, Any]:
     pkg = _read_json(path / "package.json") or {}
     deps = {**(pkg.get("dependencies") or {}), **(pkg.get("devDependencies") or {})}
