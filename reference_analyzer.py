@@ -330,7 +330,33 @@ def _is_design_export(path: Path) -> bool:
     wrappers tipo `OvoRide v2.0/codecanyon-XXXXX/{Documentation, Files,
     Updates}`.
     """
-    # 0. Nombre de la carpeta (o cualquier ancestro hasta profundidad 4)
+    # 0. WordPress theme/plugin disfrazado de design-export: si en la raíz
+    # hay un style.css con `Theme Name:` o un .php con `Plugin Name:`, esto
+    # es WordPress (lo agarrará _facts_for_wordpress), NO un design-export.
+    # Sin este check, themes WP comerciales (Druco, Avada, Astra…) caían en
+    # design-export porque tienen muchos .css/.js y no `package.json` al raíz
+    # → el prompt no incluía wp_constraint y el agente se confundía al ver
+    # la contradicción entre los facts y la realidad.
+    style_css = path / "style.css"
+    if style_css.is_file():
+        try:
+            head = style_css.read_text(errors="ignore", encoding="utf-8")[:3000]
+            if "Theme Name:" in head:
+                return False
+        except Exception:
+            pass
+    try:
+        for php in path.glob("*.php"):
+            try:
+                head = php.read_text(errors="ignore", encoding="utf-8")[:3000]
+                if "Plugin Name:" in head:
+                    return False
+            except Exception:
+                continue
+    except Exception:
+        pass
+
+    # 1. Nombre de la carpeta (o cualquier ancestro hasta profundidad 4)
     # contiene marcador de marketplace
     marketplace_kw = ("codecanyon", "themeforest", "envato",
                       "creative-market", "creativemarket", "themeforest")
