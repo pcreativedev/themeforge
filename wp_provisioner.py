@@ -123,6 +123,54 @@ def _wait_http(port: int, timeout: int = 150) -> None:
     raise RuntimeError(f"WordPress no respondió por HTTP en el puerto {port} ({timeout}s)")
 
 
+_PACK_BUILDER_NAME = {
+    "fse": "FSE (block theme nativo, sin builder externo)",
+    "bricks": "Bricks Builder (parent theme via wp_packs.json)",
+    "elementor": "Elementor + Hello Elementor (parent theme)",
+    "divi": "Divi (parent theme via wp_packs.json)",
+    "breakdance": "Breakdance (plugin de render sobre Kadence)",
+}
+
+
+def _ux_pack_doc(pack: str, info: dict, prov: dict) -> str:
+    """Sección del WORDPRESS-DEV.md con el resumen del UX pack instalado."""
+    if not pack:
+        return ""
+    name = _PACK_BUILDER_NAME.get(pack, pack)
+    themes_free = info.get("themes_free", []) or []
+    plugins_free = info.get("plugins_free", []) or []
+    themes_paid = info.get("themes_premium", []) or []
+    plugins_paid = info.get("plugins_premium", []) or []
+    missing = info.get("missing", []) or []
+    child_active = info.get("child_theme_active", False)
+
+    def _bul(items):
+        return ", ".join(items) if items else "—"
+
+    body = f"""
+## Builder / UX pack: **{name}**
+
+Instalados gratis:
+- Themes parent: {_bul(themes_free)}
+- Plugins: {_bul(plugins_free)}
+
+Instalados premium (desde `~/.config/themeforge/wp_packs.json`):
+- Themes: {_bul(themes_paid)}
+- Plugins: {_bul(plugins_paid)}
+"""
+    if missing:
+        body += f"\nPremium declarados pero **no instalables** (revisa zip URL/path): {_bul(missing)}\n"
+    if pack in ("bricks", "elementor", "divi", "breakdance"):
+        if child_active:
+            body += f"\nChild theme `{prov['slug']}` **activado** ✓ — el preview ya renderiza con el builder activo.\n"
+        else:
+            body += (
+                f"\n⚠️ Child theme `{prov['slug']}` NO se pudo activar (suele faltar el parent theme).\n"
+                f"   Sube manualmente el parent a Apariencia → Temas → Subir y luego: `./wp theme activate {prov['slug']}`.\n"
+            )
+    return body
+
+
 def _write_project_files(project_dir: str, prov: dict) -> None:
     """Escribe WORDPRESS-DEV.md + el helper ./wp en el proyecto (desde Python,
     para no pelearnos con heredocs/comillas en el bash del setup) y los añade
@@ -146,6 +194,9 @@ def _write_project_files(project_dir: str, prov: dict) -> None:
     except Exception:
         pass
 
+    ux_pack_name = prov.get("ux_pack_name") or ""
+    ux_pack_info = prov.get("ux_pack") or {}
+    pack_section = _ux_pack_doc(ux_pack_name, ux_pack_info, prov)
     doc = f"""# WordPress de desarrollo (Docker) — ya instalado y funcional
 
 ThemeForge ha levantado WordPress + MariaDB en Docker y **ha instalado WordPress**.
@@ -155,6 +206,8 @@ ThemeForge ha levantado WordPress + MariaDB en Docker y **ha instalado WordPress
 - Admin:  {prov["url"]}/wp-admin  (usuario: `{prov["admin_user"]}` · contraseña: `{prov["admin_password"]}`)
 - Tu {kind} está montado en `wp-content/{"themes" if kind == "theme" else "plugins"}/{slug}` —
   lo que edites aquí se ve en vivo en el WordPress del preview.
+- **Autologueado como admin** desde localhost (mu-plugin de ThemeForge): abre la URL del
+  preview y entras directo al wp-admin.
 
 ## Activar tu {kind}
 
@@ -165,6 +218,24 @@ Cuando tenga su cabecera ({"style.css" if kind == "theme" else "cabecera de plug
 ```
 
 `./wp` ejecuta wp-cli dentro del contenedor. Ej.: `./wp {kind} list`, `./wp option get siteurl`.
+{pack_section}
+## MCPs disponibles para operar WordPress vía IA
+
+- **`wordpress`** (en `.mcp.json` ya configurado) — bridge oficial de Automattic
+  (`@automattic/mcp-wordpress-remote`) usando application password. Te da posts,
+  páginas, media, opciones, customizer, usuarios nativos via MCP.
+- **Royal MCP** — *instalado* (en wp-content/plugins). Para activarlo en `.mcp.json`:
+  1. Ve a `{prov["url"]}/wp-admin/admin.php?page=royal-mcp` y genera una API key.
+  2. Añade al `.mcp.json` (sustituye `YOUR_KEY`):
+     ```json
+     "royal-mcp": {{
+       "url": "{prov["url"]}/wp-json/royal-mcp/v1/mcp",
+       "headers": {{ "X-Royal-MCP-Key": "YOUR_KEY" }}
+     }}
+     ```
+- **Novamira Pro** — si lo declaraste en `wp_packs.json` y se instaló (ver sección de
+  pack arriba), copia la configuración exacta desde el plugin
+  (`{prov["url"]}/wp-admin/admin.php?page=novamira-pro`) y pégala en `.mcp.json`.
 
 ## Gestionar el entorno
 
@@ -291,31 +362,78 @@ def _configure_wp(wp: str, net: str, db_pw: str, port: int, slug: str, admin_pw:
     }
 
 
-# ─── UX packs: plugins/temas que diferencian wordpress-block vs -bricks ──
+# ─── UX packs: plugins/temas por builder de WordPress ──────────────────
 #
-# Plugins del repo oficial (gratis) — wp-cli los baja por slug. Los
-# premium (Bricks parent, Bricksforge, JetEngine, ACF Pro, Novamira Pro,
-# Motion.page) requieren licencia y los declara el usuario en
-# ~/.config/themeforge/wp_packs.json (gitignored, NUNCA al repo público).
+# Cada pack define lo que ThemeForge instala automáticamente en el WP de
+# Docker para que el agente trabaje sobre la combinación builder+plugins
+# correcta. Los plugins/themes free vienen del repo oficial vía wp-cli; los
+# premium (Bricks, Elementor Pro, Divi, Breakdance Pro, JetEngine,
+# Bricksforge, Novamira Pro, ACF Pro, Motion.page, etc.) requieren licencia
+# y los declara el usuario en ~/.config/themeforge/wp_packs.json
+# (gitignored, NUNCA al repo público).
+#
+# Estructura por pack:
+#   "themes":  [(slug, label), ...]   — parent themes (no se activan; los
+#                                       activa el child de ThemeForge).
+#   "plugins": [(slug, label), ...]   — plugins activados automáticamente.
 
-FREE_PLUGINS_BY_PACK: dict[str, list[tuple[str, str]]] = {
-    # Pack A — FSE (block theme nativo, sin builder).
-    "fse": [
-        ("generateblocks", "GenerateBlocks"),
-        ("ultimate-addons-for-gutenberg", "Spectra"),
-        ("advanced-custom-fields", "ACF (free)"),
-        ("pods", "Pods"),
-        ("royal-mcp", "Royal MCP"),
-    ],
-    # Pack B — Bricks Builder (child theme + Bricks como parent).
-    # GreenShift complementa con animaciones/dynamic data sin builder propio.
-    "bricks": [
-        ("greenshift-animation-and-page-builder-blocks", "GreenShift"),
-        ("advanced-custom-fields", "ACF (free)"),
-        ("pods", "Pods"),
-        ("royal-mcp", "Royal MCP"),
-    ],
+FREE_PACKS: dict[str, dict] = {
+    # Pack — FSE (block theme nativo, sin builder externo).
+    "fse": {
+        "themes": [],
+        "plugins": [
+            ("generateblocks", "GenerateBlocks"),
+            ("ultimate-addons-for-gutenberg", "Spectra"),
+            ("advanced-custom-fields", "ACF (free)"),
+            ("pods", "Pods"),
+            ("royal-mcp", "Royal MCP"),
+        ],
+    },
+    # Pack — Bricks Builder (child theme + Bricks parent via premium config).
+    "bricks": {
+        "themes": [],  # Bricks parent viene SIEMPRE de wp_packs.json (paid).
+        "plugins": [
+            ("greenshift-animation-and-page-builder-blocks", "GreenShift"),
+            ("advanced-custom-fields", "ACF (free)"),
+            ("pods", "Pods"),
+            ("royal-mcp", "Royal MCP"),
+        ],
+    },
+    # Pack — Elementor (child theme de Hello Elementor + Elementor free).
+    "elementor": {
+        "themes": [("hello-elementor", "Hello Elementor")],
+        "plugins": [
+            ("elementor", "Elementor (free)"),
+            ("essential-addons-for-elementor-lite", "Essential Addons Lite"),
+            ("advanced-custom-fields", "ACF (free)"),
+            ("pods", "Pods"),
+            ("royal-mcp", "Royal MCP"),
+        ],
+    },
+    # Pack — Divi (child theme + Divi parent via premium config).
+    "divi": {
+        "themes": [],  # Divi parent es paid; viene de wp_packs.json.
+        "plugins": [
+            ("advanced-custom-fields", "ACF (free)"),
+            ("pods", "Pods"),
+            ("royal-mcp", "Royal MCP"),
+        ],
+    },
+    # Pack — Breakdance (plugin que reemplaza el render; theme base mínimo).
+    "breakdance": {
+        "themes": [("kadence", "Kadence (base theme)")],
+        "plugins": [
+            ("breakdance", "Breakdance (free)"),
+            ("advanced-custom-fields", "ACF (free)"),
+            ("pods", "Pods"),
+            ("royal-mcp", "Royal MCP"),
+        ],
+    },
 }
+
+# Packs cuyo theme del proyecto es un child theme que activamos solo cuando
+# el parent está disponible. FSE es standalone (no child).
+_CHILD_THEME_PACKS = {"bricks", "elementor", "divi", "breakdance"}
 
 WP_PACKS_CONFIG_FILE = CONFIG_DIR / "wp_packs.json"
 
@@ -362,52 +480,79 @@ def _wp_cp_into_container(wp_container: str, local_path: Path) -> str | None:
 def _install_ux_pack(
     wp_container: str, net: str, db_pw: str, pack: str | None, slug: str
 ) -> dict:
-    """Instala el set de plugins/tema del UX pack en el WP del contenedor.
-    Devuelve un dict con lo que se ha instalado y lo que faltaba.
-    No-fatal: cualquier fallo de plugin individual se ignora."""
-    out: dict = {"pack": pack, "free": [], "premium": [], "missing": [], "theme": None}
-    if not pack or pack not in FREE_PLUGINS_BY_PACK:
+    """Instala el set de themes + plugins del UX pack en el WP del contenedor.
+    Devuelve un dict con todo lo instalado y lo que faltaba (por nombre).
+    No-fatal: cualquier fallo individual se ignora.
+
+    Para los packs de **child theme** (bricks/elementor/divi/breakdance), al
+    final intenta activar el child theme del proyecto. Si el parent está
+    presente (vía free pack o vía wp_packs.json), el preview pasa a renderizar
+    el sitio con el child encima del builder elegido."""
+    out: dict = {
+        "pack": pack,
+        "themes_free": [],
+        "plugins_free": [],
+        "themes_premium": [],
+        "plugins_premium": [],
+        "missing": [],
+        "child_theme_active": False,
+    }
+    if not pack or pack not in FREE_PACKS:
         return out
 
-    # 1) Plugins gratis del repo oficial.
-    for plugin_slug, label in FREE_PLUGINS_BY_PACK[pack]:
+    pack_data = FREE_PACKS[pack]
+
+    # 1) Free themes del repo (parent themes para child theme). Solo install,
+    #    sin activar — el child theme del proyecto se activa al final.
+    for theme_slug, label in pack_data.get("themes", []):
         try:
-            r = _wpcli(wp_container, net, db_pw, "plugin", "install", plugin_slug, "--activate", timeout=300)
+            r = _wpcli(wp_container, net, db_pw, "theme", "install", theme_slug, timeout=300)
             if r.returncode == 0:
-                out["free"].append(label)
+                out["themes_free"].append(label)
         except Exception:
             pass
 
-    # 2) Premium (theme + plugins) del config local del usuario.
-    cfg = _load_wp_packs_config().get(pack, {})
+    # 2) Free plugins del repo (activados).
+    for plugin_slug, label in pack_data.get("plugins", []):
+        try:
+            r = _wpcli(wp_container, net, db_pw, "plugin", "install", plugin_slug, "--activate", timeout=300)
+            if r.returncode == 0:
+                out["plugins_free"].append(label)
+        except Exception:
+            pass
 
-    # 2a) Premium THEME (Bricks parent, etc.). Solo aplica al pack «bricks».
+    # 3) Premium (theme + plugins) desde wp_packs.json del usuario.
+    cfg = _load_wp_packs_config().get(pack, {}) if isinstance(_load_wp_packs_config(), dict) else {}
+
+    # 3a) Premium THEME (Bricks parent, Divi parent, etc.).
     theme_entry = cfg.get("theme") if isinstance(cfg, dict) else None
-    if theme_entry:
+    if theme_entry and theme_entry.get("zip"):
         zip_src = theme_entry.get("zip", "")
-        theme_name = theme_entry.get("name") or ""
-        activate = bool(theme_entry.get("activate", True))
-        installed = _install_zip(wp_container, net, db_pw, zip_src, kind="theme", activate=activate)
-        if installed:
-            out["theme"] = theme_name or "premium-theme"
-            # Si el theme padre está, activamos el child del usuario para
-            # que el preview ya muestre el sitio con el child encima.
-            if pack == "bricks":
-                try:
-                    _wpcli(wp_container, net, db_pw, "theme", "activate", slug)
-                except Exception:
-                    pass
+        theme_name = theme_entry.get("name") or "premium-theme"
+        # No lo activamos: lo activará el child theme del proyecto.
+        if _install_zip(wp_container, net, db_pw, zip_src, kind="theme", activate=False):
+            out["themes_premium"].append(theme_name)
         else:
-            out["missing"].append(theme_name or "premium theme")
+            out["missing"].append(theme_name)
 
-    # 2b) Premium PLUGINS.
+    # 3b) Premium PLUGINS.
     for entry in (cfg.get("plugins") or []):
         zip_src = entry.get("zip", "")
         name = entry.get("name") or "premium-plugin"
+        if not zip_src:
+            continue
         if _install_zip(wp_container, net, db_pw, zip_src, kind="plugin", activate=True):
-            out["premium"].append(name)
+            out["plugins_premium"].append(name)
         else:
             out["missing"].append(name)
+
+    # 4) Activar el child theme del proyecto si toca (parent debe existir).
+    if pack in _CHILD_THEME_PACKS:
+        try:
+            r = _wpcli(wp_container, net, db_pw, "theme", "activate", slug, timeout=120)
+            out["child_theme_active"] = (r.returncode == 0)
+        except Exception:
+            pass
 
     return out
 

@@ -159,6 +159,152 @@ STACKS = {
         "ux_pack": "bricks",
         "notes": "Child theme de Bricks Builder. Pack UX «Bricks»: ThemeForge auto-instala los gratis (GreenShift, ACF, Pods, Royal MCP). Premium (Bricks parent theme, Bricksforge, JetEngine, Novamira Pro, Motion.page) requieren licencia y se autoinstalan si los declaras en ~/.config/themeforge/wp_packs.json (gitignored, NUNCA al repo). Sin la licencia de Bricks, sube bricks.zip a mano y activa el child theme luego.",
     },
+    "wordpress-elementor": {
+        "name": "WordPress (Elementor Child Theme)",
+        "category": "CMS · WordPress",
+        "language": "PHP",
+        "scaffold": [
+            'cat > style.css <<\'THEMEFORGE_EOF\'\n'
+            '/*\n'
+            'Theme Name: __PROJECT__ (Elementor child)\n'
+            'Template: hello-elementor\n'
+            'Description: Child theme de Hello Elementor + Elementor (Pro opcional), generado por ThemeForge.\n'
+            'Version: 0.1.0\n'
+            'Text Domain: __SLUG__\n'
+            'License: GPLv2 or later\n'
+            'Requires at least: 6.7\n'
+            'Requires PHP: 8.0\n'
+            '*/\n'
+            'THEMEFORGE_EOF',
+            'cat > functions.php <<\'THEMEFORGE_EOF\'\n'
+            '<?php\n'
+            "if (!defined('ABSPATH')) { exit; }\n"
+            '\n'
+            "add_action('wp_enqueue_scripts', function () {\n"
+            "    wp_enqueue_style('__SLUG___parent', get_template_directory_uri() . '/style.css');\n"
+            "    wp_enqueue_style('__SLUG___child', get_stylesheet_uri(), ['__SLUG___parent'], '0.1.0');\n"
+            "}, 20);\n"
+            'THEMEFORGE_EOF',
+            "mkdir -p assets/css assets/js assets/images "
+            "elementor-templates/header elementor-templates/footer "
+            "elementor-templates/single elementor-templates/archive "
+            "elementor-templates/page elementor-templates/popups "
+            "elementor-templates/kits includes",
+            'cat > README.md <<\'THEMEFORGE_EOF\'\n'
+            '# __PROJECT__ — Child theme de Elementor (Hello Elementor parent)\n'
+            '\n'
+            'Stack: Elementor + Hello Elementor (free) o Elementor Pro (paid).\n'
+            'Plugins típicos: ACF, Pods, Essential Addons, JetEngine (paid), Royal MCP, Novamira Pro (paid).\n'
+            '\n'
+            '## Flujo\n'
+            '1. ThemeForge instala Hello Elementor + Elementor free + Essential Addons Lite + ACF + Pods + Royal MCP.\n'
+            '   Elementor Pro y JetEngine via `wp_packs.json` si los tienes.\n'
+            '2. Diseña con Elementor en /wp-admin/ (autologueado).\n'
+            '3. Templates (header/footer/single/archive/page/popup) + Kits (paletas, tipografía global) se exportan\n'
+            '   vía Elementor → Templates → Export y se commitean en `elementor-templates/`.\n'
+            '4. CSS/JS/hooks del child van en `assets/` + `functions.php`.\n'
+            'THEMEFORGE_EOF',
+        ],
+        "min_version": "WordPress 6.7+ / PHP 8.0 / Elementor",
+        "skills": ["wordpress/skills/block-theme-development"],
+        "ux_pack": "elementor",
+        "notes": "Child theme de Hello Elementor + Elementor. Pack UX «Elementor»: free auto-install (Hello Elementor + Elementor free + Essential Addons Lite + ACF + Pods + Royal MCP). Premium (Elementor Pro, JetEngine, Motion.page, Novamira Pro) via wp_packs.json.",
+    },
+    "wordpress-divi": {
+        "name": "WordPress (Divi Child Theme)",
+        "category": "CMS · WordPress",
+        "language": "PHP",
+        "scaffold": [
+            'cat > style.css <<\'THEMEFORGE_EOF\'\n'
+            '/*\n'
+            'Theme Name: __PROJECT__ (Divi child)\n'
+            'Template: Divi\n'
+            'Description: Child theme de Divi (Elegant Themes) generado por ThemeForge.\n'
+            'Version: 0.1.0\n'
+            'Text Domain: __SLUG__\n'
+            'License: GPLv2 or later\n'
+            'Requires at least: 6.7\n'
+            'Requires PHP: 8.0\n'
+            '*/\n'
+            'THEMEFORGE_EOF',
+            'cat > functions.php <<\'THEMEFORGE_EOF\'\n'
+            '<?php\n'
+            "if (!defined('ABSPATH')) { exit; }\n"
+            '\n'
+            "add_action('wp_enqueue_scripts', function () {\n"
+            "    wp_enqueue_style('__SLUG___parent', get_template_directory_uri() . '/style.css');\n"
+            "    wp_enqueue_style('__SLUG___child', get_stylesheet_uri(), ['__SLUG___parent'], '0.1.0');\n"
+            "}, 20);\n"
+            'THEMEFORGE_EOF',
+            "mkdir -p assets/css assets/js assets/images "
+            "divi-layouts/header divi-layouts/footer divi-layouts/single "
+            "divi-layouts/archive divi-layouts/page divi-layouts/modules "
+            "includes",
+            'cat > README.md <<\'THEMEFORGE_EOF\'\n'
+            '# __PROJECT__ — Child theme de Divi\n'
+            '\n'
+            'Stack: Divi 5 (Elegant Themes, paid). Plugins típicos: ACF, Pods, Royal MCP, Novamira Pro (paid).\n'
+            '\n'
+            '## Flujo\n'
+            '1. Declara el ZIP de Divi en wp_packs.json > divi > theme para auto-instalación.\n'
+            '2. Diseña con Divi Builder. Exporta layouts vía Divi → Library → Export a JSON.\n'
+            '3. Commitea los JSON en `divi-layouts/`.\n'
+            'THEMEFORGE_EOF',
+        ],
+        "min_version": "WordPress 6.7+ / PHP 8.0 / Divi (licencia aparte)",
+        "skills": ["wordpress/skills/block-theme-development"],
+        "ux_pack": "divi",
+        "notes": "Child theme de Divi. Pack UX «Divi»: free auto-install (ACF + Pods + Royal MCP). Premium (Divi parent theme, Novamira Pro) via wp_packs.json.",
+    },
+    "wordpress-breakdance": {
+        "name": "WordPress (Breakdance Theme)",
+        "category": "CMS · WordPress",
+        "language": "PHP",
+        "scaffold": [
+            'cat > style.css <<\'THEMEFORGE_EOF\'\n'
+            '/*\n'
+            'Theme Name: __PROJECT__ (Breakdance child)\n'
+            'Template: kadence\n'
+            'Description: Child theme base con Breakdance plugin (render engine).\n'
+            'Version: 0.1.0\n'
+            'Text Domain: __SLUG__\n'
+            'License: GPLv2 or later\n'
+            'Requires at least: 6.7\n'
+            'Requires PHP: 8.0\n'
+            '*/\n'
+            'THEMEFORGE_EOF',
+            'cat > functions.php <<\'THEMEFORGE_EOF\'\n'
+            '<?php\n'
+            "if (!defined('ABSPATH')) { exit; }\n"
+            '\n'
+            "add_action('wp_enqueue_scripts', function () {\n"
+            "    wp_enqueue_style('__SLUG___parent', get_template_directory_uri() . '/style.css');\n"
+            "    wp_enqueue_style('__SLUG___child', get_stylesheet_uri(), ['__SLUG___parent'], '0.1.0');\n"
+            "}, 20);\n"
+            'THEMEFORGE_EOF',
+            "mkdir -p assets/css assets/js assets/images "
+            "breakdance-templates/global breakdance-templates/headers "
+            "breakdance-templates/footers breakdance-templates/popups "
+            "breakdance-templates/singles breakdance-templates/archives "
+            "includes",
+            'cat > README.md <<\'THEMEFORGE_EOF\'\n'
+            '# __PROJECT__ — Breakdance template (child de Kadence)\n'
+            '\n'
+            'Stack: Breakdance (plugin, free + Pro opcional) sobre Kadence como theme base.\n'
+            'Breakdance reemplaza el render del front; el theme base solo sirve para wp-admin y fallback.\n'
+            '\n'
+            '## Flujo\n'
+            '1. ThemeForge instala Kadence + Breakdance free + ACF + Pods + Royal MCP.\n'
+            '2. Breakdance Pro y plugins paid (en wp_packs.json > breakdance > plugins).\n'
+            '3. Diseña con Breakdance. Exporta global settings / headers / footers / popups\n'
+            '   vía Breakdance → Templates → Export y commitea en `breakdance-templates/`.\n'
+            'THEMEFORGE_EOF',
+        ],
+        "min_version": "WordPress 6.7+ / PHP 8.0 / Breakdance",
+        "skills": ["wordpress/skills/block-theme-development"],
+        "ux_pack": "breakdance",
+        "notes": "Child theme de Kadence con Breakdance como engine de render. Pack UX «Breakdance»: free auto-install (Kadence + Breakdance + ACF + Pods + Royal MCP). Breakdance Pro y plugins paid via wp_packs.json.",
+    },
     "wordpress-plugin": {
         "name": "WordPress Plugin (PHP 8.2)",
         "category": "CMS · WordPress",

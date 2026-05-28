@@ -977,7 +977,10 @@ def _read_context(name: str) -> str:
 # un PHP Script/SaaS caía en el checklist de Site Template estático y el agente
 # se bloqueaba ante la contradicción.
 _FORMAT_MOBILE = {"expo-rn-nativewind", "expo-rn-router", "flutter", "ionic-capacitor", "kotlin-compose"}
-_FORMAT_WORDPRESS = {"wordpress-block", "wordpress-bricks", "wordpress-plugin"}
+_FORMAT_WORDPRESS = {
+    "wordpress-block", "wordpress-bricks", "wordpress-elementor",
+    "wordpress-divi", "wordpress-breakdance", "wordpress-plugin",
+}
 _FORMAT_SCRIPT_APP = {
     "laravel-inertia", "nestjs-prisma", "fastapi", "django-tailwind", "t3-stack",
     "hono-bun", "hono-cloudflare", "phoenix-liveview", "rails-tailwind", "go-fiber",
@@ -987,6 +990,97 @@ _FORMAT_SCRIPT_APP = {
     "nuxt-tailwind", "sveltekit-tailwind", "remix-tailwind", "solidstart-tailwind",
     "qwik-tailwind", "tauri-react", "electron-react",
 }
+
+
+_WP_BUILDER_CONTEXT = {
+    "wordpress-block": """### Builder activo: **FSE (block theme nativo)** — sin builder externo
+
+Diseña con bloques nativos de Gutenberg. La estructura del theme:
+
+- `theme.json` — design tokens (palette/typography/spacing). El equivalente al
+  `:root` CSS del diseño. Cualquier color o tipografía global vive aquí.
+- `templates/*.html` — templates (index, single, archive, page, 404…) en
+  Block Markup (`<!-- wp:... -->`).
+- `parts/*.html` — template parts reutilizables (header, footer, sidebar).
+- `patterns/*.php` — patrones reutilizables registrados con `register_block_pattern`.
+
+Plugins instalados (free): **GenerateBlocks** (containers/grid/headlines de
+performance) · **Spectra** (25+ bloques avanzados) · **ACF (free)** · **Pods**
+(CPT + fields) · **Royal MCP**.""",
+    "wordpress-bricks": """### Builder activo: **Bricks Builder** (parent theme)
+
+El proyecto es un **child theme** que declara `Template: bricks` en `style.css`.
+Bricks (parent) viene de `wp_packs.json` si tienes licencia; si no, súbelo a
+mano a Apariencia → Temas → Subir y activa este child theme.
+
+- Diseña en `/wp-admin/admin.php?page=bricks` (Bricks → Templates).
+- Cada template (header / footer / single / archive / page / popup) se **exporta
+  a JSON** vía *Bricks → Templates → Export* y se commitea en `bricks-templates/`.
+- **Global Classes** y **Theme Styles** (paleta, tipografía, spacing) se exportan
+  igual y entran como un único *Theme Style export*.
+- CSS / JS / hooks PHP del child theme van en `assets/` y `functions.php`.
+
+Plugins instalados (free): **GreenShift** (animations + dynamic data) · **ACF** ·
+**Pods** · **Royal MCP**. Premium (si en `wp_packs.json`): **Bricksforge**
+(interactivos avanzados), **JetEngine** (Listings + Query Builder), **Motion.page**
+(GSAP visual), **Novamira Pro** (MCP que controla Bricks nativamente).""",
+    "wordpress-elementor": """### Builder activo: **Elementor** (sobre Hello Elementor)
+
+El proyecto es un **child theme** que declara `Template: hello-elementor`. El parent
+y Elementor free los instala ThemeForge solos.
+
+- Diseña en `/wp-admin/admin.php?page=elementor_app/templates` y en la edición de
+  páginas (botón "Editar con Elementor").
+- Cada template (header / footer / single / archive / page / popup) se **exporta a
+  JSON** vía *Plantillas → Mis plantillas → Exportar* y se commitea en
+  `elementor-templates/`. Los **Kits** (paleta, tipografía, layout globals) van en
+  `elementor-templates/kits/` (exportar desde *Site Settings → Export Site Kit*).
+- CSS/JS/hooks del child en `assets/` + `functions.php`.
+
+Plugins instalados (free): **Elementor** · **Essential Addons Lite** · **ACF (free)** ·
+**Pods** · **Royal MCP**. Premium (si en `wp_packs.json`): **Elementor Pro** (theme
+builder + custom CSS por widget + popups), **JetEngine**, **Motion.page**,
+**Novamira Pro** (MCP con conocimiento de widgets atómicos v3→v4).""",
+    "wordpress-divi": """### Builder activo: **Divi** (Elegant Themes)
+
+El proyecto es un **child theme** que declara `Template: Divi`. Divi parent
+viene de `wp_packs.json` (es paid: requiere zip propio).
+
+- Diseña con *Divi Builder* en cualquier página. Exporta layouts vía
+  *Divi → Library → Export* a JSON. Commitea en `divi-layouts/`.
+- Theme options globales (paleta, tipografía): *Divi → Theme Options* + export.
+- CSS/JS/hooks del child en `assets/` + `functions.php`.
+
+Plugins instalados (free): **ACF (free)** · **Pods** · **Royal MCP**. Premium
+(si en `wp_packs.json`): **Divi parent theme** (obligatorio para activar el
+child), **Novamira Pro** (MCP con soporte Divi 4/5).""",
+    "wordpress-breakdance": """### Builder activo: **Breakdance** (plugin de render)
+
+A diferencia de los anteriores, Breakdance es un **plugin** que reemplaza el
+render del front. El theme base es **Kadence** (free, lo instala ThemeForge),
+sirve solo de fallback / wp-admin. El proyecto es un child theme de Kadence.
+
+- Diseña en `/wp-admin/admin.php?page=breakdance_settings` y *Breakdance →
+  Templates*. Exporta global settings, headers, footers, popups, singles y
+  archives a JSON vía *Breakdance → Templates → Export* y commitea en
+  `breakdance-templates/`.
+- Theme base sirve solo para wp-admin y fallback de páginas no editadas con BD.
+- CSS/JS/hooks del child en `assets/` + `functions.php`.
+
+Plugins instalados (free): **Breakdance** · **ACF (free)** · **Pods** ·
+**Royal MCP**. Premium (si en `wp_packs.json`): **Breakdance Pro** (más
+elementos), **JetEngine**, **Novamira Pro**.""",
+    "wordpress-plugin": """### Stack: **plugin de WordPress (PHP 8.2 + PSR-4 + Vite)**
+
+Stack para CodeCanyon (Script/App): plugin PHP que añade funcionalidad.
+Ver scaffold completo en `composer.json` + `src/` (Admin/Frontend/Core/Database).
+No hay builder externo; trabajas con PHP, JS/Vue y bloques propios si necesitas UI editorial.""",
+}
+
+
+def _wp_builder_context(stack_key: str) -> str:
+    """Bloque de contexto específico del builder para el CLAUDE.md del proyecto."""
+    return _WP_BUILDER_CONTEXT.get(stack_key, "")
 
 
 def product_format_for(stack_key: str) -> str:
@@ -1068,6 +1162,7 @@ def render_context(
     if product_format == "wordpress":
         wp_kind = "plugin" if stack_key == "wordpress-plugin" else "theme"
         wp_dir = "themes" if wp_kind == "theme" else "plugins"
+        builder_block = _wp_builder_context(stack_key)
         wp_dev_block = f"""
 ## Entorno WordPress (Docker) — YA INSTALADO Y FUNCIONAL
 
@@ -1079,10 +1174,25 @@ WordPress en vivo** — NO tienes que instalar, configurar ni levantar nada.
 - Tu {wp_kind} está montado en `wp-content/{wp_dir}/<slug>`: lo que escribas se ve en vivo.
 - Hay un helper **`./wp`** (wp-cli dentro del contenedor). Activa tu {wp_kind} cuando tenga
   su cabecera: `./wp {wp_kind} activate <slug>`.
-- **MCP de WordPress activo** (`.mcp.json` → bridge oficial de Automattic): tienes herramientas
-  MCP nativas para operar WordPress en vivo (posts, páginas, opciones, customizer…). Úsalo
-  además de las **skills de WordPress** (`.claude/skills/`: wp-block-themes, wp-rest-api…)
-  que te dan el know-how de desarrollo.
+- **Autologueado como admin** en `localhost` (mu-plugin de ThemeForge): abre el preview y vas
+  directo al wp-admin sin formulario.
+
+### MCPs disponibles para operar WordPress
+
+- **`wordpress`** (bridge oficial de Automattic vía `.mcp.json`) — control nativo del core:
+  posts, páginas, media, opciones, customizer, usuarios. Úsalo para todo lo que sea CRUD WP.
+- **Royal MCP** (instalado en el WP, free) — 67 operaciones con auth + audit log; soporta
+  meta de ACF/MetaBox/JetEngine/Pods/CPT UI y term meta de Yoast/Rank Math/AIOSEO.
+  Para wirearlo, ver `WORDPRESS-DEV.md` (genera API key en wp-admin → Royal MCP).
+- **Novamira Pro** (premium, si declarado en `wp_packs.json`) — el único que entiende
+  estructura interna de los builders: widgets atómicos de Elementor, templates de Bricks,
+  layouts de Divi, plus ACF/JetEngine/Meta Box/Pods. Configuración exacta desde
+  wp-admin → Novamira → AI Agent Setup.
+
+Combina con las **skills de WordPress** (`.claude/skills/`: wp-block-themes, wp-rest-api…)
+que te dan el know-how de desarrollo.
+
+{builder_block}
 
 ⚠️ **NO** ejecutes `wp core install`, ni levantes otro WordPress, ni edites `wp-config.php`:
 ya está corriendo y servido en el preview. Trabaja directamente sobre tu {wp_kind}.
@@ -1857,7 +1967,7 @@ def write_setup_script(
     # ── WordPress dev env (Docker) — SOLO stacks WordPress, ANTES de todo lo
     #    demás. Levanta WP + MariaDB, instala WP (admin/admin) y monta el
     #    proyecto en wp-content. No-fatal: si docker falla, el setup sigue.
-    if stack_key in ("wordpress-block", "wordpress-bricks", "wordpress-plugin"):
+    if stack_key in _FORMAT_WORDPRESS:
         wp_kind = "plugin" if stack_key == "wordpress-plugin" else "theme"
         # ux_pack viene del stack (fse | bricks). Si no, "-" para que la CLI
         # del provisioner lo interprete como None.
@@ -2069,7 +2179,7 @@ def write_setup_script(
     parts.append('DB_KIND=$(python3 -m db_provisioner detect "$(pwd)" 2>/dev/null || true)')
     # WordPress trae su propia MariaDB (en el contenedor de wp_provisioner),
     # así que NO forzamos Postgres aunque el checkbox esté marcado.
-    if force_postgres and stack_key not in ("wordpress-block", "wordpress-bricks", "wordpress-plugin"):
+    if force_postgres and stack_key not in _FORMAT_WORDPRESS:
         parts.append('# Override: el usuario marcó "Provisionar Postgres" en la UI')
         parts.append('if [ -z "$DB_KIND" ]; then')
         parts.append('  echo "  (No detectada en archivos, pero forzada por checkbox UI)"')
@@ -3725,7 +3835,7 @@ class ThemeForge(QWidget):
         # WP en Docker funciona aunque no se haya analizado con IA.
         if (mode == "recreate" and not self._stack_manually_set
                 and ref_kind in ("folder", "zip") and ref_val
-                and stack_key not in ("wordpress-block", "wordpress-bricks", "wordpress-plugin")):
+                and stack_key not in _FORMAT_WORDPRESS):
             try:
                 from reference_analyzer import detect_wordpress_stack
                 _wp = detect_wordpress_stack(Path(ref_val))
