@@ -1530,7 +1530,26 @@ STACKS = {
             "[ -f bin/magento ] || echo '⚠️  bin/magento no encontrado — instala Magento 2.4.8+ ANTES de continuar'",
             # Composer require del parent Hyvä (gratis desde Nov 2025, OSL 3.0)
             "composer require hyva-themes/magento2-default-theme hyva-themes/magento2-theme-module --no-interaction || \\\n"
-            "  echo '⚠️  composer require falló — necesitas key Hyvä gratis (hyva.io account → packagist credentials)'",
+            "  echo '⚠️  composer require Hyvä falló — necesitas key Hyvä gratis (hyva.io account → packagist credentials)'",
+            # Freento MCP — server MCP nativo para Magento 2 (MIT)
+            "composer require freento/module-mcp --no-interaction || \\\n"
+            "  echo '⚠️  composer require Freento MCP falló — instálalo a mano si quieres conectar la IA al store'",
+            "[ -f bin/magento ] && bin/magento module:enable Freento_Mcp 2>&1 | head -5 || true",
+            "[ -f bin/magento ] && bin/magento setup:upgrade --keep-generated 2>&1 | tail -3 || true",
+            "[ -f bin/magento ] && bin/magento cache:flush 2>&1 | tail -3 || true",
+            # .mcp.json con el Freento MCP — placeholders YOUR-STORE + YOUR_TOKEN
+            'cat > .mcp.json <<\'THEMEFORGE_EOF\'\n'
+            '{\n'
+            '  "mcpServers": {\n'
+            '    "magento": {\n'
+            '      "type": "http",\n'
+            '      "url": "https://YOUR-STORE.com/freento_mcp/index/index",\n'
+            '      "headers": { "Authorization": "Bearer YOUR_ACCESS_TOKEN" },\n'
+            '      "_doc": "Freento MCP (MIT) — Magento 2 store como MCP server. Genera el token en Admin → System → Freento MCP → AI MCP Clients."\n'
+            '    }\n'
+            '  }\n'
+            '}\n'
+            'THEMEFORGE_EOF',
             # Crear estructura del child theme
             "mkdir -p app/design/frontend/Pcreative/__SLUG__/{etc,web/{css/source,tailwind,images},Magento_Theme/layout,Magento_Catalog/templates/product}",
             # registration.php
@@ -1712,6 +1731,47 @@ STACKS = {
             '```\n'
             '\n'
             'Luego edita libremente.\n'
+            '\n'
+            '## MCP — Freento MCP server para Magento 2 (MIT)\n'
+            '\n'
+            'ThemeForge ha instalado el módulo `freento/module-mcp` automáticamente.\n'
+            'Esto convierte tu Magento en un **MCP server HTTP**: la IA (Claude\n'
+            'Code, Cursor, Windsurf) puede consultar productos, órdenes,\n'
+            'inventario, clientes, admins y system health del store con lenguaje\n'
+            'natural.\n'
+            '\n'
+            'Tools disponibles: orders, quotes, credit memos, products, stock,\n'
+            'customers, admin users, system status.\n'
+            '\n'
+            '### Setup OAuth (3 pasos en Admin)\n'
+            '\n'
+            '1. **System → Freento MCP → ACL Rules** → Add New Role → marca los\n'
+            '   tools que quieras exponer (sales / catalog / customer / admin /\n'
+            '   system) → Save.\n'
+            '2. **System → Freento MCP → AI MCP Clients** → Add New Client →\n'
+            '   asigna la Role del paso 1 → Save. Copia el Client ID + Client\n'
+            '   Secret.\n'
+            '3. Abre ese Client → **Generate OTP** (válido 24h) → **Generate\n'
+            '   Token** introduciendo el OTP → copia el **Access Token**.\n'
+            '\n'
+            '### Wire el token en `.mcp.json`\n'
+            '\n'
+            'El scaffold ha dejado un `.mcp.json` con placeholders. Sustituye:\n'
+            '\n'
+            '```json\n'
+            '{\n'
+            '  "mcpServers": {\n'
+            '    "magento": {\n'
+            '      "type": "http",\n'
+            '      "url": "https://tu-store.com/freento_mcp/index/index",\n'
+            '      "headers": { "Authorization": "Bearer EL_TOKEN_DEL_ADMIN" }\n'
+            '    }\n'
+            '  }\n'
+            '}\n'
+            '```\n'
+            '\n'
+            'Reinicia Claude Code (o tu cliente MCP) y ya tienes el store como\n'
+            'tool callable.\n'
             '\n'
             '## Distribución\n'
             '\n'

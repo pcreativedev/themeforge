@@ -309,6 +309,34 @@ CATALOG: list[MCPEntry] = [
             "args": ["__THEMEFORGE_HOME__/mcp_server.py"],
         },
     ),
+
+    # ── Magento ─────────────────────────────────────────────────────
+    MCPEntry(
+        key="magento-freento-mcp",
+        name="Magento 2 (Freento MCP)",
+        license="MIT (per composer.json + packagist)",
+        repo="https://github.com/Freento/Magento-2-Mcp",
+        description=(
+            "Freento MCP — Magento 2 module that exposes the store as an "
+            "MCP server (HTTP + OAuth Bearer). Tools: orders, quotes, "
+            "credit memos, products, stock, customers, admin users, "
+            "system status. Install via `composer require "
+            "freento/module-mcp` + `bin/magento module:enable Freento_Mcp`. "
+            "Configure ACL roles + OAuth client + generate token from "
+            "Admin → System → Freento MCP. Replace YOUR-STORE with your "
+            "Magento URL and YOUR_TOKEN with the bearer issued by the "
+            "Admin → Freento MCP → AI MCP Clients flow."
+        ),
+        relevance=["ecommerce", "magento"],
+        install={
+            "type": "http",
+            "url": "https://YOUR-STORE.com/freento_mcp/index/index",
+            "headers": {
+                "Authorization": "Bearer YOUR_ACCESS_TOKEN"
+            },
+        },
+        requires_auth=True,
+    ),
 ]
 
 
