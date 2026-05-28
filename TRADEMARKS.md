@@ -62,6 +62,19 @@ neither by us of them nor by them of us.
 | Novamira / Novamira Pro | use-novamira | Free version auto-installed from the project's official GitHub releases (AGPL v3). Pro is referenced by name only. |
 | Yoast SEO, Rank Math, AIOSEO | Yoast B.V. / Rank Math / All in One SEO | Mentioned descriptively in scaffold notes (Royal MCP integrates with their term meta). Not installed. |
 
+### Shopify ecosystem
+
+| Mark | Owner | Use in ThemeForge |
+|---|---|---|
+| Shopify® | Shopify Inc. | E-commerce platform that the Shopify stacks (`shopify-liquid`, `shopify-hydrogen`) target. |
+| Liquid® | Shopify Inc. | Templating language used by Online Store 2.0 themes. |
+| Online Store 2.0™ | Shopify Inc. | Theme architecture targeted by `shopify-liquid`. |
+| Dawn | Shopify Inc. | Official reference theme (MIT) used as the starting point of `shopify-liquid` via `shopify theme init --clone-url`. |
+| Hydrogen™ | Shopify Inc. | Headless storefront framework (MIT) used as the starting point of `shopify-hydrogen` via `npm create @shopify/hydrogen`. |
+| Oxygen | Shopify Inc. | Hosting/edge platform for Hydrogen, referenced in scaffold notes. |
+| Polaris® | Shopify Inc. | Design system for Shopify Admin embedded apps, accessible via `@shopify/dev-mcp`. |
+| Shopify CLI | Shopify Inc. | Developer CLI invoked by ThemeForge to scaffold themes. |
+
 ### Marketplaces & ecosystems referenced in market-analysis prompts
 
 | Mark | Owner |

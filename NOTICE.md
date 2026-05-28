@@ -156,6 +156,34 @@ plugins.
 See [`TRADEMARKS.md`](TRADEMARKS.md) for the full trademark notice and
 the legal basis on which third-party names are used.
 
+## Shopify integration
+
+When the user picks one of the Shopify stacks (`shopify-liquid`,
+`shopify-hydrogen`), ThemeForge bootstraps the project by invoking
+official Shopify CLI/scaffolds that **download from Shopify's official
+sources at scaffold time**. None of the following is bundled in this
+repository.
+
+| Item | Source / scaffolder | License | Used by |
+|---|---|---|---|
+| Shopify CLI (`@shopify/cli`) | <https://github.com/Shopify/cli> | MIT | `shopify-liquid` (theme init) |
+| Dawn theme (Shopify's reference OS 2.0 theme) | <https://github.com/Shopify/dawn> | MIT | `shopify-liquid` (cloned as the project starting point — MIT attribution preserved in the cloned repo) |
+| Hydrogen template (`@shopify/create-hydrogen`) | <https://github.com/Shopify/hydrogen> | MIT | `shopify-hydrogen` |
+| Shopify Dev MCP server (`@shopify/dev-mcp`) | <https://github.com/Shopify/dev-mcp> | MIT | both Shopify stacks (Liquid + Hydrogen). Includes Polaris design system. |
+| Storefront MCP (hosted) | <https://shopify.dev/docs/apps/build/storefront-mcp> | Hosted by Shopify on every store, free, zero-auth | both Shopify stacks (the `.mcp.json` points to the user's store URL via HTTP) |
+| Storefront UCP MCP (hosted) | <https://shopify.dev/docs/apps/build/storefront-mcp> | Hosted by Shopify on every store, free, zero-auth | both Shopify stacks |
+| Polaris design system | <https://github.com/Shopify/polaris> | MIT | Available through `@shopify/dev-mcp` (not a separate dependency) |
+
+### About Dawn as a starting point
+
+`shopify-liquid` invokes `shopify theme init --clone-url https://github.com/Shopify/dawn`,
+which performs a `git clone` of the official Dawn repository into the
+new project directory. Dawn is licensed MIT by Shopify and is explicitly
+designed as a starting point for new themes. The cloned project
+retains Dawn's `LICENSE.md` and copyright headers, as MIT requires. AI
+agents using ThemeForge are instructed (via the CLAUDE.md) to
+**personalise and extend** Dawn — not to repackage it as-is.
+
 ## Referenced by name (NOT redistributed)
 
 When the `autoskills` checkbox is enabled and the AI provider supports

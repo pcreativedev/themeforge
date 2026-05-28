@@ -174,19 +174,56 @@ CATALOG: list[MCPEntry] = [
     # ── E-commerce ──────────────────────────────────────────────────
     MCPEntry(
         key="shopify-dev",
-        name="Shopify Dev (official)",
+        name="Shopify Dev (official, includes Polaris)",
         license="MIT (per Shopify open-source standard)",
         repo="https://github.com/Shopify/dev-mcp",
         description=(
             "Shopify's official Dev MCP — admin/storefront/checkout "
-            "API docs, code completion for Liquid templates, theme "
-            "validation."
+            "API docs, GraphQL schema introspection, Liquid types, "
+            "section/block schemas, and Polaris design system for "
+            "embedded apps. STDIO, zero-auth."
         ),
         relevance=["shopify"],
         install={
             "command": "npx",
             "args": ["-y", "@shopify/dev-mcp"],
         },
+    ),
+    MCPEntry(
+        key="shopify-storefront",
+        name="Shopify Storefront MCP (official)",
+        license="Hosted by Shopify (per-store, free, zero-auth)",
+        repo="https://shopify.dev/docs/apps/build/storefront-mcp",
+        description=(
+            "Shopify's official Storefront MCP — HTTP endpoint hosted "
+            "on every Shopify store. Tools: get_cart, update_cart, "
+            "search_shop_policies_and_faqs. Replace YOUR-SHOP with "
+            "your store subdomain."
+        ),
+        relevance=["shopify"],
+        install={
+            "type": "http",
+            "url": "https://YOUR-SHOP.myshopify.com/api/mcp",
+        },
+        requires_auth=False,
+    ),
+    MCPEntry(
+        key="shopify-storefront-catalog",
+        name="Shopify Storefront UCP MCP (official)",
+        license="Hosted by Shopify (per-store, free, zero-auth)",
+        repo="https://shopify.dev/docs/apps/build/storefront-mcp",
+        description=(
+            "Shopify's Unified Commerce Protocol catalog MCP — natural "
+            "language product search and recommendations. Tools: "
+            "search_catalog, lookup_catalog, get_product. Replace "
+            "YOUR-SHOP with your store subdomain."
+        ),
+        relevance=["shopify"],
+        install={
+            "type": "http",
+            "url": "https://YOUR-SHOP.myshopify.com/api/ucp/mcp",
+        },
+        requires_auth=False,
     ),
 
     # ── Databases ───────────────────────────────────────────────────

@@ -473,18 +473,34 @@ STACKS = {
         ),
     },
     "shopify-liquid": {
-        "name": "Shopify Liquid",
+        "name": "Shopify Liquid (Online Store 2.0 + Dawn)",
         "category": "CMS · Shopify",
         "language": "Liquid + JS",
         "scaffold": [
+            # Dawn = el theme oficial de Shopify (MIT). Es la base que usa el
+            # 80%+ del mercado real — partir de aquí ahorra meses y el código
+            # ya cumple Theme Store Quality Guidelines de salida. El agente lo
+            # personaliza/extiende; NO se copia tal cual.
             "npx --yes @shopify/cli@latest theme init . --clone-url https://github.com/Shopify/dawn",
-            # ── .mcp.json con Shopify Dev MCP (STDIO, sin auth) ──────
+            # ── .mcp.json: Shopify Dev MCP (admin/storefront/checkout APIs
+            #    + Polaris) + Storefront MCP (placeholder con tu shop).
+            #    Polaris ya viene integrado en @shopify/dev-mcp — sin flag.
             'cat > .mcp.json <<\'THEMEFORGE_EOF\'\n'
             '{\n'
             '  "mcpServers": {\n'
-            '    "shopify-dev-mcp": {\n'
+            '    "shopify-dev": {\n'
             '      "command": "npx",\n'
             '      "args": ["-y", "@shopify/dev-mcp@latest"]\n'
+            '    },\n'
+            '    "shopify-storefront": {\n'
+            '      "type": "http",\n'
+            '      "url": "https://YOUR-SHOP.myshopify.com/api/mcp",\n'
+            '      "_doc": "Storefront MCP zero-auth. Sustituye YOUR-SHOP por tu dominio. Tools: get_cart, update_cart, search_shop_policies_and_faqs."\n'
+            '    },\n'
+            '    "shopify-storefront-catalog": {\n'
+            '      "type": "http",\n'
+            '      "url": "https://YOUR-SHOP.myshopify.com/api/ucp/mcp",\n'
+            '      "_doc": "Storefront UCP (Unified Commerce Protocol) — catálogo con búsqueda natural. Tools: search_catalog, lookup_catalog, get_product."\n'
             '    }\n'
             '  }\n'
             '}\n'
@@ -533,9 +549,90 @@ STACKS = {
             '- Tienda de desarrollo asociada (Partners → Stores → Add store).\n'
             'THEMEFORGE_EOF',
         ],
-        "min_version": "Online Store 2.0",
+        "min_version": "Online Store 2.0 / Shopify CLI 3.x / Dawn",
         "skills": ["shopify/skills/theme-development"],
-        "notes": "Clonado a partir de Dawn (referencia oficial Shopify). Incluye .mcp.json con @shopify/dev-mcp para que el agente AI tenga acceso a docs/schemas de Liquid, Storefront API y Admin API. Necesitas tienda dev en Shopify Partners para probar con `shopify theme dev`.",
+        "ux_pack": "shopify-liquid",
+        "notes": "Online Store 2.0 sobre Dawn (theme oficial Shopify, MIT) como base. Incluye .mcp.json con (1) Shopify Dev MCP — admin/storefront/checkout API docs + Polaris components, (2) Storefront MCP (zero-auth, sustituye YOUR-SHOP), (3) Storefront UCP MCP (catálogo + búsqueda natural). Necesitas tienda dev en Shopify Partners (gratis) para `shopify theme dev`.",
+    },
+    "shopify-hydrogen": {
+        "name": "Shopify Hydrogen (Remix + React)",
+        "category": "CMS · Shopify",
+        "language": "TypeScript + React",
+        "scaffold": [
+            # Scaffold oficial de Shopify para Hydrogen (template skeleton).
+            # Si no se puede ejecutar el create no-interactivo, el agente
+            # debe correrlo a mano. --quickstart bypasses la mayoría de
+            # prompts; --no-install evita yarn/npm install al arrancar.
+            "npx --yes @shopify/create-hydrogen@latest . --quickstart --no-install || "
+            "(echo 'Fallback: ejecuta a mano `npm create @shopify/hydrogen@latest .` y elige las opciones.' && exit 0)",
+            # ── .mcp.json: mismo set que Liquid + el storefront URL hint ──
+            'cat > .mcp.json <<\'THEMEFORGE_EOF\'\n'
+            '{\n'
+            '  "mcpServers": {\n'
+            '    "shopify-dev": {\n'
+            '      "command": "npx",\n'
+            '      "args": ["-y", "@shopify/dev-mcp@latest"]\n'
+            '    },\n'
+            '    "shopify-storefront": {\n'
+            '      "type": "http",\n'
+            '      "url": "https://YOUR-SHOP.myshopify.com/api/mcp",\n'
+            '      "_doc": "Storefront MCP zero-auth. Sustituye YOUR-SHOP por tu dominio."\n'
+            '    },\n'
+            '    "shopify-storefront-catalog": {\n'
+            '      "type": "http",\n'
+            '      "url": "https://YOUR-SHOP.myshopify.com/api/ucp/mcp",\n'
+            '      "_doc": "Storefront UCP — catálogo con búsqueda natural."\n'
+            '    }\n'
+            '  }\n'
+            '}\n'
+            'THEMEFORGE_EOF',
+            # README-HYDROGEN.md con CLI + workflow
+            'cat > README-HYDROGEN.md <<\'THEMEFORGE_EOF\'\n'
+            '# Hydrogen (Remix + React 19 + Oxygen)\n\n'
+            'Storefront headless de Shopify para tiendas con catálogos\n'
+            'grandes (500+ SKUs), multi-mercado o necesidades visuales\n'
+            'que el theme Liquid no cubre.\n\n'
+            '## Cuándo Hydrogen vs Liquid\n\n'
+            '| Necesidad | Liquid (OS 2.0) | Hydrogen |\n'
+            '|---|---|---|\n'
+            '| Catálogo < 500 SKU | ✅ | ❌ overkill |\n'
+            '| Catálogo 500-5k SKU + filtros complejos | ⚠️ | ✅ |\n'
+            '| Multi-currency / multi-language fuerte | ⚠️ | ✅ |\n'
+            '| Build time (semanas) | 3-8 | 12-20 |\n'
+            '| Lighthouse out-of-box | ~60% pasan CWV | controlable 95+ |\n'
+            '| Curva | media | alta |\n\n'
+            '## Stack\n\n'
+            '- **Remix v3 / React Router v7** (server-driven UI).\n'
+            '- **Oxygen** (deploy edge gratuito de Shopify).\n'
+            '- **Tailwind v4** o CSS Modules a elegir.\n'
+            '- **GraphQL** contra Storefront API (sin REST).\n'
+            '- **Optimistic UI** + nested routing.\n\n'
+            '## Comandos\n\n'
+            '```bash\n'
+            'npm install                         # primera vez\n'
+            'npm run dev                         # http://localhost:3000\n'
+            'npm run build                       # build edge-ready\n'
+            'npm run preview                     # preview build local\n'
+            'npx shopify hydrogen deploy         # deploy a Oxygen\n'
+            'npx shopify hydrogen link           # vincular a tienda\n'
+            '```\n\n'
+            '## MCPs activos\n\n'
+            '- `shopify-dev` — schemas GraphQL Admin/Storefront, Polaris components, Liquid docs (útil para apps).\n'
+            '- `shopify-storefront` — cart + policies + FAQ via lenguaje natural.\n'
+            '- `shopify-storefront-catalog` — búsqueda en catálogo con NL.\n\n'
+            'Sustituye `YOUR-SHOP` en `.mcp.json` por tu dominio (formato `tu-tienda`,\n'
+            'no incluye `.myshopify.com`).\n\n'
+            '## Vender en ThemeForest / Theme Store\n\n'
+            'ThemeForest acepta Hydrogen como categoría aparte (mayor margen,\n'
+            'menos competencia). El Theme Store de Shopify aún no acepta\n'
+            'Hydrogen como tema oficial (sigue siendo Liquid), pero sí como\n'
+            'app/template en marketplaces de partners.\n'
+            'THEMEFORGE_EOF',
+        ],
+        "min_version": "Hydrogen 2026.x / React 19 / Node 22+",
+        "skills": ["shopify/skills/theme-development"],
+        "ux_pack": "shopify-hydrogen",
+        "notes": "Storefront headless con Remix + React + Oxygen. Para catálogos grandes, multi-mercado y diseños premium. Mismo set de MCPs que Liquid. Requiere Node 22+. Deploy a Oxygen (edge gratuito de Shopify) o cualquier provider Node.",
     },
     "html-tailwind": {
         "name": "HTML + Tailwind + Vite",
