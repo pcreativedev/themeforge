@@ -1922,6 +1922,308 @@ STACKS = {
         "ux_pack": "bigcommerce-stencil",
         "notes": "BigCommerce theme stack — Cornerstone (theme oficial MIT) + Stencil CLI. Handlebars + SCSS Citadel (Foundation 5.5). 2º theme store después de Shopify por volumen. Ticket más alto: themes $150-300. Para Theme Store oficial: NO puede ser derivado de Cornerstone (mismo gating que Dawn en Shopify Theme Store).",
     },
+    "prestashop-theme": {
+        "name": "PrestaShop 9 child theme (OSL 3.0)",
+        "category": "E-commerce",
+        "language": "PHP + Smarty",
+        "scaffold": [
+            "echo '→ PrestaShop child theme scaffold (parent: classic)…'",
+            "[ -d themes/classic ] || echo '⚠️  themes/classic no existe. Instala PrestaShop 9.x ANTES de continuar.'",
+            "mkdir -p themes/__SLUG__/config themes/__SLUG__/assets/css themes/__SLUG__/assets/js themes/__SLUG__/assets/img themes/__SLUG__/templates themes/__SLUG__/modules themes/__SLUG__/_dev",
+            'cat > themes/__SLUG__/config/theme.yml <<\'THEMEFORGE_EOF\'\n'
+            'name: __SLUG__\n'
+            'display_name: "__PROJECT__"\n'
+            'parent: classic\n'
+            'version: 0.1.0\n'
+            'author:\n'
+            '  name: "you"\n'
+            '  email: "support@example.com"\n'
+            'meta:\n'
+            '  compatibility: { from: 9.0.0, to: ~ }\n'
+            '  available_layouts:\n'
+            '    layout-full-width:   { name: "Full width", description: "Full width layout" }\n'
+            '    layout-left-column:  { name: "Left column", description: "3 columns, sidebar left" }\n'
+            '    layout-right-column: { name: "Right column", description: "3 columns, sidebar right" }\n'
+            '    layout-both-columns: { name: "Both columns", description: "3 cols, sidebars both" }\n'
+            'assets:\n'
+            '  use_parent_assets: true\n'
+            'global_settings:\n'
+            '  configuration:\n'
+            '    PS_QUICK_VIEW: true\n'
+            '    PS_CATALOG_MODE: false\n'
+            '  modules:\n'
+            '    to_enable: []\n'
+            '    to_disable: []\n'
+            '    to_install: []\n'
+            'theme_settings:\n'
+            '  default_layout: layout-full-width\n'
+            '  layouts:\n'
+            '    category:     layout-left-column\n'
+            '    best-sales:   layout-left-column\n'
+            '    new-products: layout-left-column\n'
+            '    prices-drop:  layout-left-column\n'
+            '    sitemap:      layout-left-column\n'
+            'THEMEFORGE_EOF',
+            "touch themes/__SLUG__/preview.png",
+            'cat > themes/__SLUG__/README-PRESTASHOP.md <<\'THEMEFORGE_EOF\'\n'
+            '# __PROJECT__ — PrestaShop child theme\n'
+            '\n'
+            'Stack: **PrestaShop 9.x** + child theme heredando del **classic**.\n'
+            'Licencia **OSL 3.0** (misma que PrestaShop core).\n'
+            '\n'
+            '## Prerequisites\n'
+            '\n'
+            '1. PrestaShop 9.x instalado (`composer create-project prestashop/prestashop`).\n'
+            '2. PHP 8.1+, MySQL 8 / MariaDB 10.5+.\n'
+            '3. El theme `classic` debe existir en `themes/classic/`.\n'
+            '\n'
+            '## Estructura generada\n'
+            '\n'
+            '```\n'
+            'themes/__SLUG__/\n'
+            '├── config/theme.yml    # parent: classic + layouts + settings\n'
+            '├── preview.png         # 1080×640px recomendado\n'
+            '├── assets/             # CSS/JS/img propios (si use_parent_assets:false)\n'
+            '├── templates/          # .tpl Smarty overrides\n'
+            '├── modules/            # overrides de templates de módulos\n'
+            '└── _dev/               # source Sass/JS antes de compilar\n'
+            '```\n'
+            '\n'
+            '## Activación\n'
+            '\n'
+            '```bash\n'
+            'php bin/console prestashop:themes:enable __SLUG__\n'
+            '# o desde Back Office: Design > Theme & Logo > Use this theme\n'
+            '```\n'
+            '\n'
+            '## Override templates\n'
+            '\n'
+            '```bash\n'
+            'cp themes/classic/templates/catalog/product.tpl themes/__SLUG__/templates/catalog/\n'
+            '```\n'
+            '\n'
+            'Smarty busca primero en el child, luego en el parent.\n'
+            '\n'
+            '## Marketplaces\n'
+            '\n'
+            '- **PrestaShop Addons** — 2.000+ templates, €40-150.\n'
+            '- **ThemeForest** — 900+ PrestaShop themes, $39-89.\n'
+            'THEMEFORGE_EOF',
+        ],
+        "min_version": "PrestaShop 9.0+ / PHP 8.1+ / Smarty 4",
+        "skills": [],
+        "ux_pack": "prestashop-theme",
+        "notes": "PrestaShop 9 child theme heredando del theme `classic`. Estructura mínima: config/theme.yml + preview.png. Smarty templates overrides + asset pipeline opcional. Licencia OSL 3.0. Marketplaces: PrestaShop Addons (2k+ templates) + ThemeForest (900+). Stack scaffoldea SOLO el child theme — PrestaShop ya debe estar instalado.",
+    },
+    "opencart-theme": {
+        "name": "OpenCart 4 theme extension (GPL)",
+        "category": "E-commerce",
+        "language": "PHP + Twig",
+        "scaffold": [
+            "echo '→ OpenCart 4 theme extension scaffold…'",
+            "[ -d extension ] || echo '⚠️  /extension no existe. Asegúrate de tener OpenCart 4.x instalado.'",
+            "mkdir -p extension/__SLUG__/admin/controller/startup extension/__SLUG__/admin/language/en-gb",
+            "mkdir -p extension/__SLUG__/catalog/controller/startup extension/__SLUG__/catalog/language/en-gb",
+            "mkdir -p extension/__SLUG__/catalog/view/template/common extension/__SLUG__/catalog/view/template/product extension/__SLUG__/catalog/view/template/checkout",
+            "mkdir -p extension/__SLUG__/catalog/view/stylesheet extension/__SLUG__/catalog/view/javascript extension/__SLUG__/catalog/view/image",
+            'cat > extension/__SLUG__/install.json <<\'THEMEFORGE_EOF\'\n'
+            '{\n'
+            '  "name": "__PROJECT__",\n'
+            '  "version": "0.1.0",\n'
+            '  "author": "you",\n'
+            '  "link": "https://example.com",\n'
+            '  "description": "Custom OpenCart 4 theme",\n'
+            '  "code": "__SLUG__",\n'
+            '  "compatibility": ">=4.0"\n'
+            '}\n'
+            'THEMEFORGE_EOF',
+            'cat > extension/__SLUG__/catalog/controller/startup/theme.php <<\'THEMEFORGE_EOF\'\n'
+            '<?php\n'
+            'namespace Opencart\\Catalog\\Controller\\Extension\\__SLUG__\\Startup;\n'
+            '\n'
+            'class Theme extends \\Opencart\\System\\Engine\\Controller {\n'
+            '    public function index(): void {\n'
+            "        if (\\$this->config->get('config_theme') === '__SLUG__') {\n"
+            "            \\$this->document->addStyle('extension/__SLUG__/catalog/view/stylesheet/__SLUG__.css');\n"
+            '        }\n'
+            '    }\n'
+            '}\n'
+            'THEMEFORGE_EOF',
+            'cat > extension/__SLUG__/catalog/view/stylesheet/__SLUG__.css <<\'THEMEFORGE_EOF\'\n'
+            ':root { --brand: #C56A4D; --brand-accent: #8FA68E; }\n'
+            'body { font-family: system-ui, sans-serif; }\n'
+            '.btn-primary, .btn-success { background: var(--brand); border-color: var(--brand); }\n'
+            'THEMEFORGE_EOF',
+            'cat > extension/__SLUG__/catalog/view/template/common/header.twig <<\'THEMEFORGE_EOF\'\n'
+            '{# Custom header override #}\n'
+            '<!DOCTYPE html>\n'
+            '<html dir="{{ direction }}" lang="{{ lang }}">\n'
+            '<head>\n'
+            '  <meta charset="UTF-8">\n'
+            '  <title>{{ title }}</title>\n'
+            '  <meta name="viewport" content="width=device-width, initial-scale=1">\n'
+            '  {% for style in styles %}<link rel="stylesheet" href="{{ style.href }}" media="{{ style.media }}">{% endfor %}\n'
+            '  {% for script in scripts %}<script src="{{ script }}"></script>{% endfor %}\n'
+            '</head>\n'
+            '<body>\n'
+            '  <header class="site-header">\n'
+            '    <a href="{{ home }}" class="logo"><img src="{{ logo }}" alt="{{ name }}"></a>\n'
+            '    {{ navigation }}\n'
+            '  </header>\n'
+            '  <main class="container">\n'
+            'THEMEFORGE_EOF',
+            'cat > extension/__SLUG__/README-OPENCART.md <<\'THEMEFORGE_EOF\'\n'
+            '# __PROJECT__ — OpenCart 4 theme extension\n'
+            '\n'
+            'OpenCart 4 trata los themes como **extensions**. OCMod está obsoleto\n'
+            '— solo events. Licencia **GPL**.\n'
+            '\n'
+            '## Prerequisites\n'
+            '\n'
+            '- OpenCart 4.0+ instalado.\n'
+            '- PHP 8.0+ y MySQL 8 / MariaDB 10.5+.\n'
+            '\n'
+            '## Estructura\n'
+            '\n'
+            '```\n'
+            'extension/__SLUG__/\n'
+            '├── install.json\n'
+            '├── admin/                                  # archivos del backoffice\n'
+            '└── catalog/                                # archivos del storefront\n'
+            '    ├── controller/startup/theme.php       # carga CSS del theme\n'
+            '    └── view/\n'
+            '        ├── template/                       # .twig overrides\n'
+            '        ├── stylesheet/__SLUG__.css\n'
+            '        ├── javascript/\n'
+            '        └── image/\n'
+            '```\n'
+            '\n'
+            '## Activación\n'
+            '\n'
+            '```bash\n'
+            '# 1) Empaquetar\n'
+            'cd extension && zip -r __SLUG__.ocmod.zip __SLUG__/\n'
+            '\n'
+            '# 2) Admin → Extensions > Installer → upload el .ocmod.zip\n'
+            '# 3) Admin → Extensions > Extensions → Themes → install + activate\n'
+            '# 4) Admin → Design > Theme → seleccionar el theme\n'
+            '```\n'
+            '\n'
+            '## Twig overrides\n'
+            '\n'
+            'Copia el template original del core manteniendo la ruta:\n'
+            '\n'
+            '```bash\n'
+            'cp catalog/view/template/common/header.twig \\\n'
+            '   extension/__SLUG__/catalog/view/template/common/header.twig\n'
+            '```\n'
+            '\n'
+            '## Distribución\n'
+            '\n'
+            '- **OpenCart Marketplace** — $30-150 por theme.\n'
+            '- **ThemeForest** — 1.500+ OpenCart themes.\n'
+            'THEMEFORGE_EOF',
+        ],
+        "min_version": "OpenCart 4.0+ / PHP 8.0+ / Twig 3",
+        "skills": [],
+        "ux_pack": "opencart-theme",
+        "notes": "OpenCart 4 theme como extension (OC4 movió themes a extension/<vendor>/). Twig templates, OCMod obsoleto (solo events). Licencia GPL. Distribución: OpenCart Marketplace + ThemeForest (1.5k+ themes). Stack scaffoldea SOLO la extension — OpenCart 4.x ya debe estar instalado.",
+    },
+    "sylius": {
+        "name": "Sylius 2.x + Symfony 7 (MIT)",
+        "category": "E-commerce",
+        "language": "PHP + Symfony + Twig",
+        "scaffold": [
+            "echo '→ Scaffolding Sylius 2.x (Symfony 7 + MIT)…'",
+            "command -v composer >/dev/null || { echo '❌ composer no instalado'; exit 1; }",
+            "composer create-project --no-interaction sylius/sylius-standard . || "
+            "echo '⚠️ scaffold fallido — ejecuta a mano `composer create-project sylius/sylius-standard .`'",
+            'cat > README-SYLIUS.md <<\'THEMEFORGE_EOF\'\n'
+            '# __PROJECT__ — Sylius 2.x storefront\n'
+            '\n'
+            'Stack: **Sylius 2.x** (full e-commerce framework basado en\n'
+            '**Symfony 7.4+** + **Doctrine ORM 3** + **Twig 3** + **Webpack\n'
+            'Encore**). Licencia **MIT**.\n'
+            '\n'
+            '## Prerequisites\n'
+            '\n'
+            '- PHP 8.2+, ext-intl, ext-gd, ext-curl, ext-mbstring.\n'
+            '- Composer 2.\n'
+            '- PostgreSQL 14+ / MySQL 8.\n'
+            '- Node 22 + Yarn (Webpack Encore).\n'
+            '- Symfony CLI recomendado.\n'
+            '\n'
+            '## Setup\n'
+            '\n'
+            '```bash\n'
+            'cp .env .env.local\n'
+            '# edita .env.local con DATABASE_URL y MAILER_DSN\n'
+            '\n'
+            'php bin/console sylius:install   # crea BD + admin user + sample data\n'
+            '\n'
+            'yarn install\n'
+            'yarn build\n'
+            '\n'
+            'symfony server:start\n'
+            '# → http://127.0.0.1:8000/      (storefront)\n'
+            '# → http://127.0.0.1:8000/admin (back office)\n'
+            '```\n'
+            '\n'
+            '## Custom themes (SyliusThemeBundle ya preinstalado)\n'
+            '\n'
+            '```bash\n'
+            'mkdir -p themes/__SLUG__/templates/SyliusShopBundle\n'
+            'mkdir -p themes/__SLUG__/templates/SyliusAdminBundle\n'
+            '```\n'
+            '\n'
+            'composer.json del theme:\n'
+            '\n'
+            '```json\n'
+            '{\n'
+            '  "name": "pcreative/sylius-__SLUG__",\n'
+            '  "extra": {\n'
+            '    "sylius-theme": {\n'
+            '      "title": "__PROJECT__",\n'
+            '      "authors": [{ "name": "you", "email": "support@example.com" }]\n'
+            '    }\n'
+            '  }\n'
+            '}\n'
+            '```\n'
+            '\n'
+            'Override Twig:\n'
+            '\n'
+            '```bash\n'
+            'cp vendor/sylius/shop-bundle/templates/Product/show.html.twig \\\n'
+            '   themes/__SLUG__/templates/SyliusShopBundle/Product/show.html.twig\n'
+            '```\n'
+            '\n'
+            'Asignar el theme a un canal: Admin → Configuration > Channels →\n'
+            'edit channel → Theme dropdown → selecciona `__PROJECT__`.\n'
+            '\n'
+            '## Stack profundo\n'
+            '\n'
+            '- **Sylius Core**: catálogo, channels, orders, customers, shipping,\n'
+            '  payments, promotions, taxes.\n'
+            '- **Symfony 7.4**: kernel, DI, EventDispatcher, Messenger.\n'
+            '- **API Platform 3**: REST + GraphQL automáticos.\n'
+            '- **Doctrine ORM 3**: entities + repositories.\n'
+            '\n'
+            '## Channels multi-store\n'
+            '\n'
+            'Multi-channel nativo (multi-currency, multi-locale, multi-theme,\n'
+            'multi-tax). Cada channel: dominio + theme + idiomas + monedas.\n'
+            '\n'
+            '## Distribución\n'
+            '\n'
+            '- **Sylius Marketplace** (sylius.com/store).\n'
+            '- **Packagist** — composer package.\n'
+            'THEMEFORGE_EOF',
+        ],
+        "min_version": "Sylius 2.x / Symfony 7.4+ / PHP 8.2+",
+        "skills": [],
+        "ux_pack": "sylius",
+        "notes": "Sylius 2.x — framework PHP full e-commerce sobre Symfony 7.4 + Doctrine ORM + Twig + API Platform 3. Multi-channel/multi-currency/multi-locale nativo. SyliusThemeBundle para themes custom. Licencia MIT. Scaffold con composer create-project sylius/sylius-standard.",
+    },
     "html-tailwind": {
         "name": "HTML + Tailwind + Vite",
         "category": "Web · Static",
