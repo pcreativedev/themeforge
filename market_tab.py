@@ -113,6 +113,11 @@ class MarketTab(QWidget):
     # El main window la conecta para saltar a la pestaña Settings.
     request_open_credentials = pyqtSignal()
 
+    # Emitida cuando el usuario pulsa «Crear proyecto desde este análisis».
+    # Arg: el markdown del análisis. El main window lo guarda como
+    # _last_analysis del builder y salta a la pestaña New project.
+    request_create_from_analysis = pyqtSignal(str)
+
     def __init__(self, parent=None):
         super().__init__(parent)
         self._thread: QThread | None = None
@@ -155,15 +160,17 @@ class MarketTab(QWidget):
         btns_box.setHorizontalSpacing(8)
         btns_box.setVerticalSpacing(8)
         self.btn_general = self._mk_btn("🌍 Mercado 2026 (general)", self._on_general)
+        self.btn_stacks = self._mk_btn("📊 Análisis de stacks", self._on_stacks)
         self.btn_niche = self._mk_btn("🎯 Por nicho concreto", self._on_niche)
         self.btn_compare = self._mk_btn("⚖️ Comparar 2 nichos", self._on_compare)
         self.btn_marketplace = self._mk_btn("🏪 Por marketplace", self._on_marketplace)
         self.btn_predict = self._mk_btn("🔮 Predicción 2027", self._on_predict)
         btns_box.addWidget(self.btn_general,     0, 0)
-        btns_box.addWidget(self.btn_niche,       0, 1)
-        btns_box.addWidget(self.btn_compare,     0, 2)
-        btns_box.addWidget(self.btn_marketplace, 1, 0)
-        btns_box.addWidget(self.btn_predict,     1, 1)
+        btns_box.addWidget(self.btn_stacks,      0, 1)
+        btns_box.addWidget(self.btn_niche,       0, 2)
+        btns_box.addWidget(self.btn_compare,     1, 0)
+        btns_box.addWidget(self.btn_marketplace, 1, 1)
+        btns_box.addWidget(self.btn_predict,     1, 2)
         root.addLayout(btns_box)
 
         # ─ Split: histórico | output ─
@@ -186,14 +193,29 @@ class MarketTab(QWidget):
         )
         out_lay.addWidget(self.output, 1)
         footer = QHBoxLayout()
+        self.btn_create = QPushButton("🚀 Crear proyecto desde este análisis")
+        self.btn_create.setStyleSheet(
+            "QPushButton { background:#2563eb; color:white; font-weight:bold; "
+            "padding:8px 16px; border-radius:6px; } "
+            "QPushButton:hover { background:#1d4ed8; } "
+            "QPushButton:disabled { background:#475569; color:#94a3b8; }"
+        )
+        self.btn_create.setToolTip(
+            "Salta a la pestaña «New project» con el análisis cargado.\n"
+            "Modo: scratch (sin referencia) · stack y nicho sin fijar — el\n"
+            "agente leerá el análisis y decidirá qué construir."
+        )
         self.btn_export = QPushButton("💾 Exportar .md")
         self.btn_copy = QPushButton("📋 Copiar")
         self.btn_clear = QPushButton("🗑️ Limpiar")
-        for b in (self.btn_export, self.btn_copy, self.btn_clear):
+        for b in (self.btn_create, self.btn_export, self.btn_copy, self.btn_clear):
             b.setEnabled(False)
+        self.btn_create.clicked.connect(self._on_create_project)
         self.btn_export.clicked.connect(self._on_export)
         self.btn_copy.clicked.connect(self._on_copy)
         self.btn_clear.clicked.connect(self._on_clear)
+        footer.addWidget(self.btn_create)
+        footer.addSpacing(12)
         footer.addWidget(self.btn_export)
         footer.addWidget(self.btn_copy)
         footer.addWidget(self.btn_clear)
@@ -260,8 +282,8 @@ class MarketTab(QWidget):
         return b
 
     def _set_busy(self, busy: bool, msg: str = ""):
-        for b in (self.btn_general, self.btn_niche, self.btn_compare,
-                  self.btn_marketplace, self.btn_predict):
+        for b in (self.btn_general, self.btn_stacks, self.btn_niche,
+                  self.btn_compare, self.btn_marketplace, self.btn_predict):
             b.setEnabled(not busy)
         self.progress.setVisible(busy)
         if busy:
@@ -297,7 +319,7 @@ class MarketTab(QWidget):
         self._set_busy(False)
         self._current_md = content
         self.output.setMarkdown(content)
-        for b in (self.btn_export, self.btn_copy, self.btn_clear):
+        for b in (self.btn_create, self.btn_export, self.btn_copy, self.btn_clear):
             b.setEnabled(True)
         # Guardar al histórico
         try:
@@ -318,6 +340,9 @@ class MarketTab(QWidget):
 
     def _on_general(self):
         self._kick_off(build_request("general", self.model_combo.currentText()))
+
+    def _on_stacks(self):
+        self._kick_off(build_request("stacks", self.model_combo.currentText()))
 
     def _on_niche(self):
         niches = [n for n in TEMPLATE_NICHES if not n.startswith("(")]
@@ -350,6 +375,13 @@ class MarketTab(QWidget):
     def _on_predict(self):
         self._kick_off(build_request("prediction", self.model_combo.currentText()))
 
+    def _on_create_project(self):
+        """Empuja el análisis al main window para crear un proyecto scratch
+        con el contexto cargado en CLAUDE.md (sin fijar stack ni nicho)."""
+        if not self._current_md:
+            return
+        self.request_create_from_analysis.emit(self._current_md)
+
     # ─ Footer ─
 
     def _on_export(self):
@@ -375,7 +407,7 @@ class MarketTab(QWidget):
         self._current_md = ""
         self._current_req = None
         self.meta_lbl.setText("")
-        for b in (self.btn_export, self.btn_copy, self.btn_clear):
+        for b in (self.btn_create, self.btn_export, self.btn_copy, self.btn_clear):
             b.setEnabled(False)
 
     # ─ Histórico ─
@@ -411,6 +443,6 @@ class MarketTab(QWidget):
         self.output.setMarkdown(body)
         self._current_md = body
         self._current_req = None  # un histórico no es una req nueva
-        for b in (self.btn_export, self.btn_copy, self.btn_clear):
+        for b in (self.btn_create, self.btn_export, self.btn_copy, self.btn_clear):
             b.setEnabled(True)
         self.meta_lbl.setText(f"{meta.get('model', '?')} · {meta.get('date', '?')}")

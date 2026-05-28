@@ -1100,6 +1100,51 @@ def product_format_for(stack_key: str) -> str:
     return "site-template"
 
 
+def _render_analysis_block(ai_analysis: str | None, kind: str) -> str:
+    """Sección de análisis previo para CLAUDE.md, adaptada a la procedencia:
+
+      reference → análisis IA de una referencia (modo recreate/adopt).
+      market    → análisis de mercado (pestaña Market) — el agente decide stack/nicho.
+      vibe      → dev_prompt del Vibe scaffolder (scratch).
+    """
+    if not ai_analysis:
+        return ""
+    text = ai_analysis.strip()
+    if kind == "market":
+        return (
+            "## Análisis de mercado previo (pestaña Market)\n\n"
+            "> Generado por ThemeForge con IA antes de crear este proyecto. **Léelo "
+            "antes de proponer nada** — contiene el mapa del mercado de productos "
+            "digitales 2026 (nichos top, stacks ganadores, gap analysis y "
+            "recomendaciones concretas).\n>\n"
+            "> El usuario te ha pasado este análisis **sin fijar stack ni nicho a "
+            "propósito**: tu trabajo es leerlo, elegir el ángulo más vendible "
+            "(nicho + stack + tipo de producto + USP) y **proponérselo antes de "
+            "tocar código**. Confirma con él antes de scaffoldear.\n\n"
+            + text + "\n"
+        )
+    if kind == "vibe":
+        return (
+            "## Briefing inicial (Vibe scaffolder)\n\n"
+            "> Generado por ThemeForge con IA a partir de la descripción "
+            "natural del usuario. Es el norte del producto — no la copia.\n\n"
+            + text + "\n"
+        )
+    # default: reference
+    return (
+        "## Análisis IA previo de la referencia\n\n"
+        "> Generado automáticamente por ThemeForge antes de crear el proyecto. "
+        "**Léelo antes de tocar nada** — contiene la lectura técnica del template "
+        "original, análisis de mercado y recomendación de stack para tu "
+        "reimplementación.\n>\n"
+        "> ⚠️ **Recordatorio crítico**: este análisis se hace para INSPIRARTE en "
+        "funcionalidades. NO copies código, assets ni branding del template "
+        "original (`reference/`). Reimplementa todo desde cero con código propio. "
+        "Mira las \"🚨 Reglas Anti-copia\" más abajo.\n\n"
+        + text + "\n"
+    )
+
+
 def render_context(
     stack_key: str,
     template_type: str,
@@ -1110,6 +1155,7 @@ def render_context(
     existing_repo: str | None,
     ai_analysis: str | None = None,
     niche: str | None = None,
+    ai_analysis_kind: str = "reference",
 ) -> str:
     stack = STACKS[stack_key]
     type_unspecified = template_type.startswith("(Sin tipo")
@@ -1450,7 +1496,7 @@ Los commits que hagas se añaden encima del historial existente.
 
 {mode_block}
 
-{('## Análisis IA previo de la referencia\n\n> Generado automáticamente por ThemeForge antes de crear el proyecto. **Léelo antes de tocar nada** — contiene la lectura técnica del template original, análisis de mercado y recomendación de stack para tu reimplementación.\n>\n> ⚠️ **Recordatorio crítico**: este análisis se hace para INSPIRARTE en funcionalidades. NO copies código, assets ni branding del template original (`reference/`). Reimplementa todo desde cero con código propio. Mira las "🚨 Reglas Anti-copia" más abajo.\n\n' + ai_analysis.strip() + '\n') if ai_analysis else ''}
+{_render_analysis_block(ai_analysis, ai_analysis_kind)}
 ## 🛠️ Estás trabajando DENTRO de ThemeForge
 
 Este proyecto fue creado por **ThemeForge** (un builder GUI Python/PyQt6
@@ -1867,6 +1913,7 @@ def write_setup_script(
     run_uipro: bool = False,
     niche: str | None = None,
     launch_agent: bool = True,
+    ai_analysis_kind: str = "reference",
 ) -> Path:
     """Si embedded=True, el script se ejecuta dentro de la terminal
     embebida del ProjectWindow (no necesita `read` final ni dejar la
@@ -1878,6 +1925,7 @@ def write_setup_script(
         reference_kind, reference_value, existing_repo,
         ai_analysis=ai_analysis,
         niche=niche,
+        ai_analysis_kind=ai_analysis_kind,
     )
 
     # Si se van a instalar skills de agente (autoskills / UI-UX Pro), el
@@ -3007,6 +3055,10 @@ class ThemeForge(QWidget):
         # Estado del análisis (QProcess vivo + label + último resultado)
         self._analyze_proc: QProcess | None = None
         self._last_analysis: tuple[str, str] | None = None
+        # Tipo de análisis: "reference" (default, recreate/adopt),
+        # "vibe" (dev_prompt del Vibe scaffolder),
+        # "market" (pestaña Market → el agente decide stack/nicho).
+        self._last_analysis_kind: str = "reference"
         self.analysis_status_lbl = QLabel("")
         self.analysis_status_lbl.setWordWrap(True)
         self.analysis_status_lbl.setStyleSheet(
@@ -3366,6 +3418,7 @@ class ThemeForge(QWidget):
         self._vibe_dev_prompt = proposal.dev_prompt
         # Reuse the _last_analysis pipeline: (None, text) means "use in scratch"
         self._last_analysis = (None, proposal.dev_prompt)
+        self._last_analysis_kind = "vibe"
 
         # NOTA: el `theme_hint` es solo una SUGERENCIA estética para el
         # proyecto (ya va escrita dentro del dev_prompt que recibe el
@@ -3543,6 +3596,7 @@ class ThemeForge(QWidget):
             # Guardamos el análisis para inyectarlo en CLAUDE.md igual que
             # el de modo recreate. Reutilizamos _last_analysis con (path, text).
             self._last_analysis = (path_str, result_text)
+            self._last_analysis_kind = "reference"
             kind = facts.get("kind", "")
             if kind == "design-export":
                 self.adopt_analysis_status_lbl.setText(
@@ -3556,6 +3610,7 @@ class ThemeForge(QWidget):
             self.adopt_analysis_status_lbl.setVisible(True)
         else:
             self._last_analysis = None
+            self._last_analysis_kind = "reference"
             self.adopt_analysis_status_lbl.setVisible(False)
 
     def _analyze_reference(self):
@@ -3642,6 +3697,7 @@ class ThemeForge(QWidget):
         result_text = dlg.out.toPlainText().strip()
         if result_text:
             self._last_analysis = (path_str, result_text)
+            self._last_analysis_kind = "reference"
             self.analysis_status_lbl.setText(
                 "✓ Análisis IA listo — se inyectará en CLAUDE.md al crear el proyecto. "
                 "Claude lo leerá nada más arrancar y te confirmará qué entiende que tiene que hacer."
@@ -3649,6 +3705,7 @@ class ThemeForge(QWidget):
             self.analysis_status_lbl.setVisible(True)
         else:
             self._last_analysis = None
+            self._last_analysis_kind = "reference"
             self.analysis_status_lbl.setText("")
             self.analysis_status_lbl.setVisible(False)
 
@@ -3670,6 +3727,7 @@ class ThemeForge(QWidget):
         deja de ser válido."""
         if self._last_analysis and self._last_analysis[0] != self.ref_path_edit.text().strip():
             self._last_analysis = None
+            self._last_analysis_kind = "reference"
             self.analysis_status_lbl.setStyleSheet(
                 "color:#fbbf24; font-size:10pt; font-weight:bold; "
                 "padding:8px 12px; background:#3a2e1e; border:1px solid #f59e0b; "
@@ -3935,6 +3993,7 @@ class ThemeForge(QWidget):
                 force_postgres=force_postgres,
                 adopt_src=adopt_src,
                 ai_analysis=ai_analysis_text,
+                ai_analysis_kind=getattr(self, "_last_analysis_kind", "reference"),
                 is_licensed_product=is_licensed,
                 licensing_create_gh_repo=licensing_gh,
                 licensing_force_all_modes=licensing_force_all,
@@ -5469,6 +5528,11 @@ class ThemeForgeApp(QWidget):
             # El banner «sin key» del Market emite esta señal cuando el user
             # pulsa «Configurar OpenRouter»: saltamos a la pestaña Settings.
             self.market.request_open_credentials.connect(self._open_settings_tab)
+            # «🚀 Crear proyecto desde este análisis» → cargamos el markdown
+            # del análisis en el pipeline _last_analysis del builder (igual
+            # que hace Vibe) y saltamos a la pestaña New project, modo
+            # scratch, sin stack/nicho prefijados.
+            self.market.request_create_from_analysis.connect(self._create_from_market_analysis)
         except Exception as e:
             print(f"[market] tab no disponible: {e}")
             self.market = None
@@ -5602,6 +5666,38 @@ class ThemeForgeApp(QWidget):
             if w is self.settings:
                 self.tabs.setCurrentIndex(i)
                 return
+
+    def _create_from_market_analysis(self, content: str):
+        """Carga el markdown del análisis de mercado en el builder y salta a
+        la pestaña New project (subtab Setup), modo scratch, stack=none y
+        nicho por defecto, para que el agente decida con el contexto entero."""
+        if not content:
+            return
+        b = self.builder
+        # Reusamos el pipeline existente: (None, text) = analisis "scratch".
+        b._last_analysis = (None, content)
+        b._last_analysis_kind = "market"
+        # Limpiar la elección manual de stack/niche para señalizar "decide tú".
+        if "none" in STACKS:
+            b._stack_key = "none"
+            b._refresh_stack_button()
+        if hasattr(b, "niche_combo"):
+            idx0 = 0
+            b.niche_combo.setCurrentIndex(idx0)
+        # Modo scratch (sin referencia).
+        if hasattr(b, "mode_scratch"):
+            b.mode_scratch.setChecked(True)
+        # Subtab «Setup» dentro de New project, luego pestaña principal.
+        if hasattr(b, "new_project_subtabs"):
+            for i in range(b.new_project_subtabs.count()):
+                if "Setup" in b.new_project_subtabs.tabText(i):
+                    b.new_project_subtabs.setCurrentIndex(i)
+                    break
+        for i, (w, _icon, _label) in enumerate(self._tab_specs):
+            if w is self.builder:
+                self.tabs.setCurrentIndex(i)
+                break
+        b._update_preview()
 
     def _apply_tab_icons(self):
         """Renders tab icons in the current theme's accent color and

@@ -75,48 +75,143 @@ _SYSTEM = (
 def prompt_general() -> str:
     return """# Análisis exhaustivo del mercado de productos digitales — 2026
 
-Cubre con datos concretos los principales marketplaces: ThemeForest, CodeCanyon, Gumroad, Lemon Squeezy, Creative Market, Itch.io, ArtStation, GitHub Sponsors/OSS, Shopify Theme Store, WordPress.org.
+Cubre con datos concretos TODOS los marketplaces principales: ThemeForest, CodeCanyon, Gumroad, Lemon Squeezy, Creative Market, Itch.io, ArtStation, GitHub Sponsors/OSS, Shopify Theme Store, WordPress.org, Unity Asset Store, Figma Community paid templates.
 
-Para cada uno, dame:
+Quiero un análisis que me sirva para decidir QUÉ producto crear esta semana. Si no tienes datos exactos, da rangos razonables y márcalos como "estimado". NO te quedes en generalidades — cifras concretas.
 
-## 1. Top 10 nichos más vendidos en 2026
-Tabla con columnas: nicho · marketplace dominante · volumen mensual estimado (#ventas y/o $) · rango de precio · tendencia (📈/➡️/📉) · saturación (1-10).
+## 1. Top 15 nichos más vendidos en 2026
+Tabla: nicho · marketplace dominante · volumen mensual estimado (#ventas y $) · rango de precio · tendencia (📈/➡️/📉) · saturación (1-10) · ticket medio.
 
-## 2. Sub-nichos emergentes (creciendo en 2026)
-Incluye específicamente — pero no limitado a:
-- **Gaming**: indie devs, mobile games, esports infra, streamers, asset shops, game studios, tournament platforms, browser games.
-- **AI/LLM**: agentes, MCP servers, plugins de IA para WP/Shopify, AI image/video tooling.
-- **Web3/crypto** maduro.
-- **Health/wellness** (coaching, nutrición, mental health).
-- **No-code/low-code** templates.
-- **Creator economy** (cursos, membresías, newsletters).
+## 2. Sub-nichos emergentes (creciendo fuerte en 2026)
+Mínimo 15 sub-nichos con tendencia 📈 y poca competencia. Cubre explícitamente:
+- **Gaming**: indie game devs · mobile games · esports infra · streamers · asset shops · game studios · tournament platforms · browser games · game launchers/storefronts · Roblox/Fortnite creator tooling.
+- **AI/LLM**: agentes, MCP servers, plugins de IA para WP/Shopify, AI image/video tooling, prompt marketplaces.
+- **Web3/crypto** maduro (DeFi tooling, no NFT).
+- **Health/wellness** (coaching, nutrición, mental health, fertility).
+- **No-code/low-code** templates (Bubble, Webflow, Framer).
+- **Creator economy** (cursos, membresías, newsletters, paid podcasts).
+- **B2B vertical SaaS** (legaltech, agritech, proptech, foodtech).
+- **Privacy/security** (E2EE messengers, password managers, VPN).
 
 ## 3. Stack tecnológico ganador POR nicho
-Para CADA nicho top, lista los stacks que están vendiendo MÁS. MÍNIMO 5-7 stacks por nicho — no te quedes solo en Next.js y Astro. Incluye:
-- Frontend: Next.js, Astro, Nuxt, SvelteKit, Remix, Vite+Vue, Vite+React, Webflow-export.
-- WordPress: FSE puro, Bricks, Elementor, Divi, Breakdance, classic+ACF.
-- Mobile: Expo/React Native, Flutter, Kotlin Compose, SwiftUI.
-- Backend/full-stack: Laravel+Inertia, NestJS+Prisma, FastAPI, Django, t3-stack, RedwoodJS.
-- Shopify themes (Liquid + Hydrogen).
-- Game engines / tooling: Godot, Unity asset bundles.
+Para cada nicho del top 15, lista los stacks que están vendiendo MÁS. **MÍNIMO 7-10 stacks distintos por nicho**. Incluye TODO el mapa:
+- Frontend SSG/SSR: Next.js, Astro, Nuxt, SvelteKit, Remix, Vite+Vue, Vite+React, Qwik, SolidStart, Eleventy, Hugo.
+- WordPress: FSE puro, Bricks, Elementor (free + Pro), Divi, Breakdance, classic+ACF, Hello+Pro, Spectra-driven.
+- Shopify: Liquid + sections, Hydrogen (Remix), Online Store 2.0.
+- Mobile: Expo/React Native, Flutter, Kotlin Compose, SwiftUI, Capacitor, Ionic.
+- Backend/full-stack: Laravel+Inertia, Laravel+Livewire, NestJS+Prisma, FastAPI, Django+HTMX, t3-stack, RedwoodJS, Rails 8, Phoenix LiveView.
+- Game engines / tooling: Godot, Unity asset bundles, GameMaker, Construct 3, RPG Maker, GDevelop, Cocos Creator, Phaser.
+- 3D/AR: Three.js, R3F (React Three Fiber), Babylon.js, A-Frame, model-viewer.
+- AI tooling: LangChain/LlamaIndex apps, Claude Skills, MCP servers, OpenAI Realtime API, Vercel AI SDK.
 
-## 4. Tendencias generales 2026
-- **Builders WP**: Bricks vs Elementor vs FSE — quién lidera vs quién pierde cuota.
-- **Mobile**: Expo vs Flutter vs Kotlin Compose adoption.
-- **Backend**: Laravel/Nest/FastAPI/Django adoption.
-- **AI/LLM products**: agentes, MCP servers, plugins de IA — el boom real.
-- **Performance**: Core Web Vitals como diferenciador comercial.
-- **Pricing power**: precios subiendo / bajando por categoría.
+## 4. Stack adoption matrix 2026 (DEEP-DIVE)
+Para CADA uno de los stacks anteriores, dame en tabla:
+- Cuota estimada del mercado (de productos vendidos) en 2026.
+- Crecimiento YoY (% vs 2025) — 📈/➡️/📉.
+- Niches donde domina vs niches donde pierde.
+- Coste/curva de aprendizaje (1-10).
+- Tipo de product fit (landing / app / theme / mobile / game / SaaS).
+- Buyer persona típico (no-dev / dev solo / equipo).
+- Verdict comercial: ¿hay que apostar por él en 2026?
 
-## 5. Gap analysis — nichos BAJO-servidos
-Lista 8-12 combinaciones (nicho × stack × marketplace) con: ALTA demanda + BAJA competencia. Donde hay oportunidad real para entrar nuevo.
+Sé exhaustivo: quiero saber el mapa COMPLETO, no solo los top 5.
 
-## 6. Predicciones 2026 → 2027
-- Qué nichos van a explotar.
-- Qué stacks van a perder relevancia.
-- Qué tipo de producto deberíamos lanzar HOY si queremos cobrar el próximo año.
+## 5. Tendencias generales 2026 (con cifras)
+- **Builders WP**: cuota Bricks vs Elementor vs FSE vs Divi vs Breakdance, con números — quién lidera, quién pierde, en qué países.
+- **Mobile**: Expo vs Flutter vs Kotlin Compose vs SwiftUI por geografía y vertical.
+- **Backend**: Laravel/Nest/FastAPI/Django/Rails/Phoenix — adopción real.
+- **AI/LLM products**: el boom — qué tipo de producto vende más ($, no hype): plugins, agentes, MCPs, integraciones.
+- **Performance**: Core Web Vitals como diferenciador comercial — qué % de buyers paga premium por velocidad.
+- **Pricing power**: precios medios subiendo/bajando por categoría.
 
-Sé concreto con cifras estimadas. Si no tienes datos exactos, da rangos razonables y di "estimado". El output debe servirme para decidir QUÉ crear esta semana."""
+## 6. Top 10 productos más vendidos del año (ejemplos concretos)
+Si recuerdas nombres/ítems específicos (Flatsome, Woodmart, Avada, etc.), nómbralos con: precio, ventas estimadas, qué hacen bien.
+
+## 7. Top creators / brands a estudiar
+10-15 nombres concretos de autores con cifras de revenue (ThemeForest authors, top Gumroad sellers, etc.) — el "who's who" del mercado de 2026.
+
+## 8. Gap analysis — 15 huecos REALES en el mercado
+Combinaciones (nicho × stack × marketplace) con ALTA demanda + BAJA competencia. Para cada uno: estimación de mercado, esfuerzo de creación (h), precio sugerido, USP propuesto.
+
+## 9. Distribución / marketing channels que están funcionando
+- SEO interno de marketplaces (qué premia ThemeForest/Gumroad en 2026).
+- Comunidades (Reddit, Discord, Twitter/X, BlueSky, Threads, dev.to).
+- Paid ads (Meta, Google, Reddit, X).
+- Influencers / partnerships.
+
+## 10. Recomendación final — qué crearía YO esta semana
+Top 5 productos concretos que un solo creador podría lanzar **en 2-4 semanas** y vender bien. Para cada uno: nicho + stack + tipo + precio + esfuerzo (horas) + revenue mensual esperado primer trimestre.
+
+Markdown rigurosamente estructurado, tablas donde aporten. Idioma español neutro. Sé exhaustivo — quiero el mapa COMPLETO del mercado, no un resumen."""
+
+
+def prompt_stacks() -> str:
+    return """# Análisis profundo del MERCADO DE STACKS — 2026
+
+Solo stacks tecnológicos. Quiero el mapa exhaustivo de qué stacks se están usando para crear productos digitales que se venden HOY (themes, templates, apps, plugins, mobile, games), independientemente del nicho.
+
+## 1. Adopción 2026 — tabla maestra de TODOS los stacks
+Para cada stack, fila con:
+- **Nombre del stack** (versión actual donde aplique).
+- **Cuota** de productos vendidos 2026 (%).
+- **Crecimiento YoY** vs 2025.
+- **Donde domina** (tipos de productos / marketplaces).
+- **Donde pierde** (qué lo está canibalizando).
+- **Buyer fit** (no-dev / dev solo / equipo).
+- **Aprendizaje** (1-10).
+- **Salario medio dev** (proxy de coste).
+- **Veredicto** (apostar / esperar / evitar).
+
+Cubre TODO el mapa — mínimo 30-40 stacks:
+
+### Frontend / static / SSR
+Next.js (App Router), Astro, Nuxt, SvelteKit, Remix, Vite+React, Vite+Vue, Qwik, SolidStart, Eleventy, Hugo, Jekyll, Gatsby (¿muerto?), Angular, Vue puro CDN.
+
+### WordPress
+FSE puro, Bricks Builder, Elementor (free), Elementor Pro, Divi, Breakdance, Beaver Builder, Oxygen, classic theme+ACF, Hello Elementor child, Generate Press + GenerateBlocks, Astra, Kadence.
+
+### Shopify
+Liquid + sections + OS 2.0, Hydrogen (Remix).
+
+### Mobile
+Expo/React Native, Flutter, Kotlin Compose, SwiftUI, native Android (Java/Kotlin), native iOS (Swift), Capacitor + Vue/React, Ionic.
+
+### Backend / full-stack
+Laravel + Inertia, Laravel + Livewire, NestJS + Prisma, FastAPI, Django + HTMX, t3-stack, RedwoodJS, Rails 8 + Hotwire, Phoenix LiveView, Go (Gin/Echo), Nest + GraphQL, Hono, Bun.
+
+### Game engines / tooling
+Godot, Unity asset bundles, GameMaker, Construct 3, RPG Maker, GDevelop, Cocos Creator, Phaser, Bevy, Defold.
+
+### 3D / AR
+Three.js, R3F, Babylon.js, A-Frame, model-viewer, Spline.
+
+### AI tooling
+LangChain/LlamaIndex apps, Claude Skills, MCP servers, OpenAI Realtime API, Vercel AI SDK, custom RAG pipelines.
+
+### No-code / low-code (vendibles)
+Bubble, Webflow, Framer, Glide, Softr templates.
+
+## 2. Ranking comercial 2026 (top 15)
+Los 15 stacks con MEJOR ROI tiempo→ventas en 2026. Justifica cada uno.
+
+## 3. Stacks crecimiento explosivo
+5-10 stacks creciendo >100% YoY en 2026 — los que serán mainstream en 2027.
+
+## 4. Stacks moribundos
+5-8 stacks en declive — evítalos para producto nuevo.
+
+## 5. Por marketplace: qué stack vende más
+Para cada marketplace (ThemeForest, CodeCanyon, Gumroad, Itch.io, Shopify, wp.org, Unity Asset Store), top 5 stacks por revenue/ventas.
+
+## 6. Por buyer-persona
+- **No-dev / pequeño negocio**: top stacks que NO requieren tocar código.
+- **Dev solo / freelancer**: top stacks con time-to-market < 1 semana.
+- **Equipo / agencia**: top stacks con buen DX y escalabilidad.
+
+## 7. Decisión: si arrancara hoy un negocio de productos digitales en 2026
+Top 3 stacks que escogería + justificación con cifras.
+
+Markdown estructurado, tablas siempre que se pueda. Sé exhaustivo."""
 
 
 def prompt_niche(niche: str) -> str:
@@ -228,6 +323,8 @@ def build_request(kind: str, model: str, params: dict | None = None) -> Analysis
     params = params or {}
     if kind == "general":
         p = prompt_general()
+    elif kind == "stacks":
+        p = prompt_stacks()
     elif kind == "niche":
         p = prompt_niche(params.get("niche", ""))
     elif kind == "compare":
