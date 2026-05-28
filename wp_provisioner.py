@@ -387,6 +387,7 @@ FREE_PACKS: dict[str, dict] = {
             ("advanced-custom-fields", "ACF (free)"),
             ("pods", "Pods"),
             ("royal-mcp", "Royal MCP"),
+            ("@github:use-novamira/novamira", "Novamira (free)"),
         ],
     },
     # Pack — Bricks Builder (child theme + Bricks parent via premium config).
@@ -397,6 +398,7 @@ FREE_PACKS: dict[str, dict] = {
             ("advanced-custom-fields", "ACF (free)"),
             ("pods", "Pods"),
             ("royal-mcp", "Royal MCP"),
+            ("@github:use-novamira/novamira", "Novamira (free)"),
         ],
     },
     # Pack — Elementor (child theme de Hello Elementor + Elementor free).
@@ -408,6 +410,7 @@ FREE_PACKS: dict[str, dict] = {
             ("advanced-custom-fields", "ACF (free)"),
             ("pods", "Pods"),
             ("royal-mcp", "Royal MCP"),
+            ("@github:use-novamira/novamira", "Novamira (free)"),
         ],
     },
     # Pack — Divi (child theme + Divi parent via premium config).
@@ -417,6 +420,7 @@ FREE_PACKS: dict[str, dict] = {
             ("advanced-custom-fields", "ACF (free)"),
             ("pods", "Pods"),
             ("royal-mcp", "Royal MCP"),
+            ("@github:use-novamira/novamira", "Novamira (free)"),
         ],
     },
     # Pack — Breakdance (plugin que reemplaza el render; theme base mínimo).
@@ -427,6 +431,7 @@ FREE_PACKS: dict[str, dict] = {
             ("advanced-custom-fields", "ACF (free)"),
             ("pods", "Pods"),
             ("royal-mcp", "Royal MCP"),
+            ("@github:use-novamira/novamira", "Novamira (free)"),
         ],
     },
 }
@@ -467,6 +472,29 @@ def _load_wp_packs_config() -> dict:
         return json.loads(WP_PACKS_CONFIG_FILE.read_text(encoding="utf-8"))
     except Exception:
         return {}
+
+
+def _resolve_github_latest_zip(repo: str) -> str | None:
+    """Resuelve la URL del primer asset .zip de la última release de un
+    repo GitHub (owner/repo). Útil para plugins/themes free distribuidos
+    fuera de wp.org (p.ej. Novamira: use-novamira/novamira). Sin token y
+    sin deps externas — solo urllib + el JSON público."""
+    import urllib.request
+    url = f"https://api.github.com/repos/{repo}/releases/latest"
+    try:
+        req = urllib.request.Request(url, headers={
+            "Accept": "application/vnd.github+json",
+            "User-Agent": "themeforge-wp-provisioner",
+        })
+        with urllib.request.urlopen(req, timeout=20) as r:
+            data = json.loads(r.read().decode("utf-8"))
+        for asset in (data.get("assets") or []):
+            name = asset.get("name", "")
+            if name.endswith(".zip"):
+                return asset.get("browser_download_url")
+    except Exception:
+        return None
+    return None
 
 
 def _wp_cp_into_container(wp_container: str, local_path: Path) -> str | None:
@@ -512,14 +540,23 @@ def _install_ux_pack(
         except Exception:
             pass
 
-    # 2) Free plugins del repo (activados).
+    # 2) Free plugins — slug del repo oficial wp.org O "@github:owner/repo"
+    #    para resolver el ZIP del último release de GitHub (Novamira, etc.).
     for plugin_slug, label in pack_data.get("plugins", []):
+        target = plugin_slug
+        if plugin_slug.startswith("@github:"):
+            target = _resolve_github_latest_zip(plugin_slug[len("@github:"):])
+            if not target:
+                out["missing"].append(label)
+                continue
         try:
-            r = _wpcli(wp_container, net, db_pw, "plugin", "install", plugin_slug, "--activate", timeout=300)
+            r = _wpcli(wp_container, net, db_pw, "plugin", "install", target, "--activate", timeout=600)
             if r.returncode == 0:
                 out["plugins_free"].append(label)
+            else:
+                out["missing"].append(label)
         except Exception:
-            pass
+            out["missing"].append(label)
 
     # 3) Premium (theme + plugins) desde wp_packs.json del usuario.
     cfg = _load_wp_packs_config().get(pack, {}) if isinstance(_load_wp_packs_config(), dict) else {}
