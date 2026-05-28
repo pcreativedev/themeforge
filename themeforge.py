@@ -1473,6 +1473,119 @@ class PredictiveSearch extends HTMLElement {
 customElements.define('predictive-search', PredictiveSearch);
 ```
 
+#### Section Rendering API — el patrón OS 2.0 para actualizar sin recargar
+
+La API mágica que permite actualizar **cualquier section o snippet por
+ID** sin recargar la página entera. Es lo que usan **todos** los themes
+modernos para cart drawer, variant selector, predictive search, filter
+collection, sort, paginación AJAX, etc.
+
+```js
+// Pedir HTML de UNA section por ID, con parámetros que afectan al render.
+const url = `${window.Shopify.routes.root}products/${handle}?section_id=cart-drawer&variant=${variantId}`;
+const html = await fetch(url, { headers: { Accept: 'text/html' } }).then(r => r.text());
+
+// Parseamos y reemplazamos el nodo viejo por el nuevo.
+const doc = new DOMParser().parseFromString(html, 'text/html');
+const oldEl = document.querySelector('cart-drawer');
+const newEl = doc.querySelector('cart-drawer');
+oldEl.replaceWith(newEl);
+```
+
+Variantes útiles del query string:
+- `?section_id=<id>` — renderiza solo esa section (no el theme entero).
+- `?sections=<id1>,<id2>,<id3>` — devuelve un JSON `{id: html, ...}` (POST a `/cart/change.js` también lo acepta vía `sections=`).
+
+Patterns donde es obligatorio para no romper UX:
+- **Cart drawer / mini cart** — al añadir → solo refresca `cart-drawer`.
+- **Variant picker** — al cambiar variant → solo refresca `product-form` y `product-media-gallery`.
+- **Predictive search** — al teclear → solo `predictive-search-results`.
+- **Faceted search** (filter / sort en collection) → solo `main-collection-product-grid`.
+- **Quick add** (collection card) → respuesta de `/cart/add.js?sections=cart-drawer` → reemplaza drawer.
+
+#### Ajax API — endpoints completos del Storefront
+
+```js
+// Carrito
+POST  /cart/add.js              { items: [{ id, quantity, properties }] }
+POST  /cart/change.js           { id, quantity, sections: 'cart-drawer,header' }
+POST  /cart/update.js           { updates: { variant_id: qty }, sections: '...' }
+POST  /cart/clear.js
+GET   /cart.js                  // estado actual del cart
+POST  /cart.js                  // cart + sections en JSON
+GET   /cart/shipping_rates.json
+
+// Productos
+GET   /products/{handle}.js     // JSON del producto
+GET   /collections/{handle}/products.json  // JSON de productos de una collection
+
+// Búsqueda predictive
+GET   /search/suggest.json?q=&resources[type]=product,collection,page,article,query&resources[limit]=10
+
+// Customer (solo si logged)
+GET   /account.json             // (en New customer accounts redirige a OAuth)
+
+// Locale switching
+POST  /localization             // cambia country_code y/o locale_code (con session)
+```
+
+Todos los endpoints aceptan `?sections=id1,id2` para devolver además el
+HTML renderizado de esas sections — eso evita un segundo round-trip.
+
+Toda mutación carga `Accept: 'application/json'` excepto cuando pides
+HTML con `Accept: 'text/html'` + `?section_id=`. Errores siempre con
+HTTP 422 + body JSON `{description, message, status}`.
+
+#### Metaobjects & Metafields — contenido dinámico custom
+
+**Metafields**: campos custom en recursos existentes (product, variant,
+collection, customer, order, shop, page, blog, article, market). Definidos
+en Admin → Settings → Custom data o vía API.
+
+```liquid
+{# Acceso directo en Liquid #}
+{{ product.metafields.specs.materials }}
+{{ product.metafields.reviews.rating.value | json }}
+
+{# Por tipo: single_line_text, multi_line_text, rich_text_field,
+   number_integer, number_decimal, boolean, money, weight, dimension,
+   volume, rating, color, date, date_time, url, file_reference,
+   page_reference, product_reference, variant_reference, collection_reference,
+   customer_reference, company_reference, metaobject_reference, json #}
+```
+
+**Metaobjects**: definiciones de tipos custom para contenido reutilizable
+**sin necesidad de un theme block**. Casos perfectos: testimonios, FAQs,
+team members, store locations, recipes, awards, certifications.
+
+```liquid
+{# Loop sobre todos los metaobjects de tipo 'testimonial' #}
+{%- for testimonial in shop.metaobjects.testimonial.values -%}
+  <article class="testimonial">
+    {%- if testimonial.author_image -%}
+      {{ testimonial.author_image | image_url: width: 200 | image_tag: loading: 'lazy', alt: testimonial.author_name }}
+    {%- endif -%}
+    <blockquote>{{ testimonial.quote }}</blockquote>
+    <cite>{{ testimonial.author_name }}, {{ testimonial.author_role }}</cite>
+  </article>
+{%- endfor -%}
+```
+
+Como **setting** en section/block schema (el merchant elige cuál usar):
+
+```json
+{ "type": "metaobject", "id": "featured_testimonial",
+  "metaobject_type": "testimonial", "label": "Featured testimonial" }
+```
+
+```json
+{ "type": "metaobject_list", "id": "testimonials",
+  "metaobject_type": "testimonial", "label": "Testimonials", "limit": 8 }
+```
+
+Patrón pro: **definir metaobjects en `theme.json`** (settings_schema.json
+sub-config) para que se creen automáticamente al instalar el theme.
+
 #### Web components nativos de Shopify (úsalos directamente)
 
 - `<shopify-payment-terms>` — banner de Shop Pay Installments. Mandatory para Theme Store. Va en PDP cerca del botón comprar.
@@ -1706,7 +1819,72 @@ Mutations clave: `customerUpdate`, `customerAddressCreate`,
 
 Cuenta passwordless: el customer entra con email + código (Shopify
 envía). El theme NO maneja contraseñas — toda la auth la gestiona el
-endpoint `.customer-account.com` del store.""",
+endpoint `.customer-account.com` del store.
+
+#### Markets API — multi-currency, multi-language, multi-domain
+
+Cada Market tiene su own currency/locale/dominio. Query patterns:
+
+```graphql
+# Storefront query con @inContext para forzar Market activo
+query ProductWithContext($handle: String!, $country: CountryCode!, $language: LanguageCode!)
+@inContext(country: $country, language: $language) {
+  product(handle: $handle) {
+    title  # automáticamente en el idioma del Market
+    priceRange { minVariantPrice { amount currencyCode } }  # en currency del Market
+  }
+}
+```
+
+```tsx
+// app/routes/($locale).products.$handle.tsx
+import { getSelectedProductOptions } from '@shopify/hydrogen';
+
+export async function loader({ params, context }: LoaderFunctionArgs) {
+  const { locale } = params;
+  const { country, language } = parseLocale(locale ?? 'en-us');
+  const { product } = await context.storefront.query(PRODUCT_QUERY, {
+    variables: { handle: params.handle, country, language }
+  });
+  return { product };
+}
+```
+
+Selector de país/idioma:
+
+```tsx
+// app/components/CountrySelector.tsx
+const { isoCode: currentCountry } = await context.storefront.i18n;
+const availableCountries = await context.storefront.query(COUNTRIES_QUERY);
+
+<form action="/api/localization" method="post">
+  <select name="country">
+    {availableCountries.map(c => (
+      <option key={c.isoCode} value={c.isoCode} selected={c.isoCode === currentCountry}>
+        {c.name} ({c.currency.isoCode})
+      </option>
+    ))}
+  </select>
+  <button type="submit">Update</button>
+</form>
+```
+
+**hreflang** en `root.tsx`:
+
+```tsx
+export function meta({ data }) {
+  const { locale, availableLocales } = data;
+  return availableLocales.map(l => ({
+    tagName: 'link',
+    rel: 'alternate',
+    hreflang: l.isoCode,
+    href: `https://yourshop.com/${l.pathPrefix}${currentPath}`
+  }));
+}
+```
+
+**`<Money>` y `<Image>`** ya respetan el Market activo automáticamente
+cuando vienen de Hydrogen primitives. No hace falta lógica custom.""",
     "shopify-polaris-app": """### Stack: **Shopify App (Polaris + App Bridge + Remix)**
 
 NO es un theme — es una **app embebida** en el Admin de Shopify. Para
@@ -1754,14 +1932,169 @@ o para distribuir en el **Shopify App Store**.
 - **Custom app** (privada, instalada solo en una tienda concreta).
 - **Partner Manage Tier** (apps para clientes managed por agencia).
 
-#### Performance / calidad (Shopify App Store gates)
+#### App Bridge 4 — patterns canon
 
-- App Store rejection criteria: requirements OAuth completos, GDPR
-  webhooks (`customers/data_request`, `customers/redact`, `shop/redact`),
-  billing implementado, listing optimizado.
-- **Embedded apps**: <100 ms TTI en el iframe del Admin.
-- Polaris obligatorio (rechazo si usas Material/Chakra/etc. en Admin).
-- Tema light + dark automático (Polaris lo maneja).
+```tsx
+// 1. NavigationMenu (sidebar del Admin con links a tus páginas)
+import { NavMenu } from '@shopify/app-bridge-react';
+
+<NavMenu>
+  <a href="/app" rel="home">Home</a>
+  <a href="/app/products">Products</a>
+  <a href="/app/settings">Settings</a>
+</NavMenu>
+
+// 2. SaveBar — auto-aparece al detectar cambios sin guardar
+import { useAppBridge, SaveBar } from '@shopify/app-bridge-react';
+
+const shopify = useAppBridge();
+const [hasChanges, setHasChanges] = useState(false);
+
+<SaveBar id="my-save-bar" open={hasChanges}>
+  <button onClick={save} variant="primary">Save</button>
+  <button onClick={discard}>Discard</button>
+</SaveBar>
+
+// 3. Resource Picker (productos, collections, variants, customers)
+const picked = await shopify.resourcePicker({
+  type: 'product',
+  multiple: true,
+  filter: { archived: false, variants: false }
+});
+
+// 4. Toast (notificaciones efímeras, success/info)
+shopify.toast.show('Saved successfully', { duration: 3000 });
+
+// 5. Modal (full-page dialog)
+import { Modal } from '@shopify/app-bridge-react';
+<Modal id="confirm-delete" variant="base">
+  <p>Are you sure?</p>
+  <button onClick={confirm}>Delete</button>
+</Modal>
+shopify.modal.show('confirm-delete');
+
+// 6. Contextual Actions (acciones en cualquier resource page del Admin)
+// Vienen de Admin block / action extensions (no de App Bridge directo).
+```
+
+Banner (errores) vs Toast (info): Toast es efímero y dismiss
+automático; Banner es persistente y queda en la página hasta que el user
+lo cierra o se resuelva el problema. Usa Banner para errores
+recuperables y validaciones; Toast para confirmaciones de éxito.
+
+#### GDPR Webhooks — OBLIGATORIOS para App Store
+
+Sin estos 3 webhooks la app **NO PASA** la review. Implementa todos
+aunque tu app no almacene PII (Shopify igualmente los exige).
+
+```ts
+// app/routes/webhooks/customers.data_request.tsx
+import { authenticate } from '~/shopify.server';
+
+export async function action({ request }: ActionFunctionArgs) {
+  const { shop, payload } = await authenticate.webhook(request);
+  // payload.customer.email, payload.customer.id, payload.orders_requested
+  // Si almacenas datos del customer: emite un reporte al merchant (vía email/dashboard)
+  // con TODO lo que tienes de ese customer. NO devuelvas datos al cliente.
+  await logDataRequest(shop, payload);
+  return new Response(null, { status: 200 });
+}
+
+// app/routes/webhooks/customers.redact.tsx
+export async function action({ request }: ActionFunctionArgs) {
+  const { shop, payload } = await authenticate.webhook(request);
+  await deleteCustomerData(shop, payload.customer.id);
+  return new Response(null, { status: 200 });
+}
+
+// app/routes/webhooks/shop.redact.tsx
+export async function action({ request }: ActionFunctionArgs) {
+  const { shop } = await authenticate.webhook(request);
+  // Llega 48h después de uninstall. BORRA todos los datos del shop.
+  await deleteShopData(shop);
+  return new Response(null, { status: 200 });
+}
+```
+
+Registralos en `shopify.app.toml`:
+
+```toml
+[webhooks]
+api_version = "2026-01"
+
+  [[webhooks.subscriptions]]
+  topics = ["customers/data_request"]
+  uri = "/webhooks/customers/data_request"
+
+  [[webhooks.subscriptions]]
+  topics = ["customers/redact"]
+  uri = "/webhooks/customers/redact"
+
+  [[webhooks.subscriptions]]
+  topics = ["shop/redact"]
+  uri = "/webhooks/shop/redact"
+```
+
+#### "Built for Shopify" — la certificación premium
+
+Es el equivalente al "verified" badge en redes. Da visibilidad ALTA en
+el App Store + aparece en listados curados. Gates:
+
+- **Performance**: TTI < 1.0s en `/admin/apps/<app>` (Lighthouse mobile).
+  Ojo: el iframe del Admin pesa. Optimiza loaders, lazy-load rutas,
+  bundle splitting.
+- **Polaris ONLY**: ni Material UI, ni Tailwind, ni Chakra. Polaris.
+- **Mobile-first**: el Shopify mobile app embebe tu app en webview.
+- **Accessibility**: WCAG 2.1 AA — usa Polaris correctamente, añade
+  ARIA en lo custom.
+- **Storefront performance** (si tu app inyecta scripts en el theme):
+  no penalizar CWV del merchant.
+- **App stability**: error tracking, retry logic, graceful degradation.
+- **Documentation**: knowledge base público, support ≤ 24h.
+- **Reviews**: 4.0+ stars con ≥ 50 reviews.
+
+Aplica después de tener tu app aprobada. Beneficios: badge "Built for
+Shopify", aparición en curated lists, prioridad en revenue share, mejor
+ranking de búsqueda en el App Store.
+
+#### App Store launch — checklist completo
+
+1. **Quality Standards** — checklist requirements (este context block).
+2. **Monetization** — billing API: recurring / one-time / usage.
+   `appSubscriptionCreate` GraphQL mutation. Test mode con tiendas dev.
+3. **Hosting** — Oxygen para Hydrogen, Vercel/Fly/Render para Remix
+   apps, AWS/GCP para apps pesadas. **Webhook delivery garantizado** =
+   tu servidor SIEMPRE responde 200 (o reintenta).
+4. **App Store Review** — submit con listing optimizado (5 screenshots
+   mobile + 5 desktop + video 60s + descripción 1500 chars + pricing
+   transparente + categoría correcta + tags). Tiempo: 2-6 semanas
+   típico. Top rejection: GDPR webhooks faltando, scope minimization
+   violations, Polaris violations.
+5. **Customer Care** — knowledge base + email support + intercom/
+   crisp/zendesk. Response SLA: 24h business days. Estado público.
+
+**Revenue share 2026**: **0% en los primeros $1.000.000 USD** de
+revenue anual del App Store. Después: 15%. (Comparativa: Apple/Google =
+30% siempre.)
+
+#### Extension types — qué generar y para qué
+
+```bash
+shopify app generate extension --type <type>
+```
+
+| Type slug | UI? | Cuándo usarlo | Stack |
+|---|---|---|---|
+| `theme_app_extension` | Liquid blocks | Reviews/sticky-bar/widgets que el merchant añade al theme sin tocar Liquid | Liquid + JS + CSS |
+| `checkout_ui_extension` | React | Banners/Surveys/Custom fields en checkout (Shopify Plus) | React + checkout-ui-extensions-react |
+| `customer_account_ui_extension` | React | UI custom en /account (orders, loyalty, returns) | React + customer-account-ui-extensions |
+| `ui_extension` (admin block) | React | Bloques contextuales en product/order/customer pages del Admin | React + admin-ui-extensions |
+| `admin_action` (admin action) | React | Acciones contextuales (bulk export, custom modal) | React + admin-ui-extensions |
+| `pos_ui_extension` | React Native-ish | UI custom en Shopify POS iOS/Android | React Native + POS UI |
+| `flow_action` / `flow_trigger` | JSON config | Integraciones para Shopify Flow workflow builder | JSON + tu API |
+| `web_pixel_extension` | Sandboxed JS | Tracking de eventos (browser/server) GDPR-compliant | JavaScript sandbox |
+| `product_discounts` / `order_discounts` / `shipping_discounts` | Shopify Function | Lógica de descuento server-side | Rust o JS-Wasm |
+| `payment_customization` / `delivery_customization` / `cart_validations` | Shopify Function | Reordenar/ocultar opciones, validar cart | Rust o JS-Wasm |
 
 #### Theme App Extensions (TAE) — el camino premium
 
