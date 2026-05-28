@@ -32,8 +32,24 @@ STACK_FAMILIES: dict[str, str] = {
     # Laravel
     "laravel-inertia":  "laravel",
     # WordPress
-    "wordpress-block":  "wordpress",
-    "wordpress-plugin": "wordpress",
+    "wordpress-block":     "wordpress",
+    "wordpress-bricks":    "wordpress",
+    "wordpress-elementor": "wordpress",
+    "wordpress-divi":      "wordpress",
+    "wordpress-breakdance":"wordpress",
+    "wordpress-plugin":    "wordpress",
+    # Shopify Liquid themes (incl. Theme Store route)
+    "shopify-liquid":               "shopify-liquid",
+    "shopify-liquid-blank":         "shopify-liquid",
+    # Shopify Storefront Web Components (vanilla HTML + JS)
+    "shopify-storefront-webcomponents": "shopify-storefront-webcomponents",
+    # Shopify Hydrogen (Remix headless)
+    "shopify-hydrogen":             "shopify-hydrogen",
+    # Shopify Admin embedded apps + checkout extensions
+    "shopify-polaris-app":          "shopify-polaris-app",
+    "shopify-checkout-extension":   "shopify-polaris-app",  # comparten patrón (mismo app shell)
+    # Shopify Functions (Rust + Wasm)
+    "shopify-functions":            "shopify-functions",
     # Backends Express-style con SPA
     "hono-bun":         "express",
     "hono-cloudflare":  "express",
@@ -105,6 +121,16 @@ def scaffold(stack_key: str, slug: str, project_name: str,
         parts += _scaffold_laravel(slug, project_name)
     elif family == "wordpress":
         parts += _scaffold_wordpress(slug, project_name)
+    elif family == "shopify-liquid":
+        parts += _scaffold_shopify_liquid(slug, project_name)
+    elif family == "shopify-storefront-webcomponents":
+        parts += _scaffold_shopify_webcomponents(slug, project_name)
+    elif family == "shopify-hydrogen":
+        parts += _scaffold_shopify_hydrogen(slug, project_name)
+    elif family == "shopify-polaris-app":
+        parts += _scaffold_shopify_polaris_app(slug, project_name)
+    elif family == "shopify-functions":
+        parts += _scaffold_shopify_functions(slug, project_name)
     elif family == "express":
         parts += _scaffold_express(slug, project_name)
 
@@ -302,6 +328,164 @@ def _scaffold_wordpress(slug: str, project_name: str) -> list[str]:
     ))
     parts.append(
         'echo "  · README.licensing.md generado — léelo para cablear class-license en el bootstrap del plugin/theme."'
+    )
+    return parts
+
+
+# ─── Familia Shopify Liquid (Online Store 2.0 themes) ────────────────
+
+def _scaffold_shopify_liquid(slug: str, project_name: str) -> list[str]:
+    parts: list[str] = []
+    parts.append('echo "  · Shopify Liquid: client JS + license-gate + watermark + settings"')
+    parts.append(_heredoc(
+        "assets/pcreative-license.js",
+        _render("shopify-liquid/pcreative-license.js.tpl",
+                slug=slug, project_name=project_name),
+    ))
+    parts.append(_heredoc(
+        "snippets/license-gate.liquid",
+        _render("shopify-liquid/license-gate.liquid.tpl",
+                slug=slug, project_name=project_name),
+    ))
+    parts.append(_heredoc(
+        "snippets/license-watermark.liquid",
+        _render("shopify-liquid/license-watermark.liquid.tpl",
+                slug=slug, project_name=project_name),
+    ))
+    parts.append(_heredoc(
+        "config/license-section.json",
+        _render("shopify-liquid/settings-license-section.json.tpl",
+                slug=slug, project_name=project_name),
+    ))
+    parts.append(_heredoc(
+        "README.licensing.md",
+        _render("shopify-liquid/README.licensing.md.tpl",
+                slug=slug, project_name=project_name),
+    ))
+    # Inyectar <script defer src="{{ 'pcreative-license.js' | asset_url }}"></script>
+    # + {% render 'license-watermark' %} en layout/theme.liquid si existe.
+    parts.append(
+        "if [ -f layout/theme.liquid ]; then\n"
+        "  grep -q 'pcreative-license.js' layout/theme.liquid || \\\n"
+        "    sed -i 's|{{ content_for_header }}|{{ content_for_header }}\\n    <script defer src=\"{{ '\\''pcreative-license.js'\\'' | asset_url }}\"></script>|' layout/theme.liquid\n"
+        "  grep -q \"render 'license-watermark'\" layout/theme.liquid || \\\n"
+        "    sed -i 's|</body>|  {% render '\\''license-watermark'\\'' %}\\n</body>|' layout/theme.liquid\n"
+        "fi"
+    )
+    parts.append(
+        'echo "  · README.licensing.md generado — añade la sección License a config/settings_schema.json"\n'
+        'echo "    pegando el contenido de config/license-section.json al final del array."'
+    )
+    return parts
+
+
+# ─── Familia Shopify Storefront Web Components ───────────────────────
+
+def _scaffold_shopify_webcomponents(slug: str, project_name: str) -> list[str]:
+    parts: list[str] = []
+    parts.append('echo "  · Shopify Web Components: license loader + gate"')
+    parts.append(_heredoc(
+        "assets/pcreative-license.js",
+        _render("shopify-storefront-webcomponents/pcreative-license.js.tpl",
+                slug=slug, project_name=project_name),
+    ))
+    parts.append(_heredoc(
+        "README.licensing.md",
+        _render("shopify-storefront-webcomponents/README.licensing.md.tpl",
+                slug=slug, project_name=project_name),
+    ))
+    # Inyectar <script src="assets/pcreative-license.js"></script> en index.html
+    parts.append(
+        "if [ -f index.html ]; then\n"
+        "  grep -q 'pcreative-license.js' index.html || \\\n"
+        "    sed -i 's|</head>|  <script defer src=\"assets/pcreative-license.js\"></script>\\n</head>|' index.html\n"
+        "fi"
+    )
+    return parts
+
+
+# ─── Familia Shopify Hydrogen (Remix + Oxygen) ───────────────────────
+
+def _scaffold_shopify_hydrogen(slug: str, project_name: str) -> list[str]:
+    parts: list[str] = []
+    parts.append('echo "  · Shopify Hydrogen: server-side license + admin route"')
+    parts.append(_heredoc(
+        "app/lib/license.server.ts",
+        _render("shopify-hydrogen/license.server.ts.tpl",
+                slug=slug, project_name=project_name),
+    ))
+    parts.append(_heredoc(
+        "app/routes/admin.license._index.tsx",
+        _render("shopify-hydrogen/admin.license.tsx.tpl",
+                slug=slug, project_name=project_name),
+    ))
+    env_add = _render("shopify-hydrogen/env.additions.txt",
+                      slug=slug, project_name=project_name)
+    parts.append(_heredoc_append(".env.example", env_add, "PCREATIVE_LICENSE_KEY"))
+    parts.append(_heredoc(
+        "README.licensing.md",
+        _render("shopify-hydrogen/README.licensing.md.tpl",
+                slug=slug, project_name=project_name),
+    ))
+    return parts
+
+
+# ─── Familia Shopify Polaris App + Checkout Extension ────────────────
+
+def _scaffold_shopify_polaris_app(slug: str, project_name: str) -> list[str]:
+    parts: list[str] = []
+    parts.append('echo "  · Shopify App: license route Polaris + Prisma model"')
+    parts.append(_heredoc(
+        "app/lib/license.server.ts",
+        _render("shopify-polaris-app/license.server.ts.tpl",
+                slug=slug, project_name=project_name),
+    ))
+    parts.append(_heredoc(
+        "app/routes/app.license.tsx",
+        _render("shopify-polaris-app/app.license.tsx.tpl",
+                slug=slug, project_name=project_name),
+    ))
+    env_add = _render("shopify-polaris-app/env.additions.txt",
+                      slug=slug, project_name=project_name)
+    parts.append(_heredoc_append(".env.example", env_add, "PCREATIVE_LICENSE_KEY"))
+    parts.append(_heredoc(
+        "prisma/migrations/license.sql",
+        _render("shopify-polaris-app/license.migration.sql.tpl",
+                slug=slug, project_name=project_name),
+    ))
+    parts.append(_heredoc(
+        "README.licensing.md",
+        _render("shopify-polaris-app/README.licensing.md.tpl",
+                slug=slug, project_name=project_name),
+    ))
+    return parts
+
+
+# ─── Familia Shopify Functions (pre-deploy check) ────────────────────
+
+def _scaffold_shopify_functions(slug: str, project_name: str) -> list[str]:
+    parts: list[str] = []
+    parts.append('echo "  · Shopify Functions: pre-deploy license check"')
+    parts.append(_heredoc(
+        "scripts/pre-deploy-license-check.mjs",
+        _render("shopify-functions/pre-deploy-license-check.mjs.tpl",
+                slug=slug, project_name=project_name),
+    ))
+    env_add = _render("shopify-functions/env.additions.txt",
+                      slug=slug, project_name=project_name)
+    parts.append(_heredoc_append(".env.example", env_add, "PCREATIVE_LICENSE_KEY"))
+    parts.append(_heredoc(
+        "README.licensing.md",
+        _render("shopify-functions/README.licensing.md.tpl",
+                slug=slug, project_name=project_name),
+    ))
+    # Hook npm: añade predeploy y prebuild scripts a package.json (vía jq si está)
+    parts.append(
+        "if [ -f package.json ] && command -v jq >/dev/null 2>&1; then\n"
+        "  jq '.scripts.predeploy = \"node scripts/pre-deploy-license-check.mjs\" | "
+        ".scripts.prebuild = \"node scripts/pre-deploy-license-check.mjs\"' "
+        "package.json > package.json.tmp && mv package.json.tmp package.json\n"
+        "fi"
     )
     return parts
 

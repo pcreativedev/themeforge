@@ -175,8 +175,11 @@ class LicensingPanel(QWidget):
         }
         code, data = _api("/api/licenses", "POST", body)
         if code in (200, 201):
+            # Backend devuelve {"license": {key, type, product, email, ...}}.
+            lic = data.get("license") if isinstance(data, dict) else None
+            key = (lic or {}).get("key") or data.get("key") or "(sin key)"
             QMessageBox.information(self, "Licencia creada",
-                f"Key: {data.get('key') or data}\n\nLa licencia ya está activa.")
+                f"Key: {key}\n\nLa licencia ya está activa.")
             self._load_licenses()
         else:
             QMessageBox.warning(self, "Error", f"HTTP {code}: {data.get('error','')}")
