@@ -7,6 +7,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — Shopify expansion (queued for v1.5.0)
+
+- **3 Shopify stacks** in the selector:
+  - `shopify-liquid` — Online Store 2.0 theme, clones [Dawn](https://github.com/Shopify/dawn) (MIT) as the starting point. Now scaffolds **`package.json`** + **`.prettierrc.json`** with `@shopify/prettier-plugin-liquid`, **`.theme-check.yml`** (strict: 16 KB JS cap, parser-blocking checks, deprecated filters, template length), **`.github/workflows/lighthouse-ci.yml`** using the official `shopify/lighthouse-ci-action@v1`. Free Dawn warning: themes derived from Dawn/Horizon are INELIGIBLE for the Shopify Theme Store (rebuild from scratch for that route).
+  - `shopify-hydrogen` (NEW) — headless storefront with Remix v3 + React 19 + Oxygen. Scaffold via `@shopify/create-hydrogen@latest`. For large catalogs (500+ SKUs), multi-market builds, ThemeForest "Hydrogen" category, partner channel.
+  - `shopify-polaris-app` (NEW) — embedded Shopify Admin apps with Polaris + App Bridge 4 + Remix + Prisma. Scaffold via `@shopify/create-app --template remix`. Supports theme/checkout/customer-account/admin/POS/Flow/Functions extensions.
+- **3 official Shopify MCPs** wired into every Shopify project's `.mcp.json`:
+  - `shopify-dev` (official, STDIO) — GraphQL Admin/Storefront/Checkout schemas, Liquid types, section/block schemas, and Polaris design system.
+  - `shopify-storefront` (official, HTTP, zero-auth) — cart, policies, FAQ. User replaces `YOUR-SHOP` with their subdomain.
+  - `shopify-storefront-catalog` (official, HTTP, UCP) — natural-language catalog search.
+- **Per-stack AI context block** (`_SHOPIFY_BUILDER_CONTEXT`) injected into each project's `CLAUDE.md`: ~10.9 KB for Liquid covering OS 2.0 architecture (config/, layout/, sections with `{% schema %}`, blocks/ for theme blocks, templates JSON, locales), performance targets (Lighthouse 60+/90 A11Y/16 KB JS), 18 mandatory Theme Store features, 11 official developer tools (CLI, Theme Check, VS Code extension, Liquid Prettier plugin, Theme Inspector Chrome, Lighthouse CI Action, GitHub integration, Theme Access App, Dev Stores, LiquidDoc, Admin Theme Editor), conversion patterns, canonical code examples for templates/index.json + sections/hero-banner.liquid + config/settings_schema.json.
+- **Updated objectives block** for Shopify product format with exact Theme Store Quality Guidelines (60+ Lighthouse mobile, 90+ accessibility, WCAG AA contrast 4.5:1/3:1, touch targets ≥44×44 px, supported browsers, mandatory JSON templates, 18 mandatory features, restrictions: no Sass/React/Vue/Angular/jQuery, no Lorem Ipsum, no embedded affiliate links, Theme Store exclusivity).
+- **MCP catalog updates** (`mcp_catalog.py`): new `shopify-storefront` and `shopify-storefront-catalog` entries with HTTP install configs.
+- **Updated `NOTICE.md` Shopify section**: Shopify CLI, Dawn, Hydrogen template, Polaris, App Bridge, create-app template, Liquid Prettier plugin, Prettier, Lighthouse CI action — all auto-installed at scaffold time from official sources; nothing bundled in this repo.
+- **Updated `TRADEMARKS.md` Shopify ecosystem section**: Shopify, Liquid, Online Store 2.0, Dawn, Hydrogen, Oxygen, Polaris, App Bridge, Shopify CLI, Shopify App Store — declared under nominative fair use with no implied affiliation.
+
+### Added — WordPress expansion (released as v1.4.0 — 2026-05-28)
+
+- **5 WordPress stacks** in the selector: `wordpress-block` (FSE), `wordpress-bricks` (Bricks Builder child theme), `wordpress-elementor` (Hello Elementor child theme), `wordpress-divi`, `wordpress-breakdance`. Auto-installs the FREE plugin/theme pack per stack from WordPress.org via wp-cli, plus Novamira free from its official GitHub release (AGPL v3). Premium plugins/themes (Bricks, Elementor Pro, Divi, Breakdance Pro, JetEngine, Novamira Pro, ACF Pro, Motion.page, etc.) are referenced by name only — never bundled — and auto-install if and only if the user supplies a path in `~/.config/themeforge/wp_packs.json` (gitignored, local-only).
+- **Market analysis tab** ("Market" between Compare and Operator) — six AI-driven analyses via OpenRouter (Gemini 2.5 Pro by default + 7 alternative models): `🌍 Mercado 2026 (general)`, `📊 Análisis de stacks`, `🎯 Por nicho concreto`, `⚖️ Comparar 2 nichos`, `🏪 Por marketplace`, `🔮 Predicción 2027`. Output rendered as markdown, persistent history at `~/.config/themeforge/market_analyses/`, "🚀 Crear proyecto desde este análisis" button that feeds the analysis into a new scratch project's `CLAUDE.md`. Yellow banner if `OPENROUTER_API_KEY` is missing, with deep-link to Settings → Credentials.
+- **5 gaming sub-niches** added to `TEMPLATE_NICHES`: indie game dev / pixel studio, mobile games, game assets / marketplace, game launcher / storefront, tournament / ladder platform.
+- **Legal hardening**: new `TRADEMARKS.md` (nominative fair use, ownership table, take-down channel), extended `NOTICE.md` with WordPress integration section (free auto-installed + premium referenced only, with AGPL Novamira clarification), `WORDPRESS-LEGAL.md` written into every WP project (free vs premium, marketplace rules, GPL obligations).
+
+### Fixed (in v1.4.0)
+
+- **Reference analyzer no longer mis-classifies commercial WordPress themes as `design-export`**. Any folder with a `style.css` containing `Theme Name:` or any root-level `.php` with `Plugin Name:` is now routed to the WordPress detector instead of falling into the design-export branch (which previously caused agents to see contradictory facts and refuse to proceed in recreate mode).
+- **Stack autodetect respects the user's WP variant pick.** When the user manually selected `wordpress-bricks`/`-elementor`/`-divi`/`-breakdance` and then ran "Analyze reference with AI", the analyzer no longer downgrades the stack to plain `wordpress-block`.
+- **Market analyzer `urllib` encoding fix.** The X-Title HTTP header used an em-dash (U+2014) that broke the latin-1 codec inside `urllib.request`. Replaced with ASCII hyphen.
+- **Preview detector no longer attempts the deprecated `wp-env` profile.** Block themes were incorrectly matched by `has_wp_env()`, causing a flash of broken wp-env attempts before the real WordPress (Docker) profile took over.
+
+
+
 ## [1.2.4] - 2026-05-26
 
 ### Changed / Fixed

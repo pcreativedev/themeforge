@@ -262,9 +262,36 @@ stacks are supported including (non-exhaustive):
   SolidStart, React-Vite, Vue 3-Vite, Angular, plain HTML+Tailwind /
   Bootstrap.
 - **Frontend libraries**: Storybook (React).
-- **CMS**: WordPress Block Theme (theme.json + MCP-adapter), WordPress
-  Plugin (with abilities API), Payload CMS, Strapi, Medusa, Sanity
-  Studio, Directus, Docusaurus, VitePress, Starlight, Hugo, Eleventy.
+- **CMS · WordPress** (6 stacks since v1.4.0):
+  - `wordpress-block` — FSE block theme (theme.json + templates/parts/
+    patterns). Free pack: GenerateBlocks, Spectra, ACF free, Pods,
+    Royal MCP, Novamira (free).
+  - `wordpress-bricks` — Bricks Builder child theme (you supply Bricks
+    via `wp_packs.json`). Free pack: GreenShift, ACF, Pods, Royal MCP,
+    Novamira (free).
+  - `wordpress-elementor` — Hello Elementor child theme. Free pack:
+    Elementor (free), Essential Addons Lite, ACF, Pods, Royal MCP,
+    Novamira (free) — plus auto-installs Hello Elementor as parent.
+  - `wordpress-divi` — Divi child theme (you supply Divi via
+    `wp_packs.json`). Free pack: ACF, Pods, Royal MCP, Novamira (free).
+  - `wordpress-breakdance` — Breakdance plugin on Kadence base. Free
+    pack: Kadence, Breakdance (free), ACF, Pods, Royal MCP, Novamira
+    (free).
+  - `wordpress-plugin` — PHP 8.2 plugin scaffold (PSR-4 + Composer +
+    optional Vite/Vue admin UI). No Docker WP provisioning.
+
+  Every WordPress theme stack auto-provisions WordPress + MariaDB in
+  Docker, installs WP (admin/admin), drops a localhost autologin
+  mu-plugin, installs the free pack via wp-cli, wires the Automattic
+  WordPress MCP bridge in `.mcp.json`, and lays down `WORDPRESS-DEV.md`
+  + `WORDPRESS-LEGAL.md` + a `./wp` wp-cli helper. Premium plugins or
+  parent themes you have licensed are installed if and only if you
+  declare a path or URL in `~/.config/themeforge/wp_packs.json`
+  (gitignored, local-only). See [`docs/WORDPRESS.md`](WORDPRESS.md) for
+  the full pipeline.
+
+- **CMS · other**: Payload CMS, Strapi, Medusa, Sanity Studio,
+  Directus, Docusaurus, VitePress, Starlight, Hugo, Eleventy.
 - **Backend**: Hono (Bun / Cloudflare), NestJS + Prisma, FastAPI,
   Django + Tailwind, Phoenix LiveView, Rails + Tailwind, Bun-Elysia,
   Deno-Fresh, Spring Boot, Ktor, Go-Fiber, Rust-Axum.
@@ -275,7 +302,29 @@ stacks are supported including (non-exhaustive):
 - **Game-dev** (Vite + TypeScript): Phaser, PixiJS, React Three Fiber.
 - **Email templates**: react-email.
 - **Browser extensions**: Plasmo, WXT.
-- **Shopify**: Liquid (Dawn theme).
+- **Shopify** (3 stacks since v1.5.0):
+  - `shopify-liquid` — Online Store 2.0 theme. Clones the official
+    [Dawn](https://github.com/Shopify/dawn) (MIT) as a starting point
+    and adds `package.json` with the Liquid prettier plugin,
+    `.prettierrc.json`, a strict `.theme-check.yml` (16 KB JS cap from
+    the official Theme Store budget, parser-blocking checks, deprecated
+    filters, template length), a GitHub Actions workflow using the
+    official `shopify/lighthouse-ci-action@v1`, and `.mcp.json` wired to
+    **3 official Shopify MCPs** — `shopify-dev` (STDIO, includes Polaris),
+    `shopify-storefront` (HTTP, zero-auth) and `shopify-storefront-catalog`
+    (HTTP, UCP, natural-language catalog search). ⚠️ Themes derived from
+    Dawn are INELIGIBLE for the Shopify Theme Store (official rule); they
+    are perfectly fine for **ThemeForest** or **Partner builds**. See
+    [`docs/SHOPIFY.md`](SHOPIFY.md) for the full workflow.
+  - `shopify-hydrogen` (NEW in v1.5.0) — headless storefront with
+    **Remix v3 + React 19 + Oxygen + Tailwind**. Scaffold via
+    `@shopify/create-hydrogen`. For catalogs > 500 SKUs, multi-market
+    builds, and the ThemeForest "Hydrogen" category (higher ticket).
+  - `shopify-polaris-app` (NEW in v1.5.0) — embedded Shopify Admin app
+    with **Polaris + App Bridge 4 + Remix + Prisma**. Scaffold via
+    `@shopify/create-app --template remix`. Targets the **Shopify App
+    Store** or custom apps with theme/checkout/customer-account/admin/
+    POS/Flow/Functions extensions.
 
 Each stack has:
 - A `scaffold` command list run via bash.
