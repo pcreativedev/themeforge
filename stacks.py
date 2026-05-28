@@ -1517,6 +1517,411 @@ STACKS = {
         "ux_pack": "shopify-checkout-extension",
         "notes": "Checkout UI Extension (solo Shopify Plus) para customizar el checkout hosted con bloques React sandboxeados (@shopify/ui-extensions-react/checkout). 9 targets disponibles (block.render, delivery-address, payment-method, shipping-option, cart-line-item, header, footer, thank-you, order-status). Mercado: agencias Plus + brands premium + B2B. Ticket por trabajo: alto.",
     },
+    "magento-hyva": {
+        "name": "Magento 2 + Hyvä Theme (OSL 3.0)",
+        "category": "CMS · Magento",
+        "language": "PHP + Tailwind + Alpine.js",
+        "scaffold": [
+            # ASUME Magento 2.4.8+ ya instalado en este directorio + composer
+            # configurado con la auth de Hyvä packagist (registro gratis en
+            # https://hyva.io). Si no, el setup fallará con mensajes claros.
+            "echo '→ Comprobando Magento + Hyvä prerequisites…'",
+            "command -v composer >/dev/null || { echo '❌ composer no instalado'; exit 1; }",
+            "[ -f bin/magento ] || echo '⚠️  bin/magento no encontrado — instala Magento 2.4.8+ ANTES de continuar'",
+            # Composer require del parent Hyvä (gratis desde Nov 2025, OSL 3.0)
+            "composer require hyva-themes/magento2-default-theme hyva-themes/magento2-theme-module --no-interaction || \\\n"
+            "  echo '⚠️  composer require falló — necesitas key Hyvä gratis (hyva.io account → packagist credentials)'",
+            # Crear estructura del child theme
+            "mkdir -p app/design/frontend/Pcreative/__SLUG__/{etc,web/{css/source,tailwind,images},Magento_Theme/layout,Magento_Catalog/templates/product}",
+            # registration.php
+            'cat > app/design/frontend/Pcreative/__SLUG__/registration.php <<\'THEMEFORGE_EOF\'\n'
+            '<?php\n'
+            "use Magento\\Framework\\Component\\ComponentRegistrar;\n"
+            "ComponentRegistrar::register(ComponentRegistrar::THEME, 'frontend/Pcreative/__SLUG__', __DIR__);\n"
+            'THEMEFORGE_EOF',
+            # theme.xml — declara parent Hyva/default
+            'cat > app/design/frontend/Pcreative/__SLUG__/theme.xml <<\'THEMEFORGE_EOF\'\n'
+            "<?xml version=\"1.0\"?>\n"
+            "<theme xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xsi:noNamespaceSchemaLocation=\"urn:magento:framework:Config/etc/theme.xsd\">\n"
+            "    <title>__PROJECT__ (Hyvä child)</title>\n"
+            "    <parent>Hyva/default</parent>\n"
+            "    <media><preview_image>media/preview.jpg</preview_image></media>\n"
+            "</theme>\n"
+            'THEMEFORGE_EOF',
+            # composer.json del child theme
+            'cat > app/design/frontend/Pcreative/__SLUG__/composer.json <<\'THEMEFORGE_EOF\'\n'
+            '{\n'
+            '  "name": "pcreative/magento2-theme-__SLUG__",\n'
+            '  "description": "__PROJECT__ — Hyvä child theme",\n'
+            '  "type": "magento2-theme",\n'
+            '  "version": "0.1.0",\n'
+            '  "license": "OSL-3.0",\n'
+            '  "require": {\n'
+            '    "php": "^8.1",\n'
+            '    "hyva-themes/magento2-default-theme": "^1.4.0"\n'
+            '  },\n'
+            '  "autoload": { "files": ["registration.php"] }\n'
+            '}\n'
+            'THEMEFORGE_EOF',
+            # web/tailwind/package.json — Tailwind v4
+            'cat > app/design/frontend/Pcreative/__SLUG__/web/tailwind/package.json <<\'THEMEFORGE_EOF\'\n'
+            '{\n'
+            '  "name": "__SLUG__-tailwind",\n'
+            '  "private": true,\n'
+            '  "scripts": {\n'
+            '    "build": "tailwindcss -i tailwind-source.css -o ../css/styles.css",\n'
+            '    "build-prod": "tailwindcss -i tailwind-source.css -o ../css/styles.css --minify",\n'
+            '    "watch": "tailwindcss -i tailwind-source.css -o ../css/styles.css --watch"\n'
+            '  },\n'
+            '  "devDependencies": {\n'
+            '    "tailwindcss": "^4.0",\n'
+            '    "@tailwindcss/cli": "^4.0",\n'
+            '    "@tailwindcss/forms": "^0.5.7",\n'
+            '    "@tailwindcss/typography": "^0.5.10"\n'
+            '  }\n'
+            '}\n'
+            'THEMEFORGE_EOF',
+            # tailwind.config.js — apunta al parent Hyva
+            'cat > app/design/frontend/Pcreative/__SLUG__/web/tailwind/tailwind.config.js <<\'THEMEFORGE_EOF\'\n'
+            "import path from 'path';\n"
+            "import hyvaConfig from '../../../../../../vendor/hyva-themes/magento2-default-theme/Magento_Theme/web/tailwind/tailwind.config.js';\n"
+            "\n"
+            "export default {\n"
+            "  presets: [hyvaConfig],\n"
+            "  content: [\n"
+            "    '../../**/*.phtml',\n"
+            "    '../../**/*.html',\n"
+            "    '../../**/*.js',\n"
+            "    path.resolve(__dirname, '../../../../../../app/code/**/*.phtml'),\n"
+            "  ],\n"
+            "  theme: {\n"
+            "    extend: {\n"
+            "      colors: { brand: { DEFAULT: '#C56A4D', accent: '#8FA68E' } },\n"
+            "      fontFamily: {\n"
+            "        sans: ['Inter', 'system-ui', 'sans-serif'],\n"
+            "        display: ['Fraunces', 'Georgia', 'serif']\n"
+            "      }\n"
+            "    }\n"
+            "  }\n"
+            "}\n"
+            'THEMEFORGE_EOF',
+            # tailwind-source.css con @import "tailwindcss"
+            'cat > app/design/frontend/Pcreative/__SLUG__/web/tailwind/tailwind-source.css <<\'THEMEFORGE_EOF\'\n'
+            '@import "tailwindcss";\n'
+            '\n'
+            '/* Custom global styles del child theme */\n'
+            'body { font-family: theme(fontFamily.sans); }\n'
+            'h1, h2, h3 { font-family: theme(fontFamily.display); }\n'
+            'THEMEFORGE_EOF',
+            # etc/view.xml (heredado de Hyva, pero file vacío para override)
+            'cat > app/design/frontend/Pcreative/__SLUG__/etc/view.xml <<\'THEMEFORGE_EOF\'\n'
+            "<?xml version=\"1.0\"?>\n"
+            "<view xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xsi:noNamespaceSchemaLocation=\"urn:magento:framework:Config/etc/view.xsd\">\n"
+            "  <!-- Override de view config si quieres tamaños de imagen distintos -->\n"
+            "</view>\n"
+            'THEMEFORGE_EOF',
+            # Magento_Theme/layout/default.xml — ejemplo de layout override
+            'cat > app/design/frontend/Pcreative/__SLUG__/Magento_Theme/layout/default.xml <<\'THEMEFORGE_EOF\'\n'
+            "<?xml version=\"1.0\"?>\n"
+            "<page xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xsi:noNamespaceSchemaLocation=\"urn:magento:framework:View/Layout/etc/page_configuration.xsd\">\n"
+            "  <body>\n"
+            "    <referenceContainer name=\"header.container\">\n"
+            "      <block class=\"Magento\\Framework\\View\\Element\\Template\" name=\"custom.announcement\" template=\"Magento_Theme::announcement.phtml\" />\n"
+            "    </referenceContainer>\n"
+            "  </body>\n"
+            "</page>\n"
+            'THEMEFORGE_EOF',
+            # README-MAGENTO.md
+            'cat > README-MAGENTO.md <<\'THEMEFORGE_EOF\'\n'
+            '# __PROJECT__ — Magento 2 + Hyvä child theme\n'
+            '\n'
+            'Stack: **Magento 2.4.8+** (Open Source o Adobe Commerce) +\n'
+            '**Hyvä Theme 1.4.4+** (OSL 3.0 + AFL 3.0, OSS desde 2025-11-10) +\n'
+            '**Tailwind v4** + **Alpine.js**.\n'
+            '\n'
+            '## Prerequisites\n'
+            '\n'
+            '1. **Magento 2.4.8+** ya instalado (este scaffold NO lo instala —\n'
+            '   asume tu setup Composer + base de datos + bin/magento listos).\n'
+            '2. **Cuenta gratis en hyva.io** → packagist credentials para\n'
+            '   composer auth (necesarios incluso siendo OSS por gobernanza\n'
+            '   del registry Hyvä).\n'
+            '3. **Node 22 + npm** para build de Tailwind v4.\n'
+            '4. **PHP 8.1+**.\n'
+            '\n'
+            '## Estructura generada\n'
+            '\n'
+            '```\n'
+            'app/design/frontend/Pcreative/__SLUG__/\n'
+            '├── composer.json                      # type=magento2-theme, OSL-3.0\n'
+            '├── registration.php                   # ComponentRegistrar\n'
+            '├── theme.xml                          # parent=Hyva/default\n'
+            '├── etc/view.xml                       # view config overrides\n'
+            '├── web/\n'
+            '│   ├── css/source/                    # less/scss source (heredado)\n'
+            '│   ├── images/                        # logo, preview.jpg\n'
+            '│   └── tailwind/\n'
+            '│       ├── package.json               # Tailwind v4 build scripts\n'
+            '│       ├── tailwind.config.js         # preset Hyvä + custom theme\n'
+            '│       └── tailwind-source.css        # @import "tailwindcss"\n'
+            '├── Magento_Theme/layout/default.xml   # override del default page\n'
+            '└── Magento_Catalog/templates/product/ # .phtml overrides\n'
+            '```\n'
+            '\n'
+            '## Build & activate\n'
+            '\n'
+            '```bash\n'
+            '# 1. Composer install (re-genera autoload con el nuevo theme)\n'
+            'composer dump-autoload\n'
+            '\n'
+            '# 2. Build Tailwind\n'
+            'cd app/design/frontend/Pcreative/__SLUG__/web/tailwind\n'
+            'npm install\n'
+            'npm run build-prod\n'
+            'cd -\n'
+            '\n'
+            '# 3. Aplicar el theme via Magento CLI\n'
+            'bin/magento setup:upgrade\n'
+            'bin/magento setup:di:compile\n'
+            'bin/magento setup:static-content:deploy -f\n'
+            'bin/magento cache:flush\n'
+            '\n'
+            '# 4. Asignar el theme a un store en Admin\n'
+            '#    Stores > Configuration > Design > Design Theme = Pcreative/__SLUG__\n'
+            '```\n'
+            '\n'
+            '## Hyvä vs Luma\n'
+            '\n'
+            '| Métrica | Luma (default Magento) | Hyvä |\n'
+            '|---|---|---|\n'
+            '| Lighthouse mobile | 25-40 | 90-100 |\n'
+            '| JS bundle | 1.5+ MB | ~95 KB |\n'
+            '| LCP | 3-6s | < 1.5s |\n'
+            '| Adopción 2026 | declining | dominante en builds nuevos |\n'
+            '\n'
+            'Hyvä reemplaza RequireJS + KnockoutJS + heavy CSS con Tailwind + Alpine.js.\n'
+            '\n'
+            '## Override de templates\n'
+            '\n'
+            'Copia el .phtml original del módulo a la misma ruta dentro de tu\n'
+            'theme. Ejemplo override `list.phtml` de catálogo:\n'
+            '\n'
+            '```bash\n'
+            'cp vendor/hyva-themes/magento2-default-theme/Magento_Catalog/templates/product/list.phtml \\\n'
+            '   app/design/frontend/Pcreative/__SLUG__/Magento_Catalog/templates/product/list.phtml\n'
+            '```\n'
+            '\n'
+            'Luego edita libremente.\n'
+            '\n'
+            '## Distribución\n'
+            '\n'
+            'Vende como composer package (`pcreative/magento2-theme-__SLUG__`)\n'
+            'en tu propio repo packagist, o súbelo a Adobe Commerce Marketplace\n'
+            '($99-499 por theme). Tu propio sistema de licencias gates updates +\n'
+            'features premium vía un módulo helper (ver README.licensing.md\n'
+            'si has activado el sistema de licencias).\n'
+            'THEMEFORGE_EOF',
+        ],
+        "min_version": "Magento 2.4.8+ / Hyvä 1.4.4+ / PHP 8.1+ / Node 22+",
+        "skills": [],
+        "ux_pack": "magento-hyva",
+        "notes": "Magento 2 + Hyvä Theme — el frontend OSS más usado para Magento 2 desde Nov 2025 (antes era €1000/store). Tailwind v4 + Alpine.js reemplazando RequireJS/KnockoutJS, Lighthouse 90+ vs 25-40 de Luma. Stack scaffoldea SOLO el child theme — Magento debe estar ya instalado. Requiere cuenta gratis en hyva.io para composer auth packagist.",
+    },
+    "saleor-nextjs": {
+        "name": "Saleor + Next.js Storefront (BSD-3)",
+        "category": "CMS · Saleor",
+        "language": "TypeScript + GraphQL",
+        "scaffold": [
+            "echo '→ Clonando Saleor Storefront oficial (Next.js 15 + App Router)…'",
+            # Clone the official storefront into current dir. The official repo
+            # ships as a flat template; we strip the .git so it becomes our own.
+            "git clone --depth 1 https://github.com/saleor/storefront.git _saleor_tmp 2>&1 | head",
+            "cp -a _saleor_tmp/. . && rm -rf _saleor_tmp/.git _saleor_tmp",
+            # Set package name + version
+            "if [ -f package.json ] && command -v jq >/dev/null 2>&1; then "
+            "jq '.name = \"__SLUG__\" | .version = \"0.1.0\"' package.json > _pkg.tmp && mv _pkg.tmp package.json; fi",
+            # .env baseline pointing to demo (user must replace)
+            'cat > .env.example <<\'THEMEFORGE_EOF\'\n'
+            '# Apuntar al GraphQL endpoint de tu instancia Saleor (Cloud o self-hosted)\n'
+            'NEXT_PUBLIC_SALEOR_API_URL=https://store-public-uefa-iad.saleor.cloud/graphql/\n'
+            'NEXT_PUBLIC_STOREFRONT_URL=http://localhost:3000\n'
+            'THEMEFORGE_EOF',
+            "cp .env.example .env 2>/dev/null || true",
+            'cat > README-SALEOR.md <<\'THEMEFORGE_EOF\'\n'
+            '# __PROJECT__ — Saleor Storefront (Next.js)\n'
+            '\n'
+            'Storefront headless oficial de Saleor — React 18 + Next.js 15 App\n'
+            'Router + TypeScript + GraphQL Codegen + Tailwind CSS. Licencia BSD-3.\n'
+            '\n'
+            '## Backend Saleor — 3 opciones\n'
+            '\n'
+            '1. **Saleor Cloud** (managed, $1k+/mes enterprise) — más rápido para empezar.\n'
+            '2. **Self-hosted** — `docker compose up` desde https://github.com/saleor/saleor\n'
+            '   (Python/Django + Postgres + Redis + Celery). Free.\n'
+            '3. **Demo público** — `store-public-uefa-iad.saleor.cloud/graphql/` (datos\n'
+            '   de prueba). Útil para empezar a desarrollar sin backend propio.\n'
+            '\n'
+            '## Comandos\n'
+            '\n'
+            '```bash\n'
+            'pnpm install        # (o npm install)\n'
+            'pnpm dev            # http://localhost:3000\n'
+            'pnpm generate       # GraphQL codegen tras editar queries\n'
+            'pnpm build          # production build\n'
+            'pnpm start          # serve production build\n'
+            '```\n'
+            '\n'
+            '## Arquitectura clave\n'
+            '\n'
+            '- **App Router** (`src/app/`) — server components + route handlers.\n'
+            '- **GraphQL queries** en `src/gql/` con `.graphql` files → codegen genera\n'
+            '  TypedDocumentString para zero-overhead types + tree-shaking.\n'
+            '- **Channels + Regions** — multi-currency / multi-language via\n'
+            '  Saleor channels (definidos en Admin → Configuration → Channels).\n'
+            '- **Checkout** — `/checkout` route con multi-step Stripe/Adyen.\n'
+            '- **Custom apps** — instalables en Saleor Admin via OAuth.\n'
+            '\n'
+            '## Cuando elegir Saleor vs Shopify/Hydrogen\n'
+            '\n'
+            '| Caso | Saleor | Hydrogen |\n'
+            '|---|---|---|\n'
+            '| Multi-channel B2B + B2C en una | ✓ nativo | requiere apps Plus |\n'
+            '| Enterprise catalog modelling | ✓ | limitado |\n'
+            '| Self-hosted total control | ✓ | sólo Oxygen |\n'
+            '| Plug-and-play SaaS | ✗ (self-host esfuerzo) | ✓ |\n'
+            '| GraphQL-first | ✓ desde día 0 | ✓ |\n'
+            'THEMEFORGE_EOF',
+        ],
+        "min_version": "Saleor 3.20+ / Next.js 15 / Node 22+ / GraphQL",
+        "skills": [],
+        "ux_pack": "saleor-nextjs",
+        "notes": "Storefront oficial Saleor (Next.js 15 + App Router + GraphQL Codegen + Tailwind). Multi-channel multi-region enterprise. Backend Saleor (Python/Django) self-host gratis o Saleor Cloud (paid). Licencia BSD-3. Para catálogos B2B+B2C complejos con multi-currency real.",
+    },
+    "vendure": {
+        "name": "Vendure (MIT, NestJS + GraphQL)",
+        "category": "CMS · Vendure",
+        "language": "TypeScript + NestJS + GraphQL",
+        "scaffold": [
+            # @vendure/create es interactivo; el flag --skip-init evita prompts
+            # cuando se puede; si falla, fallback al user.
+            "npx --yes @vendure/create@latest . --quick --skip-confirmation || "
+            "(echo '⚠️ scaffold no-interactivo no disponible; ejecuta `npx @vendure/create .` manualmente' && exit 0)",
+            'cat > README-VENDURE.md <<\'THEMEFORGE_EOF\'\n'
+            '# __PROJECT__ — Vendure (headless commerce)\n'
+            '\n'
+            'Backend de ecommerce headless construido con NestJS + TypeScript +\n'
+            'GraphQL + TypeORM. Licencia MIT. Plugin-first architecture.\n'
+            '\n'
+            '## Stack\n'
+            '\n'
+            '- **Vendure Core 3.x** — backend.\n'
+            '- **NestJS** — framework de Node.js para aplicaciones server.\n'
+            '- **GraphQL** — schema generado dinámicamente del catálogo + channels.\n'
+            '- **TypeORM** — Postgres recomendado (también MySQL/MariaDB/SQLite).\n'
+            '- **Admin UI** (Angular) — embebida en `/admin`.\n'
+            '- **Storefront opcional** — Next.js / Remix / Angular starter.\n'
+            '\n'
+            '## Comandos\n'
+            '\n'
+            '```bash\n'
+            'npm install\n'
+            'npm run dev            # backend en localhost:3000, admin en /admin\n'
+            'npm run dev:storefront # si has elegido incluir storefront durante el scaffold\n'
+            'npx vendure add        # añadir plugins (e.g. asset-server, email)\n'
+            '```\n'
+            '\n'
+            '## Plugins típicos\n'
+            '\n'
+            '- `@vendure/asset-server-plugin` — gestión de assets/imágenes.\n'
+            '- `@vendure/email-plugin` — emails transaccionales (Handlebars).\n'
+            '- `@vendure/admin-ui-plugin` — Admin UI.\n'
+            '- `@vendure/dashboard-plugin` — analytics.\n'
+            '- `@vendure/payments-plugin` — Stripe/Mollie/Braintree.\n'
+            '\n'
+            '## Channels + Regions\n'
+            '\n'
+            'Vendure soporta multi-channel nativo (multi-currency, multi-tax,\n'
+            'multi-language). Configura desde Admin UI o `vendure-config.ts`.\n'
+            '\n'
+            '## Cuando Vendure vs Saleor vs Medusa\n'
+            '\n'
+            '- **Vendure**: más estructurado, plugin API más limpio, Admin UI\n'
+            '  nativa Angular. Ideal para devs TypeScript.\n'
+            '- **Saleor**: Python backend, GraphQL desde día 1, multi-region\n'
+            '  más maduro para enterprise.\n'
+            '- **Medusa**: más MVP-friendly, growing fast, plugins más nuevos.\n'
+            'THEMEFORGE_EOF',
+        ],
+        "min_version": "Vendure 3.x / Node 22+ / Postgres 14+",
+        "skills": [],
+        "ux_pack": "vendure",
+        "notes": "Vendure — backend headless commerce con NestJS + GraphQL + TypeORM (Postgres). Plugin-first architecture, admin UI Angular incluido, storefront opcional (Next/Remix/Angular). Licencia MIT. Self-hosted total. Para devs TypeScript que prefieren arquitectura más estructurada que Medusa.",
+    },
+    "bigcommerce-stencil": {
+        "name": "BigCommerce Stencil + Cornerstone (MIT)",
+        "category": "CMS · BigCommerce",
+        "language": "Handlebars + SCSS",
+        "scaffold": [
+            "echo '→ Clonando Cornerstone (theme oficial BigCommerce, MIT)…'",
+            "git clone --depth 1 https://github.com/bigcommerce/cornerstone.git _cs_tmp 2>&1 | head",
+            "cp -a _cs_tmp/. . && rm -rf _cs_tmp/.git _cs_tmp",
+            "if [ -f package.json ] && command -v jq >/dev/null 2>&1; then "
+            "jq '.name = \"__SLUG__\" | .version = \"0.1.0\"' package.json > _pkg.tmp && mv _pkg.tmp package.json; fi",
+            # Stencil CLI debe estar instalado global; check + instrucción
+            "command -v stencil >/dev/null 2>&1 || echo '⚠️  Stencil CLI no instalado. Instálalo: npm install -g @bigcommerce/stencil-cli'",
+            'cat > README-BIGCOMMERCE.md <<\'THEMEFORGE_EOF\'\n'
+            '# __PROJECT__ — BigCommerce Stencil Theme\n'
+            '\n'
+            'Cornerstone (theme oficial BigCommerce, MIT) como base. Handlebars +\n'
+            'SCSS Citadel (Foundation 5.5) + Stencil CLI.\n'
+            '\n'
+            '## Setup\n'
+            '\n'
+            '```bash\n'
+            'npm install -g @bigcommerce/stencil-cli   # primera vez\n'
+            'npm install                               # deps del theme\n'
+            'stencil init                              # config interactiva → .stencil\n'
+            '#   - Pide la URL de tu store (https://store-xxxx.mybigcommerce.com)\n'
+            '#   - Pide tu API token (BigCommerce Admin → Settings → API → New token)\n'
+            'stencil start                             # local dev en https://localhost:3000\n'
+            '```\n'
+            '\n'
+            '## Comandos Stencil\n'
+            '\n'
+            '| Comando | Para qué |\n'
+            '|---|---|\n'
+            '| `stencil init` | crea `.stencil` con tu store + token |\n'
+            '| `stencil start` | dev server local con HMR (https) |\n'
+            '| `stencil bundle` | empaqueta el theme a `.zip` |\n'
+            '| `stencil push` | sube el bundle a tu store |\n'
+            '| `stencil release` | combina bundle + push + bump version |\n'
+            '\n'
+            '## Estructura\n'
+            '\n'
+            '```\n'
+            'templates/        — Handlebars pages (home, product, category, cart, …)\n'
+            'assets/           — CSS source (SCSS Citadel) + JS (ES modules) + img\n'
+            'lang/              — locales (en, es, fr, …)\n'
+            'schema.json        — settings que el merchant ve en el Page Builder\n'
+            'config.json        — theme metadata + variations + variation styles\n'
+            '.stencil           — credentials del store (gitignored)\n'
+            '```\n'
+            '\n'
+            '## BigCommerce Theme Store\n'
+            '\n'
+            '- Themes paid se distribuyen a través del Theme Store de BigCommerce\n'
+            '  (~$150-300 por theme, ticket más alto que Shopify).\n'
+            '- Cornerstone es la base oficial pero **NO se permite revender\n'
+            '  Cornerstone tal cual** — hay que diferenciar (igual que Shopify Dawn\n'
+            '  en Theme Store).\n'
+            '- ThemeForest también vende BigCommerce themes (~900 themes).\n'
+            'THEMEFORGE_EOF',
+        ],
+        "min_version": "Cornerstone 6.x / Stencil CLI 7.x / Node 22+",
+        "skills": [],
+        "ux_pack": "bigcommerce-stencil",
+        "notes": "BigCommerce theme stack — Cornerstone (theme oficial MIT) + Stencil CLI. Handlebars + SCSS Citadel (Foundation 5.5). 2º theme store después de Shopify por volumen. Ticket más alto: themes $150-300. Para Theme Store oficial: NO puede ser derivado de Cornerstone (mismo gating que Dawn en Shopify Theme Store).",
+    },
     "html-tailwind": {
         "name": "HTML + Tailwind + Vite",
         "category": "Web · Static",
