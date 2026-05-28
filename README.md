@@ -30,6 +30,7 @@
   <a href="CONTRIBUTING.md">Contributing</a> ·
   <a href="docs/WORDPRESS.md">WordPress guide</a> ·
   <a href="docs/SHOPIFY.md">Shopify guide</a> ·
+  <a href="docs/ECOMMERCE.md">E-commerce guide</a> ·
   <a href="NOTICE.md">Third-party</a> ·
   <a href="TRADEMARKS.md">Trademarks</a>
 </p>

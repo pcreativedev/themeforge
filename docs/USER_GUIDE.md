@@ -338,6 +338,40 @@ stacks are supported including (non-exhaustive):
   - `shopify-checkout-extension` (NEW in v1.5.0) — UI extension inside
     the hosted Shopify checkout. **Shopify Plus only.** $50-500/mo
     typical pricing.
+- **E-commerce — non-Shopify** (NEW in v1.5.0, all under the unified
+  `E-commerce` category in the picker):
+  - `magento-hyva` — Magento 2.4.8+ child theme on top of **Hyvä**
+    (Tailwind v4 + Alpine.js). Hyvä went open-source on 2025-11-10
+    under OSL 3.0 + AFL 3.0. The scaffold also auto-installs the
+    **Freento MCP** module (MIT) so the agent can query orders,
+    products, customers, etc. against the store. Marketplaces: Adobe
+    Commerce Marketplace + ThemeForest.
+  - `saleor-nextjs` — official Saleor Storefront (Next.js 15 App
+    Router + GraphQL Codegen + Tailwind, BSD-3). Backend = Saleor
+    Cloud / self-hosted / public demo.
+  - `vendure` — MIT headless commerce backend (NestJS + GraphQL +
+    TypeORM/Postgres) with embedded Angular admin. Optional Next.js
+    storefront chosen during the `@vendure/create` scaffold.
+  - `bigcommerce-stencil` — BigCommerce theme based on the official
+    **Cornerstone** (MIT) + Stencil CLI (Handlebars + SCSS Citadel /
+    Foundation 5.5). 2nd theme store after Shopify by volume;
+    Cornerstone-derived themes are ineligible for the BigCommerce
+    Theme Store.
+  - `medusa` — existing stack since v1.x; MIT (Node + Next.js).
+  - `prestashop-theme` — PrestaShop 9 child theme inheriting from
+    `classic` (OSL 3.0). Smarty templates + assets pipeline. Markets:
+    PrestaShop Addons (2k+ templates, €40-150) + ThemeForest.
+  - `opencart-theme` — OpenCart 4.x theme packaged as an extension
+    (GPL). Twig templates. OCMod was removed in OC 4 — only events
+    are supported. Markets: OpenCart Marketplace + ThemeForest (1.5k+).
+  - `sylius` — Sylius 2.x full commerce framework (MIT) on Symfony
+    7.4. Doctrine ORM 3 + Twig 3 + API Platform 3, multi-channel
+    native. SyliusThemeBundle for custom themes.
+
+  All 15 e-commerce stacks live under the single **E-commerce**
+  category in the stack picker. Full walk-through with prereqs,
+  scaffold steps, activation and distribution channels in
+  [`docs/ECOMMERCE.md`](ECOMMERCE.md).
 
 Each stack has:
 - A `scaffold` command list run via bash.
