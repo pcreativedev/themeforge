@@ -247,6 +247,57 @@ Cuando tenga su cabecera ({"style.css" if kind == "theme" else "cabecera de plug
     except Exception:
         pass
 
+    # WORDPRESS-LEGAL.md — disclaimer único por proyecto sobre licencias y
+    # marcas de los plugins/themes WordPress que ThemeForge auto-instala o
+    # menciona. Idéntico para todos los stacks WP. NO se commitea (vive en
+    # gitignore con el resto del entorno local).
+    legal = """# Licencia y terceros (entorno WordPress)
+
+Este proyecto es **tuyo** — el código que escribas aquí va bajo la licencia
+que tú elijas. Lo que sigue se refiere SOLO al entorno de desarrollo que
+ThemeForge ha levantado (WordPress + MariaDB en Docker) y a los plugins/temas
+instalados dentro de ese entorno.
+
+## ThemeForge no bundlea código de terceros
+
+- **Free plugins/temas** (ACF, Pods, GenerateBlocks, Spectra, Elementor free,
+  Hello Elementor, GreenShift, Breakdance free, Kadence, Royal MCP, plugin
+  oficial de WordPress MCP): se descargan en el contenedor de Docker desde
+  **WordPress.org** vía `wp-cli`, igual que si los instalaras a mano desde
+  *Plugins → Añadir nuevo*. Todos son GPL.
+- **Novamira (free)**: se descarga desde sus releases oficiales en GitHub
+  (<https://github.com/use-novamira/novamira>). Licencia: AGPL v3.
+- **Plugins/temas premium** (Bricks, Bricksforge, Elementor Pro, Essential
+  Addons Pro, Divi, Divi Builder, Breakdance Pro, JetEngine, JetSmartFilters,
+  Motion.page, Novamira Pro, ACF Pro, GenerateBlocks Pro, Kadence Blocks
+  Pro, etc.): se instalan **solo si** declaraste un zip que **tú hayas
+  licenciado legalmente** en `~/.config/themeforge/wp_packs.json`.
+  ThemeForge ni verifica ni provee licencias.
+
+## Marcas
+
+Bricks®, Elementor®, Divi®, Breakdance®, JetEngine®, ACF®, WooCommerce®,
+WordPress®, Motion.page y cualquier otra marca mencionada son de sus
+propietarios. Aparecen aquí solo para identificar el producto al que se
+refieren (uso nominativo justo). ThemeForge no está afiliado a ninguno y
+no implica patrocinio.
+
+Ver `TRADEMARKS.md` y `NOTICE.md` en el repo de ThemeForge para el detalle.
+
+## Si publicas este proyecto
+
+- El theme/plugin que escribas DEBES publicarlo bajo una licencia compatible
+  con GPL (WordPress lo exige a todo lo que se ejecuta en su core).
+- NO redistribuyas dentro de tu .zip de venta los plugins/temas comerciales
+  de terceros que hayas instalado en dev — el comprador final tiene que
+  obtener sus propias licencias. El marketplace (ThemeForest, CodeCanyon)
+  además lo prohíbe en sus ToS.
+"""
+    try:
+        (pd / "WORDPRESS-LEGAL.md").write_text(legal, encoding="utf-8")
+    except Exception:
+        pass
+
     # .mcp.json — servidor MCP de WordPress para Claude Code (bridge oficial de
     # Automattic + application password). Permite al agente operar WP por MCP.
     if prov.get("app_password"):
@@ -274,7 +325,7 @@ Cuando tenga su cabecera ({"style.css" if kind == "theme" else "cabecera de plug
         gi = pd / ".gitignore"
         existing = gi.read_text(encoding="utf-8") if gi.exists() else ""
         lines = set(existing.splitlines())
-        add = [e for e in ("WORDPRESS-DEV.md", "/wp", ".mcp.json") if e not in lines]
+        add = [e for e in ("WORDPRESS-DEV.md", "WORDPRESS-LEGAL.md", "/wp", ".mcp.json") if e not in lines]
         if add:
             with gi.open("a", encoding="utf-8") as f:
                 if existing and not existing.endswith("\n"):
@@ -364,13 +415,18 @@ def _configure_wp(wp: str, net: str, db_pw: str, port: int, slug: str, admin_pw:
 
 # ─── UX packs: plugins/temas por builder de WordPress ──────────────────
 #
-# Cada pack define lo que ThemeForge instala automáticamente en el WP de
-# Docker para que el agente trabaje sobre la combinación builder+plugins
-# correcta. Los plugins/themes free vienen del repo oficial vía wp-cli; los
-# premium (Bricks, Elementor Pro, Divi, Breakdance Pro, JetEngine,
-# Bricksforge, Novamira Pro, ACF Pro, Motion.page, etc.) requieren licencia
-# y los declara el usuario en ~/.config/themeforge/wp_packs.json
-# (gitignored, NUNCA al repo público).
+# IMPORTANTE — política legal:
+#   1) ThemeForge NUNCA bundlea código de terceros en este repo.
+#   2) Los items "free" se instalan llamando a wp-cli, que los descarga
+#      desde su FUENTE OFICIAL (WordPress.org o el releases público del
+#      proyecto), igual que haría un usuario manualmente desde wp-admin.
+#   3) Los items "premium" se referencian solo por nombre. NUNCA hay
+#      URLs/zips/secrets reales en este repo. El usuario aporta su copia
+#      con licencia válida en ~/.config/themeforge/wp_packs.json
+#      (gitignored — vive fuera del repo, en el HOME del usuario).
+#   4) Las marcas (Bricks, Elementor, Divi, Breakdance, JetEngine,
+#      Motion.page, etc.) son de sus propietarios. Uso nominativo justo;
+#      ver TRADEMARKS.md y NOTICE.md.
 #
 # Estructura por pack:
 #   "themes":  [(slug, label), ...]   — parent themes (no se activan; los

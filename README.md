@@ -28,7 +28,8 @@
   <a href="CHANGELOG.md">Changelog</a> ·
   <a href="../../releases">Releases</a> ·
   <a href="CONTRIBUTING.md">Contributing</a> ·
-  <a href="NOTICE.md">Third-party</a>
+  <a href="NOTICE.md">Third-party</a> ·
+  <a href="TRADEMARKS.md">Trademarks</a>
 </p>
 
 ---
@@ -235,6 +236,24 @@ python themeforge.py
 ## License
 
 GPL v3 — see [`LICENSE`](LICENSE) (forced by the PyQt6 dependency).
+
+### WordPress integration packs & third-party trademarks
+
+The WordPress stacks (`wordpress-block`, `wordpress-bricks`,
+`wordpress-elementor`, `wordpress-divi`, `wordpress-breakdance`)
+auto-install **free** plugins and themes from their official sources
+(WordPress.org and the official Novamira GitHub releases). Premium
+products (Bricks, Elementor Pro, Divi, Breakdance Pro, JetEngine,
+Novamira Pro, ACF Pro, Motion.page, …) are referenced by name only —
+**ThemeForge never bundles or redistributes their code.** To install
+them automatically, supply a path to a copy you have legitimately
+licensed in `~/.config/themeforge/wp_packs.json` (gitignored,
+local-only).
+
+See [`NOTICE.md`](NOTICE.md) for the full attribution table and
+[`TRADEMARKS.md`](TRADEMARKS.md) for the trademark notice (all
+third-party names are used under nominative fair use; no affiliation
+or endorsement is implied).
 
 ## Credits
 

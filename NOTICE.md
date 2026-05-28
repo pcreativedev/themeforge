@@ -88,6 +88,74 @@ extended) in `mcp_catalog.py`.
 | GitHub CLI (`gh`) | MIT | <https://github.com/cli/cli> | Repo create / push from the ProjectWindow |
 | `paru` | GPL v3 | <https://github.com/Morganamilo/paru> | AUR helper hint in docs |
 
+## WordPress integration packs
+
+When the user picks one of the WordPress stacks (`wordpress-block`,
+`wordpress-bricks`, `wordpress-elementor`, `wordpress-divi`,
+`wordpress-breakdance`), ThemeForge provisions a development WordPress +
+MariaDB environment in Docker and **auto-installs** the free plugins/themes
+listed below. None of this code is bundled in this repository — the
+WordPress container fetches each item from its **official source** via
+`wp-cli` at provisioning time.
+
+### Auto-installed (FREE, public sources)
+
+All items are GPL (or AGPL for Novamira) and freely downloadable.
+ThemeForge calls `wp-cli` exactly the same way a user would by clicking
+*Plugins → Add new* in `wp-admin`.
+
+| Item | Source | License | Used by stack(s) |
+|---|---|---|---|
+| Hello Elementor (theme) | WordPress.org | GPL v2+ | `wordpress-elementor` (parent) |
+| Kadence (theme) | WordPress.org | GPL v2+ | `wordpress-breakdance` (base) |
+| Elementor (plugin, free) | WordPress.org | GPL v3 | `wordpress-elementor` |
+| Essential Addons for Elementor — Lite | WordPress.org | GPL v3 | `wordpress-elementor` |
+| Breakdance (plugin, free) | WordPress.org | GPL v3 | `wordpress-breakdance` |
+| GenerateBlocks | WordPress.org | GPL v2+ | `wordpress-block` |
+| Ultimate Addons for Gutenberg (Spectra) | WordPress.org | GPL v2+ | `wordpress-block` |
+| GreenShift | WordPress.org | GPL v2+ | `wordpress-bricks` |
+| Advanced Custom Fields (free) | WordPress.org | GPL v2+ | all WP stacks |
+| Pods | WordPress.org | GPL v2+ | all WP stacks |
+| Royal MCP | WordPress.org | GPL v2+ | all WP stacks |
+| Novamira (free) | <https://github.com/use-novamira/novamira> (official releases) | **AGPL v3** | all WP stacks |
+| WordPress MCP plugin (Automattic) | <https://github.com/Automattic/wordpress-mcp> | GPL v2+ | all WP stacks |
+
+For Novamira, ThemeForge resolves the latest release asset URL via the
+GitHub public API and passes it to `wp-cli plugin install`. We do not
+modify Novamira or run it as a service on our infrastructure, so AGPL
+network-use obligations do not attach to ThemeForge.
+
+### Premium — referenced by name only, NEVER bundled
+
+The following premium products are referenced in scaffold notes,
+README templates, and the (gitignored) `~/.config/themeforge/wp_packs.json`
+schema. **ThemeForge never bundles, distributes, or links to copies of
+these products.** Users who want to auto-install one of them must
+declare a path or URL to a copy they have legitimately licensed:
+
+| Product | Holder | Where it appears |
+|---|---|---|
+| Bricks Builder | Bricks Builder GmbH | `wordpress-bricks` (parent theme placeholder) |
+| Bricksforge | Bricksforge GmbH | `wordpress-bricks` (plugin placeholder) |
+| Elementor Pro | Elementor Ltd. | `wordpress-elementor` (plugin placeholder) |
+| Essential Addons for Elementor — Pro | WPDeveloper | `wordpress-elementor` (plugin placeholder) |
+| Divi (theme) / Divi Builder | Elegant Themes Inc. | `wordpress-divi` (parent + plugin placeholder) |
+| Breakdance Pro | SoftAndy Inc. | `wordpress-breakdance` (plugin placeholder) |
+| JetEngine, JetSmartFilters | Crocoblock | `wordpress-bricks`, `wordpress-elementor`, `wordpress-breakdance` (plugin placeholder) |
+| Motion.page | Motion.page | `wordpress-bricks`, `wordpress-elementor` (plugin placeholder) |
+| Novamira Pro | use-novamira | All WP stacks (plugin placeholder) |
+| ACF Pro | WP Engine / Delicious Brains | `wordpress-block` (plugin placeholder) |
+| GenerateBlocks Pro | Edge22 | `wordpress-block` (plugin placeholder) |
+| Kadence Blocks Pro | StellarWP | `wordpress-block` (plugin placeholder) |
+
+Users are responsible for ensuring they hold a valid license for any
+product they declare in `wp_packs.json`. ThemeForge does not verify
+licenses and does not assume liability for unauthorized use of premium
+plugins.
+
+See [`TRADEMARKS.md`](TRADEMARKS.md) for the full trademark notice and
+the legal basis on which third-party names are used.
+
 ## Referenced by name (NOT redistributed)
 
 When the `autoskills` checkbox is enabled and the AI provider supports
