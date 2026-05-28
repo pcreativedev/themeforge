@@ -695,6 +695,47 @@ def _detect_base_profile(project_path: Path) -> PreviewProfile | None:
             "port_inject": "flag:--port",
         }
 
+    # 3c. Shopify Liquid theme — DETECTAR ANTES del fallback "npm run dev"
+    # porque nuestro scaffold escribe package.json con dev=shopify theme dev,
+    # y el genérico apuntaría a localhost:3000 en vez de 127.0.0.1:9292.
+    if (project_path / "config" / "settings_schema.json").is_file() \
+            or "@shopify/cli" in deps \
+            or "@shopify/prettier-plugin-liquid" in deps:
+        return {
+            "name": "Shopify theme dev",
+            "command": ["shopify", "theme", "dev"],
+            "url": "http://127.0.0.1:{port}",
+            "default_port": 9292,
+            "port_inject": "flag:--port=",
+            "note": "Requiere `shopify login --store=tu-tienda.myshopify.com` previo (cuenta Partners gratis).",
+        }
+
+    # 3d. Shopify Hydrogen (storefront headless, Remix + Oxygen).
+    if "@shopify/hydrogen" in deps or "@shopify/remix-oxygen" in deps:
+        return {
+            "name": "Shopify Hydrogen dev",
+            "command": ["npm", "run", "dev"],
+            "url": "http://localhost:{port}",
+            "default_port": 3000,
+            "port_inject": "env:PORT",
+            "note": "Hydrogen (Remix + Oxygen). `shopify hydrogen link` para conectar a la tienda real.",
+        }
+
+    # 3e. Shopify embedded app (Polaris + App Bridge + Remix).
+    # El CLI levanta un tunnel Cloudflared con URL pública embebida en el
+    # Admin de Shopify; este preview enseña el server local subyacente.
+    if "@shopify/shopify-app-remix" in deps \
+            or "@shopify/app-bridge-react" in deps \
+            or (project_path / "shopify.app.toml").is_file():
+        return {
+            "name": "Shopify App (tunnel Cloudflared)",
+            "command": ["npm", "run", "dev"],
+            "url": "http://localhost:{port}",
+            "default_port": 3000,
+            "port_inject": "env:PORT",
+            "note": "Shopify CLI imprime la URL pública del tunnel (uso embebido en /admin); este preview muestra el server local subyacente.",
+        }
+
     if "dev" in scripts:
         if "next" in deps:
             return {
