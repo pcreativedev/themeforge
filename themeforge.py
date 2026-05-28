@@ -981,6 +981,10 @@ _FORMAT_WORDPRESS = {
     "wordpress-block", "wordpress-bricks", "wordpress-elementor",
     "wordpress-divi", "wordpress-breakdance", "wordpress-plugin",
 }
+# Variantes de THEME WP (todas las anteriores excepto el stack de plugin).
+# Cualquiera de estas tiene un child theme distinto y un ux_pack distinto:
+# si el usuario eligió una a mano, NO la pisamos al detectar "wordpress-theme".
+_WORDPRESS_THEME_STACKS = _FORMAT_WORDPRESS - {"wordpress-plugin"}
 _FORMAT_SCRIPT_APP = {
     "laravel-inertia", "nestjs-prisma", "fastapi", "django-tailwind", "t3-stack",
     "hono-bun", "hono-cloudflare", "phoenix-liveview", "rails-tailwind", "go-fiber",
@@ -3594,7 +3598,14 @@ class ThemeForge(QWidget):
         # prompt de análisis (build_prompt) recomendará SOLO enfoques WordPress.
         _wp_kind = facts.get("kind") if isinstance(facts, dict) else None
         if _wp_kind in ("wordpress-theme", "wordpress-plugin"):
-            _new_stack = "wordpress-block" if _wp_kind == "wordpress-theme" else "wordpress-plugin"
+            # Respeta una elección manual de variante WP (bricks/elementor/divi/
+            # breakdance). Si el user ya picó un theme-builder WP a mano, no
+            # bajamos el stack a «Block Theme» — eso se cargaba el pack UX
+            # configurado (instalaría plugins FSE en vez de los del builder).
+            if _wp_kind == "wordpress-theme" and self._stack_key in _WORDPRESS_THEME_STACKS:
+                _new_stack = self._stack_key
+            else:
+                _new_stack = "wordpress-block" if _wp_kind == "wordpress-theme" else "wordpress-plugin"
             if self._stack_key != _new_stack:
                 self._stack_key = _new_stack
                 self._refresh_stack_button()
