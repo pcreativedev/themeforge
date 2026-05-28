@@ -985,7 +985,12 @@ _FORMAT_WORDPRESS = {
 # Cualquiera de estas tiene un child theme distinto y un ux_pack distinto:
 # si el usuario eligió una a mano, NO la pisamos al detectar "wordpress-theme".
 _WORDPRESS_THEME_STACKS = _FORMAT_WORDPRESS - {"wordpress-plugin"}
-_FORMAT_SHOPIFY = {"shopify-liquid", "shopify-liquid-blank", "shopify-hydrogen", "shopify-polaris-app"}
+_FORMAT_SHOPIFY = {
+    "shopify-liquid", "shopify-liquid-blank",
+    "shopify-hydrogen",
+    "shopify-polaris-app", "shopify-functions", "shopify-checkout-extension",
+    "shopify-storefront-webcomponents",
+}
 _FORMAT_SCRIPT_APP = {
     "laravel-inertia", "nestjs-prisma", "fastapi", "django-tailwind", "t3-stack",
     "hono-bun", "hono-cloudflare", "phoenix-liveview", "rails-tailwind", "go-fiber",
@@ -2269,6 +2274,265 @@ Pero específicamente para Theme Store:
 Ver la sección homónima en el contexto del stack `shopify-liquid` arriba
 — aplica igual. Diferencia clave: este stack **ya pasa** el filtro
 "Dawn-derived" porque no se ha derivado de Dawn.""",
+    "shopify-functions": """### Stack: **Shopify Functions** (Rust + Wasm)
+
+Lógica **server-side custom** que Shopify ejecuta dentro de su infra
+como módulos Wasm. NO necesita servidor propio. Reemplaza apps
+tradicionales para casos de descuento/payment/delivery.
+
+#### Targets disponibles
+
+| Target | Para qué |
+|---|---|
+| `cart.lines.discounts.generate.run` | Product discount / order discount custom |
+| `cart.delivery_options.transform.run` | Reordenar / renombrar / ocultar shipping options |
+| `cart.payment_methods.transform.run` | Reordenar / ocultar payment methods |
+| `cart.validations.generate.run` | Bloquear checkout con custom rules |
+| `fulfillment_constraints.run` | Constraints sobre fulfillment (warehouse routing) |
+| `purchase.product_run.run` | Custom pricing / product transforms |
+
+#### Por qué Rust y no JS
+
+Functions tienen un budget **estricto de <5 ms** que Shopify enforcea.
+Pasar de ese límite = function rechazada en runtime. Rust → Wasm32 es la
+única manera realista de cumplirlo + binarios pequeños (<256 KB).
+JS-Wasm también está disponible pero ~10x más lento y ~5x más grande.
+
+#### Estructura mínima
+
+```
+extensions/discount-function/
+├── shopify.extension.toml      # target + input_query + export
+├── Cargo.toml                  # crate-type cdylib + shopify_function dep
+└── src/
+    ├── run.graphql             # qué input recibe la function
+    └── run.rs                  # la lógica
+```
+
+#### shopify.extension.toml canon
+
+```toml
+api_version = "2026-01"
+
+[[extensions]]
+type = "function"
+name = "discount-function"
+handle = "discount-function"
+
+[extensions.build]
+command = "cargo wasi build --release"
+path = "target/wasm32-wasi/release/discount_function.wasm"
+
+[extensions.targeting]
+target = "cart.lines.discounts.generate.run"
+input_query = "src/run.graphql"
+export = "run"
+```
+
+#### Workflow
+
+```bash
+rustup target add wasm32-wasi             # primera vez
+cargo install cargo-wasi                  # primera vez
+npm install
+npm run dev                               # arranca tunnel + dev mode
+shopify app function build                # build Wasm
+shopify app function run                  # test local con input.json
+npm run deploy                            # publish (incluye Wasm + app metadata)
+```
+
+#### Combina con app embebida
+
+Una Function NO funciona sola — vive dentro de una **app Shopify** que
+la registra. El scaffold incluye la app Remix mínima. La UI (si tu
+function necesita configuración del merchant) la pones en la app con
+Polaris.
+
+#### Distribución
+
+App Store o custom app. Functions son una capability premium —
+merchants pagan más por apps que las usan (típicamente $19-99/mes
+recurrente).""",
+    "shopify-storefront-webcomponents": """### Stack: **Shopify Storefront Web Components** (vanilla HTML + JS)
+
+Embedded commerce en sites **NO-Shopify** (blogs, landing pages,
+WordPress, Webflow, Framer, Notion sites, etc.). Componentes oficiales
+de Shopify cargados via CDN — cero build complejo.
+
+#### Setup (1 vez)
+
+1. Activa la **Storefront API** en tu Shopify Admin: Apps → Develop apps →
+   Create an app → Configure Storefront API access. Scopes mínimos:
+   `unauthenticated_read_product_listings`,
+   `unauthenticated_write_checkouts`.
+2. Copia el **Storefront access token**.
+3. Pégalo en `index.html` dentro de `<shopify-context store=YOUR-SHOP
+   token=YOUR_TOKEN>`.
+
+#### Componentes principales
+
+- `<shopify-context>` — root, configura store + token (uno por página).
+- `<shopify-product handle="...">` — wrapper de producto.
+- `<shopify-product-media>` / `<shopify-product-title>` /
+  `<shopify-product-price>` / `<shopify-product-description>` —
+  campos individuales con slots.
+- `<shopify-product-variant-selector>` — UI de variantes (size/color).
+- `<shopify-product-quantity>` — input cantidad.
+- `<shopify-product-buy-button>` — botón add-to-cart con loading state.
+- `<shopify-cart>` — cart drawer/widget completo.
+- `<shopify-collection handle="...">` — wrapper de colección.
+
+#### Estilizado con `::part()`
+
+Cada componente expone `parts` CSS para customizar SIN romper el
+shadow DOM:
+
+```css
+shopify-product-buy-button::part(button) {
+  background: var(--brand-color);
+  color: white;
+  padding: 1rem 2rem;
+}
+shopify-product-title::part(text) {
+  font-size: 2rem;
+  font-family: 'Fraunces', serif;
+}
+shopify-cart::part(drawer) {
+  background: #fafaf5;
+}
+```
+
+#### Checkout
+
+Al añadir al carrito, el `<shopify-product-buy-button>` redirige al
+checkout hosted (`tu-tienda.myshopify.com/checkout`). El carrito + pago
++ fulfillment los gestiona Shopify entero. Tu site solo es la vitrina.
+
+#### MCPs activos
+
+Mismos 3 que el resto de Shopify. `shopify-dev` (schemas Storefront API
+para entender las queries), `shopify-storefront` (cart/policies),
+`shopify-storefront-catalog` (búsqueda de catálogo).
+
+#### Casos de uso reales
+
+- Blog de marca con productos featured embebidos (Substack, Ghost).
+- Landing page de campaña paid ads (separada del store).
+- WordPress / Webflow / Framer site que embebe productos.
+- Microsite de colaboración (artist drop, brand collab).
+- Newsletter HTML con productos comprables.
+- App nativa mobile con WebView que carga estos componentes.
+
+#### Performance
+
+Bundle inicial del CDN: ~80 KB gzip. Cero render-blocking si lo añades
+con `type="module"`. CWV pasa fácil 95+.
+
+#### Vender en Envato
+
+Categoría ThemeForest "HTML Templates" o "Shopify Themes". Puedes
+empaquetar tu site con un theme HTML estático + integración Shopify
+Web Components como sección — ticket: $19-49, volumen alto.""",
+    "shopify-checkout-extension": """### Stack: **Shopify Checkout UI Extension** (Shopify Plus only)
+
+UI custom dentro del **checkout hosted de Shopify**: banners, surveys,
+custom fields, upsells, loyalty widgets, country-specific compliance,
+etc. Distribuido como una **app Shopify** con extensions.
+
+#### ⚠️ Solo Shopify Plus
+
+Las Checkout UI Extensions REQUIEREN que la tienda destino tenga el
+plan **Shopify Plus** ($2.300+/mes). En tiendas non-Plus la extension
+NO se carga. Mercado: agencias Plus, brands premium, B2B, enterprise.
+
+#### Targets (9 disponibles)
+
+| Target | Dónde aparece |
+|---|---|
+| `purchase.checkout.block.render` | Bloque libre que el merchant coloca con drag-and-drop |
+| `purchase.checkout.delivery-address.render-before` | Antes del bloque shipping address |
+| `purchase.checkout.payment-method-list.render-after` | Tras la lista de payment methods |
+| `purchase.checkout.shipping-option-list.render-after` | Tras shipping options |
+| `purchase.checkout.cart-line-item.render-after` | Tras cada line item del carrito |
+| `purchase.checkout.header.render-after` | Header del checkout |
+| `purchase.checkout.footer.render-after` | Footer del checkout |
+| `purchase.thank-you.block.render` | Thank you page |
+| `purchase.order-status.block.render` | Order status page |
+
+Generar más extensions:
+
+```bash
+shopify app generate extension --type checkout_ui_extension --name <name>
+```
+
+#### Capabilities (`shopify.extension.toml`)
+
+```toml
+[extensions.capabilities]
+network_access = false              # true para fetch a tu backend
+block_progress = false              # true para bloquear el avance del checkout
+api_access = true                   # queries Storefront API desde la extension
+collect_buyer_consent.sms_marketing = false
+```
+
+#### Sandbox
+
+Las extensions corren en un **Worker sandbox**: NO tienen acceso a:
+- DOM directo (no `document.querySelector`).
+- LocalStorage / cookies / sessionStorage.
+- Network calls sin `network_access = true`.
+- Librerías de tracking (Google Analytics, Meta Pixel) — usa Web Pixels
+  extension para eso.
+
+#### API canon (`useApi`)
+
+```tsx
+import {useApi, useCartLines, useApplyCartLinesChange} from '@shopify/ui-extensions-react/checkout';
+
+const {buyerJourney, cost, shippingAddress, paymentOption, extension} = useApi();
+const lines = useCartLines();
+const applyChange = useApplyCartLinesChange();
+
+await applyChange({
+  type: 'addCartLine',
+  merchandiseId: 'gid://shopify/ProductVariant/123',
+  quantity: 1,
+});
+```
+
+#### Componentes UI (cherry-pick)
+
+- `<BlockStack>` / `<InlineStack>` — layout.
+- `<Banner status="info|warning|critical|success">` — feedback.
+- `<Heading level={2}>` / `<Text>` / `<TextField>` / `<Button>`.
+- `<Checkbox>` / `<Select>` / `<RangeSlider>` / `<DatePicker>`.
+- `<Image>` / `<Icon>` / `<Divider>`.
+- `<Tooltip>` / `<Modal>` / `<Form>`.
+
+#### Workflow
+
+```bash
+npm install
+npm run dev                              # arranca app + extension con tunnel
+shopify app generate extension           # añadir más
+npm run deploy                           # publish a Shopify Partners
+```
+
+Cada deploy crea una **draft version** que el merchant activa en
+*Settings → Checkout → Customize → Add app block*.
+
+#### NO permitido (auto-reject)
+
+- Tracking de PII fuera de los webhooks GDPR (usa Web Pixels).
+- DOM manipulation custom (sandbox).
+- Network sin declarar `network_access`.
+- Hard-coded URLs sin variables de entorno.
+- Bloquear progress sin razón válida.
+
+#### Pricing
+
+App Store o custom. Por contrato: $50-500/mes recurrente típico para
+Plus merchants. Margen alto.""",
 }
 
 

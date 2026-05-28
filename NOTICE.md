@@ -173,6 +173,10 @@ repository.
 | Storefront MCP (hosted) | <https://shopify.dev/docs/apps/build/storefront-mcp> | Hosted by Shopify on every store, free, zero-auth | both Shopify stacks (the `.mcp.json` points to the user's store URL via HTTP) |
 | Storefront UCP MCP (hosted) | <https://shopify.dev/docs/apps/build/storefront-mcp> | Hosted by Shopify on every store, free, zero-auth | both Shopify stacks |
 | Customer Account MCP (hosted) | <https://shopify.dev/docs/apps/build/storefront-mcp/servers/customer-account> | Hosted by Shopify per-store, free, requires OAuth 2.0 PKCE + custom domain + New Customer Accounts enabled | Catalog entry only (not auto-wired in `.mcp.json` — user configures when OAuth flow ready) |
+| Shopify Storefront Web Components | <https://shopify.dev/docs/api/storefront-web-components> | Hosted by Shopify on CDN, MIT | `shopify-storefront-webcomponents` stack (loaded from `cdn.shopify.com/storefront/web-components.esm.js`) |
+| `@shopify/ui-extensions-react` (checkout) | <https://github.com/Shopify/ui-extensions> | MIT | `shopify-checkout-extension` stack |
+| `@shopify/ui-extensions` | <https://github.com/Shopify/ui-extensions> | MIT | `shopify-checkout-extension` stack |
+| Shopify Functions runtime (`shopify_function` Rust crate) | <https://github.com/Shopify/shopify_function> | MIT | `shopify-functions` stack |
 | Polaris design system | <https://github.com/Shopify/polaris> | MIT | Available through `@shopify/dev-mcp`. Also referenced by name in the `shopify-polaris-app` scaffold (the user's app installs `@shopify/polaris` / `@shopify/polaris-icons` / `@shopify/app-bridge-react` / `@shopify/shopify-app-remix` directly at `npm install` time). |
 | Shopify create-app template (`@shopify/create-app`) | <https://github.com/Shopify/shopify-app-template-remix> | MIT | `shopify-polaris-app` (scaffold) |
 | Liquid Prettier plugin (`@shopify/prettier-plugin-liquid`) | <https://github.com/Shopify/theme-tools/tree/main/packages/prettier-plugin-liquid> | MIT | `shopify-liquid` (added to `package.json` at scaffold time; npm installs it from npmjs.com when the user runs `npm install`) |

@@ -18,6 +18,9 @@ level out of the gate.
 | `shopify-liquid-blank` (since v1.5.0) | Online Store 2.0 themes for the **Shopify Theme Store route** | Scaffolds the minimal valid OS 2.0 structure from scratch (no Dawn / no Horizon) | **Shopify Theme Store** (eligible) + ThemeForest |
 | `shopify-hydrogen` | Headless storefronts (Remix + React 19 + Oxygen) | `@shopify/create-hydrogen` (MIT) | ThemeForest "Hydrogen" category + Partner channel |
 | `shopify-polaris-app` | Embedded Admin apps (Polaris + App Bridge + Remix) | `@shopify/create-app --template remix` (MIT) | Shopify App Store + Custom apps |
+| `shopify-functions` (since v1.5.0) | Custom server-side logic — discounts, payment/delivery customization, cart validations, fulfillment constraints. Compiled to Wasm, ≤5 ms runtime budget. | `@shopify/create-app` + Rust function extension | Shopify App Store + Custom apps. High margin, $19-99/mo recurring typical. |
+| `shopify-storefront-webcomponents` (since v1.5.0) | Embedded commerce in non-Shopify sites (blogs, landing pages, WordPress, Webflow, Framer). Cart + payment + fulfillment stay on Shopify; your site is the storefront. | Vite + Shopify Storefront Web Components from CDN | ThemeForest HTML Templates / Shopify Themes — $19-49 high volume |
+| `shopify-checkout-extension` (since v1.5.0) | Custom UI inside the hosted Shopify checkout (banners, surveys, upsells, loyalty). **Shopify Plus only.** | `@shopify/create-app` + checkout UI extension | Custom enterprise / Plus agencies. $50-500/mo recurring. |
 
 ### When to use which
 

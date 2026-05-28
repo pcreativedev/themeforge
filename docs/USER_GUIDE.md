@@ -325,6 +325,19 @@ stacks are supported including (non-exhaustive):
     `@shopify/create-app --template remix`. Targets the **Shopify App
     Store** or custom apps with theme/checkout/customer-account/admin/
     POS/Flow/Functions extensions.
+  - `shopify-liquid-blank` (NEW in v1.5.0) — Online Store 2.0 theme
+    from scratch (no Dawn clone) — eligible for the **Shopify Theme
+    Store** since Dawn-derived themes are auto-rejected.
+  - `shopify-functions` (NEW in v1.5.0) — Rust + Wasm extensions for
+    custom server-side logic (discounts, payment/delivery
+    customization, cart validations, fulfillment constraints). Runs
+    inside Shopify infra with a ≤ 5 ms budget.
+  - `shopify-storefront-webcomponents` (NEW in v1.5.0) — embedded
+    commerce in non-Shopify sites (blogs, landings, WordPress,
+    Webflow). Vanilla HTML + Shopify CDN-hosted Web Components.
+  - `shopify-checkout-extension` (NEW in v1.5.0) — UI extension inside
+    the hosted Shopify checkout. **Shopify Plus only.** $50-500/mo
+    typical pricing.
 
 Each stack has:
 - A `scaffold` command list run via bash.
