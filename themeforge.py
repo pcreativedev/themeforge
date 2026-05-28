@@ -5462,6 +5462,14 @@ class ThemeForgeApp(QWidget):
             print(f"[operator] panel no disponible: {e}")
             self.operator = None
 
+        # Market analysis tab (carga lazy — si falla, no rompe la app).
+        try:
+            from market_tab import MarketTab
+            self.market = MarketTab()
+        except Exception as e:
+            print(f"[market] tab no disponible: {e}")
+            self.market = None
+
         self.tabs = QTabWidget()
         # Tabs use Lucide SVG icons (theme-aware: re-colored on theme change).
         # `_tab_specs` is the source of truth; `_apply_tab_icons` paints icons
@@ -5478,6 +5486,9 @@ class ThemeForgeApp(QWidget):
         if getattr(self, "operator", None) is not None:
             # Tras "Compare": New project · Gallery · AI cost · Compare · Operator · …
             self._tab_specs.insert(4, (self.operator, "rocket", "Operator"))
+        if getattr(self, "market", None) is not None:
+            # Tras "Compare" (idx 3): New project · Gallery · AI cost · Compare · Market · …
+            self._tab_specs.insert(4, (self.market, "globe", "Market"))
         for widget, icon_name, label in self._tab_specs:
             self.tabs.addTab(widget, label)
         self._apply_tab_icons()

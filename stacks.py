@@ -1441,6 +1441,11 @@ TEMPLATE_NICHES = [
     "Gaming / Streamer",
     "Esports team",
     "Game studio",
+    "Indie game dev / Pixel studio",
+    "Mobile games",
+    "Game assets / Marketplace",
+    "Game launcher / Storefront",
+    "Tournament / Ladder platform",
     "Casino / Apuestas",
     # Misc
     "Personal portfolio",
