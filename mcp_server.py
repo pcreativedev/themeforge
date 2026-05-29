@@ -594,6 +594,78 @@ def screenshot_project(
                 server.kill()
 
 
+@mcp.tool()
+def list_image_models(query: str = "", architecture: str = "", limit: int = 25) -> dict:
+    """Search Runware's image-model catalog (hundreds of models) to pick one for
+    generate_image. Filter by a free-text `query` and/or `architecture`
+    (flux/sdxl/sd1x/sd3/pony/fluxkontext). Returns {ok, models:[{air,name,
+    architecture,category}], categories:[...]}. Use a model's `air` as the
+    `model` arg of generate_image.
+
+    Curated use-case categories are also returned (photoreal/illustration/logo/
+    anime/3d/fast) with a suggested search+architecture, so you can pick by intent.
+    """
+    import runware_images as ri
+    res = ri.search_models(query=query, architecture=architecture, limit=limit)
+    cats = [{"key": c["key"], "label": c["label"], "search": c["search"],
+             "architecture": c["architecture"]} for c in ri.CATEGORIES]
+    if not res.get("ok"):
+        return {"ok": False, "error": res.get("error"), "categories": cats,
+                "default_model": ri.get_default_model()}
+    return {"ok": True, "models": res["models"], "categories": cats,
+            "default_model": ri.get_default_model()}
+
+
+@mcp.tool()
+def generate_image(
+    project_path: str,
+    prompt: str,
+    filename: str = "",
+    model: str = "",
+    width: int = 1024,
+    height: int = 1024,
+    output_format: str = "WEBP",
+) -> dict:
+    """Generate an ORIGINAL image with Runware (API key, pay-as-you-go) and save it
+    into the project (under public/img/ or static/img/). Returns {ok, image_path,
+    rel_path, url}. Use it for hero/section/OG/logo assets instead of only stock.
+
+    Args:
+      project_path: absolute project path.
+      prompt: the image description (be specific: subject, style, palette, mood).
+      filename: output file name (e.g. "hero.webp"); auto-named if empty.
+      model: Runware AIR id (from list_image_models). Empty → the configured default.
+      width/height: pixels (rounded to multiples of 64; 128..2048).
+      output_format: WEBP (default) / PNG / JPG.
+    """
+    import re as _re
+    import runware_images as ri
+
+    p = Path(project_path).expanduser().resolve()
+    if not p.is_dir():
+        return {"ok": False, "error": f"not a directory: {p}"}
+    # Carpeta de imágenes típica según el stack.
+    img_dir = next((p / d for d in ("public/img", "static/img", "src/assets/img",
+                                    "assets/img", "public", "static")
+                    if (p / d).parent.is_dir()), p / "public" / "img")
+    name = filename.strip() or (
+        _re.sub(r"[^a-z0-9]+", "-", prompt.lower()).strip("-")[:32] or "image")
+    ext = (output_format or "WEBP").lower()
+    if not name.lower().endswith((".webp", ".png", ".jpg", ".jpeg")):
+        name = f"{name}.{ext}"
+    dest = img_dir / name
+    res = ri.generate_to_file(prompt, dest, width=width, height=height,
+                              model=(model or None), output_format=output_format)
+    if not res.get("ok"):
+        return res
+    try:
+        rel = str(Path(res["path"]).relative_to(p))
+    except ValueError:
+        rel = res["path"]
+    return {"ok": True, "image_path": res["path"], "rel_path": rel,
+            "url": res.get("url"), "model": model or ri.get_default_model()}
+
+
 # ─────────────────── Entry point ────────────────────────────────────
 if __name__ == "__main__":
     mcp.run(transport="stdio")

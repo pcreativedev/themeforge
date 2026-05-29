@@ -436,9 +436,10 @@ class MissionTab(QWidget):
                     "trends, top ThemeForest/Dribbble/Awwwards references and 2-3 "
                     "competitors → a short design brief that feeds the build prompts. "
                     if self.cb_research.isChecked() else "")
-        images = ("Generate ORIGINAL imagery with image_generate (hero/sections via "
-                  "FLUX, logos/vectors via Recraft, OG images) on-brand with each "
-                  "palette; save them in the project and reference them. "
+        images = ("Generate ORIGINAL imagery with mcp_themeforge_generate_image "
+                  "(Runware): pick a model via mcp_themeforge_list_image_models, then "
+                  "create hero/section/OG/logo assets on-brand with each palette and "
+                  "reference them in the markup. "
                   if self.cb_images.isChecked() else "")
         visualqa = ("Then a VISUAL QA loop: screenshot_project key routes (desktop + "
                     "mobile) → vision_analyze → fix design issues (max 3 passes), and a "
@@ -490,11 +491,11 @@ class MissionTab(QWidget):
             lambda _e: self._append("✗ no se pudo ejecutar hermes."))
         args = ["chat", "-q", self._build_prompt(), "-s", self.SKILL]
         # Toolsets extra según los toggles (web/browser research, imágenes, visión).
+        # Imágenes van por la tool MCP de ThemeForge (Runware), no por el toolset
+        # image_gen del Portal de Hermes.
         tsets = ["terminal", "delegation"]
         if self.cb_research.isChecked() or self.cb_visualqa.isChecked():
             tsets += ["web", "browser"]
-        if self.cb_images.isChecked():
-            tsets.append("image_gen")
         if self.cb_visualqa.isChecked():
             tsets.append("vision")
         args += ["-t", ",".join(dict.fromkeys(tsets))]
@@ -1645,6 +1646,189 @@ class CronTab(QWidget):
             self.refresh()
 
 
+# ───────────────────────── 🎨 Imágenes (Runware) ────────────────────────
+class ImagesTab(QWidget):
+    """Selector de modelos de imagen de Runware (cientos, por API key). Categorías
+    curadas + búsqueda en vivo (modelSearch) + modelo por defecto + test."""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        root = QVBoxLayout(self)
+        title = QLabel("🎨 Imágenes (Runware)")
+        f = QFont(); f.setPointSize(13); f.setBold(True); title.setFont(f)
+        root.addWidget(title)
+        sub = QLabel("Generación de imágenes por <b>API key</b> (pay-as-you-go, sin "
+                     "suscripción). El operator las usa para hero/OG/logos originales.")
+        sub.setTextFormat(Qt.TextFormat.RichText); sub.setWordWrap(True)
+        sub.setStyleSheet("color:#9aa;")
+        root.addWidget(sub)
+
+        # ── API key ──
+        krow = QHBoxLayout()
+        self.key_status = QLabel(); self.key_status.setTextFormat(Qt.TextFormat.RichText)
+        krow.addWidget(self.key_status, 1)
+        self.in_key = QLineEdit(); self.in_key.setEchoMode(QLineEdit.EchoMode.Password)
+        self.in_key.setPlaceholderText("Runware API key…"); self.in_key.setFixedWidth(220)
+        krow.addWidget(self.in_key)
+        self.btn_savekey = QPushButton("💾"); self.btn_savekey.setFixedWidth(40)
+        self.btn_savekey.setToolTip("Guardar key (keys.json 0600)")
+        self.btn_savekey.clicked.connect(self._save_key)
+        krow.addWidget(self.btn_savekey)
+        root.addLayout(krow)
+
+        # ── Categorías curadas ──
+        try:
+            import runware_images as ri
+            self._ri = ri
+        except Exception:
+            self._ri = None
+        cats = QHBoxLayout(); cats.addWidget(QLabel("Categoría:"))
+        if self._ri:
+            for c in self._ri.CATEGORIES:
+                b = QPushButton(c["label"])
+                b.clicked.connect(lambda _x=False, cc=c: self._use_category(cc))
+                cats.addWidget(b)
+        cats.addStretch()
+        root.addLayout(cats)
+
+        # ── Búsqueda ──
+        srow = QHBoxLayout()
+        self.cb_arch = QComboBox(); self.cb_arch.addItem("Cualquier arquitectura", "")
+        if self._ri:
+            for a in self._ri.ARCHITECTURES:
+                self.cb_arch.addItem(a, a)
+        srow.addWidget(self.cb_arch)
+        self.in_search = QLineEdit()
+        self.in_search.setPlaceholderText("Buscar modelo (ej: flux, realistic, anime)…")
+        self.in_search.returnPressed.connect(self._search)
+        srow.addWidget(self.in_search, 1)
+        self.btn_search = QPushButton("🔍 Buscar")
+        self.btn_search.clicked.connect(self._search)
+        srow.addWidget(self.btn_search)
+        root.addLayout(srow)
+
+        self.results = QListWidget()
+        self.results.currentItemChanged.connect(self._sel_changed)
+        root.addWidget(self.results, 1)
+
+        drow = QHBoxLayout()
+        self.lbl_default = QLabel(); self.lbl_default.setTextFormat(Qt.TextFormat.RichText)
+        drow.addWidget(self.lbl_default, 1)
+        self.btn_default = QPushButton("✅ Usar como modelo por defecto")
+        self.btn_default.clicked.connect(self._set_default)
+        self.btn_default.setEnabled(False)
+        drow.addWidget(self.btn_default)
+        root.addLayout(drow)
+
+        # ── Test ──
+        trow = QHBoxLayout()
+        self.in_test = QLineEdit()
+        self.in_test.setPlaceholderText("Prompt de prueba (genera 1 imagen)…")
+        trow.addWidget(self.in_test, 1)
+        self.btn_test = QPushButton("🧪 Probar")
+        self.btn_test.clicked.connect(self._test)
+        trow.addWidget(self.btn_test)
+        root.addLayout(trow)
+
+        self.status = QLabel(); self.status.setStyleSheet("color:#888;")
+        self.status.setWordWrap(True)
+        root.addWidget(self.status)
+        self.refresh()
+
+    def _has_key(self) -> bool:
+        return bool(self._ri and self._ri.get_api_key())
+
+    def refresh(self):
+        ok = self._has_key()
+        self.key_status.setText(("🟢 <b>Runware</b> key configurada"
+                                 if ok else "⚪ <b>Runware</b> sin key — añádela"))
+        if self._ri:
+            self.lbl_default.setText(
+                f"Modelo por defecto: <code>{self._ri.get_default_model()}</code>")
+
+    def _save_key(self):
+        k = self.in_key.text().strip()
+        if not k:
+            return
+        try:
+            import ai_providers as aip
+            aip.save_key("runware", k)
+            self.in_key.clear()
+            self.status.setText("✓ Key de Runware guardada (chmod 0600).")
+            self.refresh()
+        except Exception as e:  # noqa: BLE001
+            self.status.setText(f"Error guardando key: {e}")
+
+    def _use_category(self, cat: dict):
+        self.in_search.setText(cat["search"])
+        idx = self.cb_arch.findData(cat.get("architecture", ""))
+        if idx >= 0:
+            self.cb_arch.setCurrentIndex(idx)
+        self._search()
+
+    def _search(self):
+        if not self._ri:
+            return
+        if not self._has_key():
+            self.status.setText("Añade la API key de Runware primero.")
+            return
+        self.status.setText("Buscando modelos en Runware…")
+        self.results.clear()
+        res = self._ri.search_models(query=self.in_search.text().strip(),
+                                     architecture=self.cb_arch.currentData() or "",
+                                     limit=40)
+        if not res.get("ok"):
+            self.status.setText(f"Error: {res.get('error')}")
+            return
+        for m in res["models"]:
+            it = QListWidgetItem(f"{m['name']}  ·  {m.get('architecture','?')}  "
+                                 f"·  {m['air']}")
+            it.setData(Qt.ItemDataRole.UserRole, m["air"])
+            self.results.addItem(it)
+        self.status.setText(f"{self.results.count()} modelo(s). Selecciona y "
+                            "«Usar como modelo por defecto».")
+
+    def _sel_changed(self, cur, _prev=None):
+        self.btn_default.setEnabled(cur is not None)
+
+    def _set_default(self):
+        cur = self.results.currentItem()
+        if not cur or not self._ri:
+            return
+        air = cur.data(Qt.ItemDataRole.UserRole)
+        try:
+            self._ri.set_default_model(air)
+            self.status.setText(f"✓ Modelo por defecto: {air}")
+            self.refresh()
+        except Exception as e:  # noqa: BLE001
+            self.status.setText(f"Error: {e}")
+
+    def _test(self):
+        if not self._ri or not self._has_key():
+            self.status.setText("Falta la API key de Runware.")
+            return
+        prompt = self.in_test.text().strip()
+        if not prompt:
+            return
+        air = None
+        cur = self.results.currentItem()
+        if cur:
+            air = cur.data(Qt.ItemDataRole.UserRole)
+        self.status.setText("Generando imagen de prueba…")
+        self.btn_test.setEnabled(False)
+        try:
+            res = self._ri.generate(prompt, model=air, width=768, height=512)
+        finally:
+            self.btn_test.setEnabled(True)
+        if res.get("ok"):
+            self.status.setText(f"✓ Imagen generada: {res['urls'][0]}")
+        else:
+            self.status.setText(f"✗ {res.get('error')}")
+
+    def set_powered(self, on: bool):
+        pass
+
+
 # ───────────────────────── 🛡️ Avanzado (sandbox + portal + remoto) ──────
 class AdvancedTab(QWidget):
     """Seguridad/aislamiento de ejecución, portal de imágenes y control remoto
@@ -1838,12 +2022,14 @@ class HermesPanel(QWidget):
         self.memory = MemoryTab()
         self.kanban = KanbanTab()
         self.cron = CronTab()
+        self.images = ImagesTab()
         self.advanced = AdvancedTab()
         self.chat = HermesTerminal()
         self.admin = AdminTab()
 
         self.tabs.addTab(self.mission, "🚀 Misión")
         self.tabs.addTab(self.provider, "🔌 Proveedor")
+        self.tabs.addTab(self.images, "🎨 Imágenes")
         self.tabs.addTab(self.agents, "🤖 Agentes")
         self.tabs.addTab(self.create, "➕ Crear")
         self.tabs.addTab(self.memory, "🧠 Memoria")
@@ -1863,8 +2049,9 @@ class HermesPanel(QWidget):
     def _apply_power(self, on: bool):
         self._powered = on
         self.strip.set_powered(on)
-        for t in (self.mission, self.provider, self.agents, self.create,
-                  self.memory, self.kanban, self.cron, self.advanced, self.admin):
+        for t in (self.mission, self.provider, self.images, self.agents,
+                  self.create, self.memory, self.kanban, self.cron,
+                  self.advanced, self.admin):
             try:
                 t.set_powered(on)
             except Exception:

@@ -55,6 +55,8 @@ class CredentialsWidget(QWidget):
 
         # Integraciones (no-IA): token de Figma para el MCP figma-context.
         root.addWidget(self._build_figma_row())
+        # Imágenes: API key de Runware (generación de imágenes de los templates).
+        root.addWidget(self._build_runware_row())
 
         btns = QHBoxLayout()
         btns.addStretch()
@@ -138,6 +140,23 @@ class CredentialsWidget(QWidget):
             )
             self._figma_set.setText("✏️ Cambiar token" if has_figma else "🔑 Añadir token")
             self._figma_clear.setVisible(has_figma)
+
+        # Estado de la key de Runware (imágenes).
+        if hasattr(self, "_runware_status"):
+            try:
+                has_rw = bool(aip.load_keys().get("runware"))
+            except Exception:
+                has_rw = False
+            self._runware_status.setText(
+                ("🟢" if has_rw else "⚪")
+                + " <b>Runware</b> <small>(generación de imágenes — API key)</small><br>"
+                + "<small style='color:#9aa'>"
+                + ("key guardada — el operator puede generar hero/OG/logos originales"
+                   if has_rw else
+                   "sin key — añádela para generar imágenes (runware.ai → API keys)")
+                + "</small>")
+            self._runware_set.setText("✏️ Cambiar key" if has_rw else "🔑 Añadir key")
+            self._runware_clear.setVisible(has_rw)
 
     # ── Acciones ────────────────────────────────────────────────────────
     def _install_cli(self, key: str):
@@ -259,3 +278,53 @@ class CredentialsWidget(QWidget):
                 self.changed.emit()
             except Exception as e:
                 QMessageBox.warning(self, "Figma", f"Error: {e}")
+
+    # ── Imágenes Runware (API key) ───────────────────────────────────────
+    def _build_runware_row(self) -> QFrame:
+        frame = QFrame()
+        frame.setStyleSheet("QFrame { border-top: 1px solid #2a2a33; }")
+        lay = QHBoxLayout(frame)
+        lay.setContentsMargins(4, 8, 4, 4)
+        self._runware_status = QLabel("…")
+        self._runware_status.setTextFormat(Qt.TextFormat.RichText)
+        self._runware_status.setWordWrap(True)
+        lay.addWidget(self._runware_status, 1)
+        self._runware_set = QPushButton("🔑 Añadir key")
+        self._runware_set.clicked.connect(self._set_runware_key)
+        self._runware_clear = QPushButton("🚪 Quitar")
+        self._runware_clear.clicked.connect(self._remove_runware_key)
+        lay.addWidget(self._runware_set)
+        lay.addWidget(self._runware_clear)
+        return frame
+
+    def _set_runware_key(self):
+        import os
+        text, ok = QInputDialog.getText(
+            self, "API key de Runware",
+            "Pega tu Runware API key\n(runware.ai → Dashboard → API keys):",
+            echo=QLineEdit.EchoMode.Password,
+        )
+        if ok and text.strip():
+            try:
+                aip.save_key("runware", text.strip())
+                os.environ["RUNWARE_API_KEY"] = text.strip()
+                self.refresh()
+                self.changed.emit()
+                QMessageBox.information(
+                    self, "Runware",
+                    "Key guardada (chmod 0600). El operator ya puede generar "
+                    "imágenes. Elige el modelo en la pestaña 🎨 Imágenes de Hermes.")
+            except Exception as e:
+                QMessageBox.warning(self, "Runware", f"Error guardando: {e}")
+
+    def _remove_runware_key(self):
+        import os
+        r = QMessageBox.question(self, "Quitar key", "¿Quitar la API key de Runware?")
+        if r == QMessageBox.StandardButton.Yes:
+            try:
+                aip.delete_key("runware")
+                os.environ.pop("RUNWARE_API_KEY", None)
+                self.refresh()
+                self.changed.emit()
+            except Exception as e:
+                QMessageBox.warning(self, "Runware", f"Error: {e}")

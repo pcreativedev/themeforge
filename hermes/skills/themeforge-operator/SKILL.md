@@ -1,7 +1,7 @@
 ---
 name: themeforge-operator
 description: "Autonomously build marketplace-ready (ThemeForest/Envato/CodeCanyon) WEB templates & pages via the ThemeForge MCP — specialized in web design, UX/UI & aesthetics. Workflow: research (web) -> plan -> generate original imagery -> create -> build -> QA-loop (technical + VISUAL) -> SECURITY AUDIT -> package. Builds single templates or whole CHAINS (batches), spawns parallel subagents per variant, and learns across projects."
-version: 1.2.0
+version: 1.3.0
 platforms: [linux, macos, windows]
 metadata:
   hermes:
@@ -36,6 +36,8 @@ The `themeforge` MCP server must be connected. Tools are prefixed `mcp_themeforg
 - `mcp_themeforge_run_agent_build` — run an AI agent autonomously to build/edit a project
 - `mcp_themeforge_run_preflight` — marketplace readiness checks (pass/warn/fail)
 - `mcp_themeforge_screenshot_project` — start the dev server, screenshot a route, stop it → PNG path (for VISUAL QA)
+- `mcp_themeforge_list_image_models` — search Runware's image-model catalog (hundreds) + curated categories
+- `mcp_themeforge_generate_image` — generate an ORIGINAL image with Runware (API key) and save it into the project
 - `mcp_themeforge_build_zip` — package a project for marketplace upload
 - `mcp_themeforge_list_supported_providers` — agent providers + auth status
 
@@ -80,16 +82,21 @@ UI/UX Pro Max):
   project's `.hermes.md`.
 
 ## 0b. Generate original imagery (don't ship only stock)
-For a premium, non-generic look, **generate original assets with `image_generate`**
-and place them in the project (then reference them in the build), instead of relying
-only on Unsplash/Pixabay:
-- **Hero / section backgrounds / photos** → FLUX 2 Pro (fidelity) or FLUX 2 Klein (fast).
-- **Logos / icons / vector marks** → Recraft V4 Pro (vector/graphic design).
-- **In-image text (badges, banners)** → Ideogram V3 (strong text adherence).
-- **OG / social preview image** per page.
-Prompt each from the niche + the chosen palette/style so imagery is on-brand. Save to
-the project (e.g. `public/img/`), use real `alt`, and keep file sizes web-optimized.
-If the image gateway/keys aren't available, fall back to Unsplash/Pixabay gracefully.
+For a premium, non-generic look, **generate original assets with
+`mcp_themeforge_generate_image`** (Runware — API key, pay-as-you-go) and reference
+them in the build, instead of relying only on Unsplash/Pixabay:
+- **Pick a model:** call `mcp_themeforge_list_image_models(query, architecture)` to
+  browse Runware's catalog (hundreds of models) and curated categories (photoreal /
+  illustration / logo / anime / 3d / fast). Choose a model whose `air` fits each asset
+  (e.g. a realistic FLUX model for hero photos, a flat/vector-styled model for logos).
+  If you don't pass `model`, the project's configured default is used.
+- **Generate per asset:** hero / section backgrounds / OG image per page / logo / icons.
+  Pass a specific `prompt` (subject + the chosen palette/style + mood) and a `filename`;
+  the tool saves into the project (e.g. `public/img/`) and returns `rel_path` to use in
+  the markup. Use real `alt`, web-optimized formats (WEBP).
+- The Runware API key is configured in ThemeForge (Settings → 🔑 AI credentials →
+  Runware, or the 🎨 Imágenes tab). If it isn't set, fall back to Unsplash/Pixabay
+  gracefully and tell the user they can add a Runware key for original imagery.
 
 ## Workflow (per template)
 
