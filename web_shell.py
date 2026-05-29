@@ -249,16 +249,48 @@ _CRED_SLOTS = [
 
 
 def _creds_data() -> list:
-    """Estado real de credenciales (qué claves están configuradas)."""
+    """Estado real de credenciales: cuenta tanto la API key (keys.json) como la
+    autenticación OAuth/CLI del provider (claude/codex/gemini login). Así
+    refleja lo que de verdad funciona, no solo las keys guardadas."""
     try:
         import ai_providers as aip
         keys = aip.load_keys()
     except Exception:
+        import ai_providers as aip  # noqa
         keys = {}
+    # Mapa slot → provider(s) cuyo login OAuth/CLI también cuenta como configurado.
+    auth_provider = {"anthropic": ["claude", "claude-api"],
+                     "openai": ["codex", "codex-api"],
+                     "gemini": ["gemini"],
+                     "openrouter": ["openrouter"]}
+
+    def _provider_ok(pkey):
+        try:
+            state, _ = aip.detect_status(pkey)
+            return state == "ok"
+        except Exception:
+            return False
+
     out = []
     for kid, label, color in _CRED_SLOTS:
+        configured = bool(keys.get(kid))
+        via = "key" if configured else ""
+        if not configured and kid in auth_provider:
+            if any(_provider_ok(pk) for pk in auth_provider[kid]):
+                configured = True; via = "oauth"
+        if not configured and kid == "github":
+            # gh CLI autenticado cuenta como configurado.
+            try:
+                import shutil, subprocess
+                if shutil.which("gh"):
+                    r = subprocess.run(["gh", "auth", "status"],
+                                       capture_output=True, timeout=6)
+                    if r.returncode == 0:
+                        configured = True; via = "gh-cli"
+            except Exception:
+                pass
         out.append({"id": kid, "label": label, "color": color,
-                    "configured": bool(keys.get(kid))})
+                    "configured": configured, "via": via})
     return out
 
 

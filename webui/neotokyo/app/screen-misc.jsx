@@ -267,7 +267,7 @@ function SettingsScreen() {
               <span style={{ color: cr.color, fontSize: 15, width: 18 }}>◈</span>
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: 13.5 }}>{cr.label}</div>
-                <div className="mono faint" style={{ fontSize: 11, marginTop: 2 }}>{cr.configured ? '•••••••••••• configurada' : 'sin configurar'}</div>
+                <div className="mono faint" style={{ fontSize: 11, marginTop: 2 }}>{cr.configured ? ('✓ configurada' + (cr.via === 'oauth' ? ' · OAuth/CLI login' : cr.via === 'gh-cli' ? ' · gh CLI' : ' · API key')) : 'sin configurar'}</div>
               </div>
               <span style={{ width: 7, height: 7, borderRadius: 99, background: cr.configured ? 'var(--codex)' : 'var(--tx-faint)', boxShadow: cr.configured ? '0 0 8px var(--codex)' : 'none' }} />
               <Btn variant="ghost" icon="penTool" style={{ padding: '6px 10px' }} onClick={() => {
