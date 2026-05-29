@@ -320,6 +320,74 @@ function SettingsScreen() {
 
 /* ---------------- LICENSING ---------------- */
 function LicensingScreen() {
+  const real = !!(window.tfBridge && window.tfBridge.licensing_status);
+  const [st, setSt] = useState(null);
+  const [np, setNp] = useState(''); const [ne, setNe] = useState(''); const [nt, setNt] = useState('regular');
+  const refresh = () => { if (real) window.tfBridge.licensing_status().then(j => { try { setSt(JSON.parse(j)); } catch (e) {} }); };
+  useEffect(() => { refresh(); }, []);
+  const create = () => {
+    if (!real || !np.trim()) return;
+    window.tfBridge.licensing_create(np, ne, nt).then(j => {
+      let r = {}; try { r = JSON.parse(j); } catch (e) {}
+      alert(r.ok ? ('✓ Licencia creada: ' + (r.key || '')) : ('Error: ' + (r.error || r.code)));
+      refresh();
+    });
+  };
+  // Vista REAL del sistema de licencias anti-nulled de ThemeForge.
+  if (real) {
+    return (
+      <div style={{ padding: '34px 40px 60px', position: 'relative', zIndex: 2, maxWidth: 1040 }}>
+        <Eyebrow jp="認可">LICENSING · 認可</Eyebrow>
+        <h1 style={{ fontFamily: 'var(--font-mega)', fontSize: 38, margin: '12px 0 6px' }}>LICENSE <span className="neon-text-2">FORGE</span></h1>
+        <div className="dim" style={{ fontSize: 13.5, marginBottom: 18 }}>Sistema anti-nulled: activación → JWT RS256 → verificación offline → binding de dominio → watermark. Cableado en cada tema generado.</div>
+        <div className="panel" style={{ padding: 16, marginBottom: 18, display: 'flex', alignItems: 'center', gap: 14 }}>
+          <span style={{ width: 9, height: 9, borderRadius: 99, background: st ? (st.configured ? (st.reachable ? 'var(--codex)' : 'var(--gemini)') : 'var(--tx-faint)') : 'var(--tx-faint)', boxShadow: st && st.reachable ? '0 0 8px var(--codex)' : 'none' }} />
+          <span className="mono" style={{ fontSize: 12.5 }}>
+            {!st ? 'consultando…' : !st.configured ? 'Sin backend configurado — pon tu endpoint en ~/.config/themeforge/licensing.json (los usuarios de GitHub usan el suyo).'
+              : st.reachable ? ('Backend operativo · ' + (st.licenses ? st.licenses.length : 0) + ' licencias · ' + (st.products ? st.products.length : 0) + ' productos') : 'Configurado pero el backend no responde.'}
+          </span>
+          <div style={{ flex: 1 }} />
+          <Btn icon="refresh" variant="ghost" onClick={refresh}>Refrescar</Btn>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 360px', gap: 20 }}>
+          <div className="panel" style={{ padding: 0, overflow: 'hidden' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+              <thead><tr style={{ background: 'rgba(255,255,255,0.03)' }}>
+                {['Key', 'Producto', 'Tipo', 'Estado', 'Email'].map((h, i) => <th key={h} style={{ textAlign: i === 0 ? 'left' : 'left', padding: '10px 14px', fontFamily: 'var(--font-mono)', fontSize: 10, letterSpacing: '0.08em', color: 'var(--tx-faint)', textTransform: 'uppercase' }}>{h}</th>)}
+              </tr></thead>
+              <tbody>
+                {(st && st.licenses && st.licenses.length) ? st.licenses.map((l, i) => (
+                  <tr key={i} style={{ borderTop: '1px solid var(--line)' }}>
+                    <td className="mono" style={{ padding: '9px 14px', color: 'var(--accent)' }}>{l.key}</td>
+                    <td style={{ padding: '9px 14px' }}>{l.product}</td>
+                    <td className="mono dim" style={{ padding: '9px 14px' }}>{l.type}</td>
+                    <td style={{ padding: '9px 14px' }}><Chip color={l.status === 'active' ? 'var(--codex)' : 'var(--gemini)'}>{l.status}</Chip></td>
+                    <td className="mono faint" style={{ padding: '9px 14px' }}>{l.email}</td>
+                  </tr>
+                )) : <tr><td colSpan={5} className="faint mono" style={{ padding: 24, textAlign: 'center' }}>// sin licencias</td></tr>}
+              </tbody>
+            </table>
+          </div>
+          <div className="panel card-corner" style={{ padding: 22 }}>
+            <div className="eyebrow" style={{ marginBottom: 14 }}>CREAR LICENCIA · 発行</div>
+            {[['Producto (slug)', np, setNp], ['Email comprador', ne, setNe]].map(([l, v, set]) => (
+              <div key={l} style={{ marginBottom: 12 }}>
+                <div className="eyebrow" style={{ fontSize: 9.5, marginBottom: 5 }}>{l}</div>
+                <input value={v} onChange={e => set(e.target.value)} style={{ width: '100%', background: 'var(--bg-void)', border: '1px solid var(--line-bright)', borderRadius: 7, padding: '9px 12px', color: 'var(--tx)', fontFamily: 'var(--font-mono)', fontSize: 12, outline: 'none' }} />
+              </div>
+            ))}
+            <div style={{ marginBottom: 12 }}>
+              <div className="eyebrow" style={{ fontSize: 9.5, marginBottom: 5 }}>Tipo</div>
+              <select value={nt} onChange={e => setNt(e.target.value)} style={{ width: '100%', background: 'var(--bg-void)', border: '1px solid var(--line-bright)', borderRadius: 7, padding: '9px 12px', color: 'var(--tx)', fontFamily: 'var(--font-mono)', fontSize: 12 }}>
+                <option value="regular">regular</option><option value="extended">extended</option>
+              </select>
+            </div>
+            <Btn variant="primary" icon="key" onClick={create}>Crear licencia</Btn>
+          </div>
+        </div>
+      </div>
+    );
+  }
   const [provider, setProvider] = useState('lemon');
   const provs = [
     { k: 'lemon', label: 'Lemon Squeezy', jp: '檸檬', color: '#ffc233' },

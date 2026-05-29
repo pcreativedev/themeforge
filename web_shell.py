@@ -657,6 +657,56 @@ class ThemeForgeBridge(QObject):
         except Exception as e:
             return json.dumps({"ok": False, "error": str(e)})
 
+    @pyqtSlot(result=str)
+    def licensing_status(self) -> str:
+        """Estado real del sistema de licencias: si está configurado + lista de
+        licencias y productos del panel (si el backend local responde)."""
+        try:
+            from licensing_config import load as _lc
+            cfg = _lc()
+        except Exception as e:
+            return json.dumps({"configured": False, "error": str(e)})
+        configured = bool(cfg.get("panel_base")) and "YOUR_" not in str(cfg.get("panel_base", ""))
+        out = {"configured": configured, "licenses": [], "products": [], "reachable": False}
+        if not configured:
+            return json.dumps(out)
+        try:
+            from licensing_panel import _api
+            code, data = _api("/api/licenses")
+            if code in (200, 201):
+                out["reachable"] = True
+                lst = data if isinstance(data, list) else data.get("licenses", [])
+                out["licenses"] = [
+                    {"key": (l.get("key") or "")[:18] + "…", "product": l.get("product", ""),
+                     "type": l.get("type", ""), "status": l.get("status", ""),
+                     "email": l.get("email", "")}
+                    for l in (lst or [])[:50]
+                ]
+            code2, data2 = _api("/api/products/versions")
+            if code2 in (200, 201):
+                prods = data2 if isinstance(data2, list) else data2.get("products", [])
+                out["products"] = [
+                    {"slug": p.get("slug", ""), "version": p.get("version", "")}
+                    for p in (prods or [])
+                ]
+        except Exception as e:
+            out["error"] = str(e)
+        return json.dumps(out)
+
+    @pyqtSlot(str, str, str, result=str)
+    def licensing_create(self, product: str, email: str, lic_type: str) -> str:
+        """Crea una licencia real en el panel (POST /api/licenses)."""
+        try:
+            from licensing_panel import _api
+            code, data = _api("/api/licenses", method="POST",
+                              body={"product": product, "email": email,
+                                    "type": lic_type or "regular"})
+            lic = data.get("license") if isinstance(data, dict) else None
+            key = (lic or {}).get("key") or (data or {}).get("key") or ""
+            return json.dumps({"ok": code in (200, 201), "code": code, "key": key})
+        except Exception as e:
+            return json.dumps({"ok": False, "error": str(e)})
+
     @pyqtSlot(str, result=str)
     def ping(self, msg: str) -> str:
         return json.dumps({"pong": msg})
