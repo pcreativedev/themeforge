@@ -157,7 +157,7 @@ function TermTabs({ path, running, fresh }) {
 // Preview REAL con controles (Start/Stop/Reload/Navegador/Re-detectar), igual
 // que la barra de preview de la ProjectWindow nativa.
 const VPORTS = [['📱', 360], ['📋', 768], ['💻', 1280], ['🖥', 1920], ['⛶', 0]];
-function RealPreview({ path, accent, narrow }) {
+function RealPreview({ path, accent, narrow, fresh }) {
   const B = window.tfBridge;
   const [activePath, setActivePath] = useState(path);
   const [subs, setSubs] = useState([]);
@@ -165,6 +165,7 @@ function RealPreview({ path, accent, narrow }) {
   const [err, setErr] = useState(null);
   const [status, setStatus] = useState('idle');
   const [k, setK] = useState(0);
+  const [waitSetup, setWaitSetup] = useState(!!fresh);
   const [log, setLog] = useState(''); const [vw, setVw] = useState(0);
   useEffect(() => { if (B && B.list_subprojects && path) B.list_subprojects(path).then(j => { let r = {}; try { r = JSON.parse(j); } catch (e) {} setSubs((r.subprojects || []).filter(s => s.has_preview)); }); }, [path]);
   useEffect(() => {
@@ -188,7 +189,13 @@ function RealPreview({ path, accent, narrow }) {
       if (r.detected) { tfToast('✓ preview detectado: ' + r.profile + ' — arrancando…', '#9dff3c'); if (B.stop_preview) B.stop_preview(activePath); setUrl(null); setErr(null); setStatus('starting'); setTimeout(start, 500); }
       else tfToast('Aún sin preview detectable — ¿el setup terminó de instalar deps?', '#ffb000'); });
   };
-  useEffect(() => { if (B && activePath && status === 'idle') start(); }, [activePath]);
+  useEffect(() => { if (B && activePath && status === 'idle' && !waitSetup) start(); }, [activePath, waitSetup]);
+  useEffect(() => {
+    if (!fresh || !B || !B.setup_done || !B.setup_done.connect) return;
+    const onDone = (j) => { let r = {}; try { r = JSON.parse(j); } catch (e) {} if (r.path === activePath) setWaitSetup(false); };
+    B.setup_done.connect(onDone);
+    return () => { try { B.setup_done.disconnect(onDone); } catch (e) {} };
+  }, [activePath, fresh]);
   if (!B || !path) return <LivePreview accent={accent} narrow={narrow} />;
   const cbtn = { cursor: 'pointer', padding: '5px 9px', borderRadius: 7, fontSize: 11.5, fontFamily: 'var(--font-display)', background: 'transparent', border: '1px solid var(--line-bright)', color: 'var(--tx-dim)' };
   return (
@@ -207,6 +214,7 @@ function RealPreview({ path, accent, narrow }) {
       <div style={{ flex: 1, display: 'grid', placeItems: 'stretch', minHeight: 0, overflow: 'auto', background: '#070b16' }}>
         {err ? <div className="mono faint" style={{ placeSelf: 'center', padding: 24 }}>// preview: {err}</div>
           : status === 'stopped' ? <div className="mono faint" style={{ placeSelf: 'center', padding: 24 }}>■ preview detenido — pulsa ▶ Start</div>
+          : (waitSetup && status === 'idle') ? <div className="mono faint" style={{ placeSelf: 'center', padding: 24, textAlign: 'center' }}>⏳ esperando a que termine el setup (npm install)…<br /><span style={{ fontSize: 11 }}>arrancará solo al acabar · o pulsa ▶ Start</span></div>
           : !url ? <div className="mono faint" style={{ alignSelf: 'stretch', width: '100%', overflow: 'auto', padding: 14, fontSize: 11.5, whiteSpace: 'pre-wrap' }}>{'// arrancando dev server (sondeando puerto)…\n' + (log || '')}</div>
           : <iframe key={k} src={url} style={{ width: vw ? vw : '100%', maxWidth: '100%', height: '100%', minHeight: 320, border: 'none', background: '#fff', justifySelf: 'center' }} />}
       </div>
@@ -366,7 +374,7 @@ function ProjectWindow({ project, onBack, onDeploy, onBuild, buildLog }) {
           <div style={{ flex: 1, overflow: 'hidden', background: 'radial-gradient(circle at 50% 0%, #0a1020, #04060c)', display: 'grid', placeItems: 'stretch', minHeight: 0 }}>
             {tab === 'code'
               ? <div style={{ overflow: 'auto', placeSelf: 'center' }}><CodePeek /></div>
-              : <RealPreview path={p.path} accent={p.accent || 'var(--accent)'} narrow={tab === 'mobile'} />}
+              : <RealPreview path={p.path} accent={p.accent || 'var(--accent)'} fresh={p.fresh} narrow={tab === 'mobile'} />}
           </div>
         </div>
 

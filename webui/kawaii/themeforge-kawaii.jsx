@@ -785,13 +785,14 @@ function RealTerm({ path, fresh }) {
 }
 // Preview REAL: controles + sub-proyectos + viewport + screenshot ♡.
 const VPORTS = [['📱', 360], ['📋', 768], ['💻', 1280], ['🖥', 1920], ['⛶', 0]];
-function RealPreview({ path }) {
+function RealPreview({ path, fresh }) {
   const B = window.tfBridge;
   const [activePath, setActivePath] = useState(path);
   const [subs, setSubs] = useState([]);
   const [url, setUrl] = useState(null); const [err, setErr] = useState(null);
   const [status, setStatus] = useState('idle'); const [k, setK] = useState(0);
   const [log, setLog] = useState(''); const [vw, setVw] = useState(0);
+  const [waitSetup, setWaitSetup] = useState(!!fresh);
   useEffect(() => { if (B && B.list_subprojects && path) B.list_subprojects(path).then(j => { let r = {}; try { r = JSON.parse(j); } catch (e) {} setSubs((r.subprojects || []).filter(s => s.has_preview)); }); }, [path]);
   useEffect(() => {
     if (!B || !B.preview_ready || !B.preview_ready.connect) return;
@@ -814,7 +815,13 @@ function RealPreview({ path }) {
       if (r.detected) { if (B.stop_preview) B.stop_preview(activePath); setUrl(null); setErr(null); setStatus('starting'); setTimeout(start, 500); }
       else alert('Aún sin preview detectable — ¿el setup terminó de instalar deps? (mira la pestaña Setup) 🥺'); });
   };
-  useEffect(() => { if (B && activePath && status === 'idle') start(); }, [activePath]);
+  useEffect(() => { if (B && activePath && status === 'idle' && !waitSetup) start(); }, [activePath, waitSetup]);
+  useEffect(() => {
+    if (!fresh || !B || !B.setup_done || !B.setup_done.connect) return;
+    const onDone = (j) => { let r = {}; try { r = JSON.parse(j); } catch (e) {} if (r.path === activePath) setWaitSetup(false); };
+    B.setup_done.connect(onDone);
+    return () => { try { B.setup_done.disconnect(onDone); } catch (e) {} };
+  }, [activePath, fresh]);
   const ctl = { fontSize: 11.5, padding: '5px 10px', borderRadius: 99 };
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
@@ -833,6 +840,7 @@ function RealPreview({ path }) {
         {!B || !activePath ? <Slot id={'pw'} cls="" radius={16} ph="preview de tu tema ♡" />
           : err ? <div style={{ color: 'var(--tx-dim)', fontWeight: 600, placeSelf: 'center' }}>preview: {err} 🥺</div>
           : status === 'stopped' ? <div style={{ color: 'var(--tx-dim)', fontWeight: 600, placeSelf: 'center' }}>■ preview detenido — pulsa ▶ Start ♡</div>
+          : (waitSetup && status === 'idle') ? <div style={{ color: 'var(--tx-dim)', fontWeight: 600, placeSelf: 'center', textAlign: 'center', padding: 20 }}>⏳ esperando a que termine el setup (npm install)… ♡<br /><span style={{ fontSize: 11 }}>arrancará solo al acabar · o pulsa ▶ Start</span></div>
           : !url ? <div style={{ alignSelf: 'stretch', width: '100%', overflow: 'auto', fontFamily: 'var(--font)', fontSize: 11.5, color: 'var(--tx-dim)', fontWeight: 600, whiteSpace: 'pre-wrap', padding: 6 }}>{'✨ arrancando dev server (sondeando puerto)… ♡\n' + (log || '')}</div>
           : <iframe key={k} src={url} style={{ width: vw ? vw : '100%', maxWidth: '100%', height: '100%', minHeight: 280, border: 'none', borderRadius: 16, background: '#fff', justifySelf: 'center' }} />}
       </div>
@@ -918,7 +926,7 @@ function ProjectWindow({ p, onBack, onDeploy, onBuild, onRef, buildLog }) {
             <span style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--tx-dim)', fontWeight: 600, alignSelf: 'center' }}>preview real ♡</span>
           </div>
           <div style={{ flex: 1, display: 'grid', placeItems: 'stretch', background: 'var(--bg2)', borderRadius: 18, padding: 0, minHeight: 0, overflow: 'auto' }}>
-            <RealPreview path={p.path} narrow={tab === 'mobile'} />
+            <RealPreview path={p.path} fresh={p.fresh} narrow={tab === 'mobile'} />
           </div>
         </div>
         <div className="panelc" style={{ display: 'flex', flexDirection: 'column', padding: 14, minHeight: 0 }}>
