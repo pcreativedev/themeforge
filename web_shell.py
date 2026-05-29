@@ -749,11 +749,24 @@ class ThemeForgeBridge(QObject):
         if provider not in aip.PROVIDERS:
             provider = "codex" if "codex" in aip.PROVIDERS else next(iter(aip.PROVIDERS))
         from pathlib import Path
-        slug = slugify(name)
-        project_dir = PROJECTS_DIR / slug
-        n = 2
-        while project_dir.exists() and any(project_dir.iterdir()):
-            slug = f"{slugify(name)}-{n}"; project_dir = PROJECTS_DIR / slug; n += 1
+        mode = cfg.get("mode") or "scratch"
+        if mode not in ("scratch", "recreate", "adopt", "existing"):
+            mode = "scratch"
+        existing_repo = (cfg.get("existing_repo") or "").strip() or None
+        # Modo existing (work on existing repo): slug/nombre = nombre de la repo,
+        # NO se pide nombre (como pidió el user, en web y nativo).
+        if mode == "existing" and existing_repo:
+            repo_clean = existing_repo.replace(".git", "").rstrip("/")
+            repo_name = repo_clean.split("/")[-1] or "repo"
+            name = name or repo_name
+            slug = repo_name
+            project_dir = PROJECTS_DIR / slug
+        else:
+            slug = slugify(name)
+            project_dir = PROJECTS_DIR / slug
+            n = 2
+            while project_dir.exists() and any(project_dir.iterdir()):
+                slug = f"{slugify(name)}-{n}"; project_dir = PROJECTS_DIR / slug; n += 1
         # Inyecta el análisis IA de referencia (si se hizo uno) en CLAUDE.md,
         # igual que el modo recreate del normal — así "se queda guardado".
         ai_analysis = None
@@ -763,9 +776,6 @@ class ThemeForgeBridge(QObject):
             stored_val, stored_txt = self._last_reference_analysis
             if (not ref_value) or stored_val == ref_value:
                 ai_analysis = stored_txt
-        mode = cfg.get("mode") or "scratch"
-        if mode not in ("scratch", "recreate", "adopt", "existing"):
-            mode = "scratch"
         # Toggles del Setup (como en el normal): autoskills + UI/UX Pro + MCP.
         run_autoskills = bool(opts.get("autoskills", True))
         run_uipro = bool(opts.get("uipro", True))
@@ -780,7 +790,7 @@ class ThemeForgeBridge(QObject):
                 mode=mode,
                 reference_kind=(ref_kind if mode == "recreate" else None),
                 reference_value=(ref_value if mode == "recreate" else None),
-                existing_repo=(ref_value if mode == "existing" else None),
+                existing_repo=(existing_repo if mode == "existing" else None),
                 create_github_repo=False, github_user=None,
                 embedded=True, run_uipro=run_uipro,
                 force_postgres=force_pg, adopt_src=adopt_src,

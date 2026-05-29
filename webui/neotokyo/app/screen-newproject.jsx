@@ -71,6 +71,7 @@ function NewProjectScreen({ onLaunch, onAnalyze }) {
   const [mode, setMode] = useState('scratch');
   const [refKind, setRefKind] = useState('folder');
   const [refVal, setRefVal] = useState('');
+  const [repoId, setRepoId] = useState('');  // owner/repo o URL (modo existing)
   const [openCats, setOpenCats] = useState({});  // categoría → abierta? (acordeón)
   const [thinking, setThinking] = useState(false);
   const [filled, setFilled] = useState(false);
@@ -305,7 +306,8 @@ function NewProjectScreen({ onLaunch, onAnalyze }) {
           {mode === 'repo' && (
             <div className="panel fade-in" style={{ padding: 20 }}>
               <div className="eyebrow" style={{ marginBottom: 12 }}>REPOSITORIO · GITHUB</div>
-              <input placeholder="owner/repo o selecciona de la lista…" style={{ width: '100%', background: 'var(--bg-void)', border: '1px solid var(--line-bright)', borderRadius: 8, padding: '9px 12px', color: 'var(--tx)', fontFamily: 'var(--font-mono)', fontSize: 12, outline: 'none' }} />
+              <input value={repoId} onChange={e => setRepoId(e.target.value)} placeholder="owner/repo o https://github.com/owner/repo" style={{ width: '100%', background: 'var(--bg-void)', border: '1px solid var(--line-bright)', borderRadius: 8, padding: '9px 12px', color: 'var(--tx)', fontFamily: 'var(--font-mono)', fontSize: 12, outline: 'none' }} />
+              <div className="faint" style={{ fontSize: 11, marginTop: 8 }}>No hace falta nombre: se usa el de la repo. <code>gh repo clone</code> con historial intacto.</div>
             </div>
           )}
         </div>
@@ -349,6 +351,15 @@ function NewProjectScreen({ onLaunch, onAnalyze }) {
           <span style={{ color: 'var(--accent)' }}>{(STACKS.find(s => s.key === stack)||{label:stack}).label}</span>{' · '}{(MODES.find(m => m.k === mode)||{label:mode}).label}{' · '}<span style={{ color: AGENTS[agent].color }}>{AGENTS[agent].label}</span>{' · ~$0.40'}
         </div>
         <Btn variant="primary" icon="rocket" onClick={() => {
+          if (mode === 'repo') {
+            const rid = (repoId || '').trim();
+            if (!rid || rid.indexOf('/') < 0) { alert('Indica el repo como owner/repo o una URL de GitHub.'); return; }
+            // El nombre = nombre de la repo (último segmento, sin .git).
+            const repoName = rid.replace(/\.git$/, '').replace(/\/$/, '').split('/').pop();
+            onLaunch({ stack: 'none', agent, type, mode: 'existing', opts, niche: vibe,
+              name: repoName, existing_repo: rid });
+            return;
+          }
           const name = (pname || '').trim() || (vibe || '').trim().slice(0, 42) || type || 'Untitled Forge';
           if (!(pname || '').trim() && !confirm('Sin nombre — se usará «' + name + '». ¿Continuar?')) return;
           onLaunch({ stack, agent, type, mode, opts, niche: vibe, name,

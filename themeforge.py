@@ -5343,11 +5343,6 @@ class ThemeForge(QWidget):
         self.preview.setText("\n".join(lines))
 
     def create_project(self):
-        name = self.name_edit.text().strip()
-        if not name:
-            QMessageBox.warning(self, "ThemeForge", "Pon un nombre.")
-            return
-
         mode = (
             "recreate" if self.mode_recreate.isChecked()
             else "existing" if self.mode_existing.isChecked()
@@ -5355,14 +5350,20 @@ class ThemeForge(QWidget):
             else "scratch"
         )
 
-        # Slug
+        name = self.name_edit.text().strip()
+        # Slug. En modo "existing" NO se pide nombre: se usa el de la repo.
         if mode == "existing":
             repo_id = self._current_repo_id()
             if not repo_id or "/" not in repo_id:
                 QMessageBox.warning(self, "ThemeForge", "Pick or type a repo as owner/name.")
                 return
             slug = repo_id.split("/")[-1]
+            if not name:
+                name = slug  # nombre del proyecto = nombre de la repo
         else:
+            if not name:
+                QMessageBox.warning(self, "ThemeForge", "Pon un nombre.")
+                return
             slug = slugify(name)
 
         project_dir = PROJECTS_DIR / slug

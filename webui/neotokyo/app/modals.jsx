@@ -45,7 +45,7 @@ function ReferenceAnalysisModal({ onClose }) {
       let r = {}; try { r = JSON.parse(j); } catch (e) {}
       if (r.status) setStatus(r.status);
       if (r.text !== undefined) setLines(ls => [...ls, r.text]);
-      if (r.done) { if (r.error) setLines(ls => [...ls, '\n⚠ ' + r.error]); setStatus(r.error ? '⚠ error' : '✓ análisis completo · guardado'); setDone(true); }
+      if (r.done) { if (r.error) setLines(ls => [...ls, '\n⚠ ' + r.error]); setStatus(r.error ? '⚠ error' : '✓ Análisis IA listo — se inyectará en CLAUDE.md al crear el proyecto. El agente leerá la recomendación y propondrá el plan de recreación.'); setDone(true); }
     };
     if (window.tfBridge.reference_progress && window.tfBridge.reference_progress.connect)
       window.tfBridge.reference_progress.connect(onProg);
@@ -83,6 +83,11 @@ function ReferenceAnalysisModal({ onClose }) {
           </div>
         ))}
       </div>
+      {real && done && (
+        <div style={{ margin: '0 14px', padding: '10px 14px', borderRadius: 8, background: 'rgba(157,255,60,0.12)', border: '1px solid var(--lime, #9dff3c)', color: 'var(--lime, #9dff3c)', fontSize: 12.5, fontFamily: 'var(--font-mono)' }}>
+          ✓ Análisis IA listo — se inyectará en <b>CLAUDE.md</b> al crear el proyecto. El agente leerá la recomendación y propondrá el plan de recreación.
+        </div>
+      )}
       <div style={{ display: 'flex', gap: 8, padding: 14, borderTop: '1px solid var(--line)' }}>
         <input value={reply} onChange={e => setReply(e.target.value)} onKeyDown={e => e.key === 'Enter' && send()}
           disabled={!done} placeholder={done ? 'Responder al agente…' : 'esperando análisis…'}
