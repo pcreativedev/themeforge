@@ -345,6 +345,59 @@ class ThemeForgeBridge(QObject):
     market_result = pyqtSignal(str)
     # Streaming del análisis de referencia: JSON {line} o {done, error?}.
     reference_progress = pyqtSignal(str)
+    # Terminal de Compare lista por provider: JSON {provider, url}.
+    compare_ready = pyqtSignal(str)
+
+    @pyqtSlot(str, result=str)
+    def compare(self, prompt: str) -> str:
+        """Compare REAL: corre el MISMO prompt en cada CLI de IA disponible, cada
+        uno en su propio terminal (xterm+node-pty), en paralelo. Emite
+        `compare_ready` {provider,url} por cada uno para embeber lado a lado."""
+        import shutil
+        import urllib.parse
+        from pathlib import Path
+        node = shutil.which("node")
+        if not node:
+            return json.dumps({"ok": False, "error": "node no encontrado"})
+        try:
+            import ai_providers as aip
+        except Exception as e:
+            return json.dumps({"ok": False, "error": str(e)})
+        cwd = str(Path.home())
+        started = []
+        for pkey in ("claude", "codex", "gemini", "opencode"):
+            p = aip.PROVIDERS.get(pkey, {})
+            binary = p.get("command")
+            if not binary or not shutil.which(binary):
+                continue
+            try:
+                cmd, extra = aip.interactive_cmd_args(pkey)
+            except Exception:
+                cmd, extra = binary, []
+            args = (extra or []) + [prompt]
+            proc = QProcess(self)
+            proc.setWorkingDirectory(str(TERMINAL_DIR))
+            proc.setProcessChannelMode(QProcess.ProcessChannelMode.MergedChannels)
+
+            def _mk(pk, c, a, pr):
+                def _on_out():
+                    data = bytes(pr.readAllStandardOutput()).decode(errors="replace")
+                    for line in data.splitlines():
+                        if line.startswith("PORT="):
+                            port = line.split("=", 1)[1].strip()
+                            q = (f"cwd={urllib.parse.quote(cwd)}"
+                                 f"&cmd={urllib.parse.quote(c)}")
+                            if a:
+                                q += "&args=" + urllib.parse.quote("\x1f".join(a))
+                            self.compare_ready.emit(json.dumps(
+                                {"provider": pk, "url": f"http://127.0.0.1:{port}/?{q}"}))
+                return _on_out
+
+            proc.readyReadStandardOutput.connect(_mk(pkey, cmd, args, proc))
+            proc.start(node, [str(TERMINAL_DIR / "server.js"), "0"])
+            self._procs.append(proc)
+            started.append(pkey)
+        return json.dumps({"ok": True, "providers": started})
 
     @pyqtSlot(str, result=str)
     def analyze_market(self, niche: str) -> str:

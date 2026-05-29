@@ -1,61 +1,56 @@
 /* ================= NEO-TOKYO · Compare · Market · Settings · Licensing ================= */
 
 /* ---------------- COMPARE AGENTS ---------------- */
-const COMPARE_OUT = {
-  claude:   ['✳ analizando prompt…', 'export function Pricing() {', '  return <Tiers data={PLANS} />', '}', '✓ TTFT 0.8s · 1.2s total'],
-  codex:    ['◇ tokenizing…', 'const Pricing = () => (', '  <section className="tiers">…', ')', '✓ TTFT 1.1s · 1.6s total'],
-  gemini:   ['✦ planning…', 'function PricingGrid() {', '  // 3 tiers, annual toggle', '}', '✓ TTFT 0.6s · 1.4s total'],
-  opencode: ['⬡ loading local model…', 'export const Pricing = ...', '  // qwen-coder local', '✓ TTFT 2.3s · 3.1s total'],
-};
+const COMPARE_OUT = {};
 
-function AgentPane({ k, running }) {
-  const a = AGENTS[k];
-  const [shown, setShown] = useState(0);
-  useEffect(() => {
-    if (!running) { setShown(0); return; }
-    setShown(0);
-    let i = 0;
-    const t = setInterval(() => { i++; setShown(i); if (i >= COMPARE_OUT[k].length) clearInterval(t); }, 400 + Math.random() * 300);
-    return () => clearInterval(t);
-  }, [running, k]);
+// Panel de un agente en Compare: terminal REAL (iframe) corriendo el prompt.
+function AgentPane({ k, url }) {
+  const a = AGENTS[k] || { color: 'var(--accent)', glyph: '◆', label: k, hex: '#00f0ff' };
   return (
-    <div className="panel" style={{ padding: 0, overflow: 'hidden', borderColor: shown > 0 ? a.color + '44' : 'var(--line)' }}>
+    <div className="panel" style={{ padding: 0, overflow: 'hidden', borderColor: url ? a.color + '66' : 'var(--line)', display: 'flex', flexDirection: 'column', minHeight: 320 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', borderBottom: '1px solid var(--line)', background: a.hex + '11' }}>
         <span style={{ color: a.color, fontSize: 15 }}>{a.glyph}</span>
         <span style={{ fontSize: 12.5, fontWeight: 600 }}>{a.label}</span>
-        {running && shown < COMPARE_OUT[k].length && <span style={{ marginLeft: 'auto', width: 6, height: 6, borderRadius: 99, background: a.color, boxShadow: `0 0 8px ${a.color}`, animation: 'blink 0.9s infinite' }} />}
-        {shown >= COMPARE_OUT[k].length && <Icon name="check" size={14} style={{ marginLeft: 'auto', color: 'var(--codex)' }} />}
+        {!url && <span style={{ marginLeft: 'auto', width: 6, height: 6, borderRadius: 99, background: a.color, boxShadow: `0 0 8px ${a.color}`, animation: 'blink 0.9s infinite' }} />}
       </div>
-      <div className="mono" style={{ padding: 14, fontSize: 11.5, lineHeight: 1.8, minHeight: 130, color: 'var(--tx-dim)' }}>
-        {COMPARE_OUT[k].slice(0, shown).map((l, i) => (
-          <div key={i} style={{ color: l.startsWith('✓') ? a.color : (i === 0 ? a.color : 'var(--tx-dim)') }}>{l}</div>
-        ))}
-        {running && shown < COMPARE_OUT[k].length && <span style={{ color: a.color, animation: 'blink 0.8s infinite' }}>▊</span>}
-      </div>
+      {url ? <iframe src={url} style={{ flex: 1, width: '100%', minHeight: 280, border: 'none', background: '#0c0c0d' }} />
+        : <div className="mono faint" style={{ padding: 16, flex: 1 }}>// esperando terminal real…</div>}
     </div>
   );
 }
 
 function CompareScreen() {
-  const [running, setRunning] = useState(false);
+  const real = !!(window.tfBridge && window.tfBridge.compare);
   const [prompt, setPrompt] = useState('Build a 3-tier pricing section with annual/monthly toggle');
+  const [urls, setUrls] = useState({});   // provider → iframe url (real)
+  const [providers, setProviders] = useState([]);
+  useEffect(() => {
+    if (!real || !window.tfBridge.compare_ready || !window.tfBridge.compare_ready.connect) return;
+    const onReady = (j) => { let r = {}; try { r = JSON.parse(j); } catch (e) {} if (r.provider && r.url) setUrls(u => ({ ...u, [r.provider]: r.url })); };
+    window.tfBridge.compare_ready.connect(onReady);
+    return () => { try { window.tfBridge.compare_ready.disconnect(onReady); } catch (e) {} };
+  }, []);
+  const run = () => {
+    if (!real || !prompt.trim()) return;
+    setUrls({}); setProviders([]);
+    window.tfBridge.compare(prompt).then(j => { let r = {}; try { r = JSON.parse(j); } catch (e) {} setProviders(r.providers || []); });
+  };
+  const shownKeys = providers.length ? providers : Object.keys(AGENTS);
   return (
     <div style={{ padding: '34px 40px 60px', position: 'relative', zIndex: 2 }}>
       <Eyebrow jp="比較">COMPARE · 代理比較</Eyebrow>
       <h1 style={{ fontFamily: 'var(--font-mega)', fontSize: 38, margin: '12px 0 6px' }}>
         AGENT <span className="neon-text-2">VERSUS</span>
       </h1>
-      <div className="dim" style={{ fontSize: 13.5, marginBottom: 22 }}>Mismo prompt · 4 modelos en paralelo · lado a lado.</div>
+      <div className="dim" style={{ fontSize: 13.5, marginBottom: 22 }}>Mismo prompt · cada IA en su terminal real · lado a lado.</div>
 
       <div className="panel" style={{ padding: 14, display: 'flex', gap: 10, marginBottom: 20 }}>
         <input value={prompt} onChange={e => setPrompt(e.target.value)}
           style={{ flex: 1, background: 'var(--bg-void)', border: '1px solid var(--line-bright)', borderRadius: 8, padding: '10px 14px', color: 'var(--tx)', fontFamily: 'var(--font-mono)', fontSize: 12.5, outline: 'none' }} />
-        <Btn variant="primary" icon="play" onClick={() => { setRunning(false); setTimeout(() => setRunning(true), 50); }}>
-          {running ? 'Re-run' : 'Run en 4'}
-        </Btn>
+        <Btn variant="primary" icon="play" onClick={run}>{providers.length ? 'Re-run' : 'Run'}</Btn>
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-        {Object.keys(AGENTS).map(k => <AgentPane key={k} k={k} running={running} />)}
+        {shownKeys.map(k => <AgentPane key={k} k={k} url={urls[k]} />)}
       </div>
     </div>
   );
