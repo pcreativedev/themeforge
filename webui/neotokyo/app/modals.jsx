@@ -23,15 +23,7 @@ function ModalShell({ title, jp, onClose, width = 720, children, accentBorder })
 }
 
 /* ---------- Reference Analysis (streaming, multi-turn AI) ---------- */
-const REF_STREAM = [
-  { t: 'sys', s: '🔍 Analizando referencia · agent=claude · parser=folder' },
-  { t: 'out', s: 'Detectado: Next.js 14 (app router) + Tailwind + shadcn/ui' },
-  { t: 'out', s: 'Layout: hero split · bento de 6 features · pricing 3-tier · footer mega' },
-  { t: 'out', s: 'Paleta dominante: índigo #6366f1 · neutros slate · radios 12px' },
-  { t: 'out', s: 'Tipografía: Geist Sans (display) + Geist Mono (code)' },
-  { t: 'warn', s: '⚠ Imágenes propietarias detectadas → reemplazar por Unsplash del nicho' },
-  { t: 'q', s: '¿Mantengo la estructura de pricing o propongo una alternativa original?' },
-];
+const REF_STREAM = [];
 
 function ReferenceAnalysisModal({ onClose }) {
   const real = !!(window.tfBridge && window.tfBridge.analyze_reference);

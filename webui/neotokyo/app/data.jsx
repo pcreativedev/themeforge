@@ -1,66 +1,8 @@
 /* ================= NEO-TOKYO · mock data ================= */
 
-const _MOCK_PROJECTS = [
-  {
-    id: 'aurora-saas', name: 'Aurora SaaS', jp: 'オーロラ',
-    type: 'SaaS Landing', stack: 'Next.js 15', stackKey: 'next',
-    agent: 'claude', status: 'live', cost: 4.82, tokens: '2.1M',
-    updated: 'hace 3 min', accent: '#00f0ff',
-    desc: 'Premium SaaS landing · bento features · pricing tiers',
-    tags: ['next', 'tailwind', 'framer'], commits: 47, preview: 'saas',
-  },
-  {
-    id: 'nordic-forge', name: 'Nordic Forge', jp: '北欧',
-    type: 'Creative Agency', stack: 'Astro', stackKey: 'astro',
-    agent: 'codex', status: 'building', cost: 2.10, tokens: '980K',
-    updated: 'hace 12 min', accent: '#86efac',
-    desc: 'Studio portfolio · 6 case studies · editorial grid',
-    tags: ['astro', 'gsap', 'mdx'], commits: 23, preview: 'agency',
-  },
-  {
-    id: 'meridian-shop', name: 'Meridian Shop', jp: '商店',
-    type: 'E-commerce', stack: 'Shopify Hydrogen', stackKey: 'shopify',
-    agent: 'gemini', status: 'live', cost: 7.34, tokens: '3.4M',
-    updated: 'hace 1 h', accent: '#fbbf24',
-    desc: 'Headless storefront · cart drawer · checkout flow',
-    tags: ['hydrogen', 'remix', 'stripe'], commits: 89, preview: 'shop',
-  },
-  {
-    id: 'kanban-flux', name: 'Flux Admin', jp: '管理',
-    type: 'Dashboard / Admin', stack: 'Laravel + Vue', stackKey: 'laravel',
-    agent: 'opencode', status: 'draft', cost: 0.41, tokens: '180K',
-    updated: 'hace 5 h', accent: '#c084fc',
-    desc: 'Analytics dashboard · charts · RBAC · dark mode',
-    tags: ['laravel', 'vue', 'inertia'], commits: 8, preview: 'admin',
-  },
-  {
-    id: 'zen-clinic', name: 'Zen Clinic', jp: '診療',
-    type: 'Clínica / Booking', stack: 'WordPress', stackKey: 'wp',
-    agent: 'claude', status: 'live', cost: 3.95, tokens: '1.7M',
-    updated: 'ayer', accent: '#00f0ff',
-    desc: 'Clínica dental Madrid · booking · paleta cálida',
-    tags: ['wp', 'acf', 'elementor'], commits: 34, preview: 'clinic',
-  },
-  {
-    id: 'pixel-arcade', name: 'Pixel Arcade', jp: '遊技',
-    type: 'Landing / Game', stack: 'Tauri + React', stackKey: 'tauri',
-    agent: 'codex', status: 'archived', cost: 1.22, tokens: '540K',
-    updated: 'hace 3 días', accent: '#ff2e88',
-    desc: 'Retro arcade microsite · CRT FX · leaderboards',
-    tags: ['tauri', 'react', 'rust'], commits: 19, preview: 'arcade',
-  },
-];
+const _MOCK_PROJECTS = [];
 
-const _MOCK_STACKS = [
-  { key: 'next', label: 'Next.js 15', jp: '次世代', cat: 'React', n: 'TS' },
-  { key: 'astro', label: 'Astro', jp: '星', cat: 'MPA', n: 'JS' },
-  { key: 'laravel', label: 'Laravel', jp: '帆', cat: 'PHP', n: 'PHP' },
-  { key: 'wp', label: 'WordPress', jp: '出版', cat: 'CMS', n: 'PHP' },
-  { key: 'shopify', label: 'Hydrogen', jp: '商', cat: 'Commerce', n: 'TS' },
-  { key: 'tauri', label: 'Tauri', jp: '鳥', cat: 'Desktop', n: 'Rust' },
-  { key: 'sveltekit', label: 'SvelteKit', jp: '滑', cat: 'Svelte', n: 'TS' },
-  { key: 'flutter', label: 'Flutter', jp: '蝶', cat: 'Mobile', n: 'Dart' },
-];
+const _MOCK_STACKS = [];
 
 // Datos REALES inyectados por el shell nativo (window.__TF_DATA__) con
 // fallback a los mocks de arriba cuando se abre el prototipo suelto.
@@ -130,20 +72,7 @@ function MockPreview({ kind, accent }) {
 Object.assign(window, { PROJECTS, STACKS, STATUS, MockPreview });
 
 /* ---- MCP catalog (.mcp.json — curated + community, from repo) ---- */
-const _MOCK_MCP_SERVERS = [
-  { id: 'filesystem', label: 'filesystem', cat: 'core', always: true, desc: 'Acceso al árbol del proyecto', lic: 'MIT' },
-  { id: 'fetch', label: 'fetch', cat: 'core', always: true, desc: 'HTTP fetch / scraping', lic: 'MIT' },
-  { id: 'memory', label: 'memory', cat: 'core', always: true, desc: 'Memoria persistente del agente', lic: 'MIT' },
-  { id: 'github', label: 'github', cat: 'core', always: true, desc: 'Repos, PRs, issues, push', lic: 'MIT' },
-  { id: 'themeforge', label: 'themeforge', cat: 'core', always: true, desc: '8 tools: create_project, estimate_cost, run_preflight, build_zip, suggest_stack…', lic: 'GPL-3' },
-  { id: 'playwright', label: 'playwright', cat: 'web', desc: 'Automatización de navegador', lic: 'Apache-2' },
-  { id: 'chrome-devtools', label: 'chrome-devtools', cat: 'web', desc: 'Inspección / perf / network', lic: 'MIT' },
-  { id: 'figma-context', label: 'figma-context', cat: 'web', desc: 'Lee diseños de Figma (node-id)', lic: 'MIT' },
-  { id: 'browsermcp', label: 'browsermcp', cat: 'web', desc: 'Control del navegador del usuario', lic: 'MIT' },
-  { id: 'shopify-dev', label: 'shopify-dev', cat: 'commerce', desc: 'Schemas GraphQL Admin/Storefront', lic: 'MIT' },
-  { id: 'postgres', label: 'postgres', cat: 'data', desc: 'Query a la DB provisionada', lic: 'MIT' },
-  { id: 'wordpress', label: 'wordpress', cat: 'cms', desc: 'CRUD WP nativo (Automattic)', lic: 'GPL-2' },
-];
+const _MOCK_MCP_SERVERS = [];
 const MCP_SERVERS = (_TF.mcp && _TF.mcp.length) ? _TF.mcp : _MOCK_MCP_SERVERS;
 
 /* ---- Deploy targets ---- */
@@ -176,11 +105,6 @@ const NP_SUBTABS = [
 ];
 
 /* ---- Operator (Hermes Mission Control) mock missions ---- */
-const MISSIONS = [
-  { id: 'm1', name: 'Aurora SaaS · build hero+pricing', agent: 'claude', status: 'running', progress: 68, eta: '2m 10s', step: 'wiring pricing tiers' },
-  { id: 'm2', name: 'Nordic Forge · port case studies', agent: 'codex', status: 'running', progress: 34, eta: '5m 40s', step: 'scaffolding MDX' },
-  { id: 'm3', name: 'Meridian Shop · checkout flow', agent: 'gemini', status: 'queued', progress: 0, eta: '—', step: 'en cola' },
-  { id: 'm4', name: 'Zen Clinic · booking widget', agent: 'claude', status: 'done', progress: 100, eta: '✓', step: 'completada · $1.20' },
-];
+const MISSIONS = [];
 
 Object.assign(window, { MCP_SERVERS, DEPLOY_TARGETS, PREFLIGHT, NP_SUBTABS, MISSIONS });

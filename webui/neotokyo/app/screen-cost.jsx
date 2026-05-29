@@ -1,24 +1,10 @@
 /* ================= NEO-TOKYO · AI Cost Tracker ================= */
 
 const _COST = (typeof window !== 'undefined' && window.__TF_DATA__ && window.__TF_DATA__.cost) || {};
-const _MOCK_COST_BY_AGENT = [
-  { k: 'claude', v: 12.77 },
-  { k: 'codex', v: 3.32 },
-  { k: 'gemini', v: 7.34 },
-  { k: 'opencode', v: 1.63 },
-];
-const COST_BY_AGENT = (_COST.by_agent && _COST.by_agent.length) ? _COST.by_agent : _MOCK_COST_BY_AGENT;
-const DAYS = (_COST.days && _COST.days.length) ? _COST.days : Array.from({ length: 30 }, (_, i) => {
-  const base = 0.4 + Math.sin(i / 3) * 0.3 + Math.random() * 0.9;
-  return Math.max(0, +(base * (i > 24 ? 1.8 : 1)).toFixed(2));
-});
-// Filas de la tabla de modelos (reales si hay datos, mock si no).
-const COST_MODELS = (_COST.models && _COST.models.length) ? _COST.models : [
-  { agent: 'claude', model: 'sonnet-4.5', sessions: 47, input: '5.1M', output: '92k', rate: '$3/$15', cost: 12.77 },
-  { agent: 'gemini', model: '2.5-pro', sessions: 23, input: '3.4M', output: '58k', rate: '$1.25/$10', cost: 7.34 },
-  { agent: 'codex', model: 'gpt-5-codex', sessions: 31, input: '1.8M', output: '41k', rate: '$1.5/$8', cost: 3.32 },
-  { agent: 'opencode', model: 'local-qwen', sessions: 12, input: '0.9M', output: '22k', rate: 'free', cost: 1.63 },
-];
+const _MOCK_COST_BY_AGENT = [];
+const COST_BY_AGENT = (_COST.by_agent && _COST.by_agent.length) ? _COST.by_agent : [];
+const DAYS = (_COST.days && _COST.days.length) ? _COST.days : Array.from({ length: 30 }, () => 0);
+const COST_MODELS = (_COST.models && _COST.models.length) ? _COST.models : [];
 
 function Donut({ data, total }) {
   const prog = useCountUp(1, 1100, []);
@@ -89,7 +75,8 @@ function Stat({ label, value, sub, color }) {
 function CostScreen() {
   const total = (typeof _COST.total === 'number') ? _COST.total : COST_BY_AGENT.reduce((s, d) => s + d.v, 0);
   const month = (typeof _COST.month === 'number') ? _COST.month : DAYS.reduce((s, v) => s + v, 0);
-  const tokensLabel = _COST.tokens || '8.2M tokens';
+  const tokensLabel = (_COST.tokens || '0') + ' tokens';
+  const perProject = _COST.per_project ? ('$' + Number(_COST.per_project).toFixed(2)) : '—';
   return (
     <div style={{ padding: '34px 40px 60px', position: 'relative', zIndex: 2 }}>
       <Eyebrow jp="費用追跡">AI COST · 費用</Eyebrow>
@@ -100,8 +87,8 @@ function CostScreen() {
       <div style={{ display: 'flex', gap: 16, marginBottom: 20 }}>
         <Stat label="TOTAL ALL-TIME" value={`$${total.toFixed(2)}`} sub={tokensLabel} color="var(--accent)" />
         <Stat label="ESTE MES" value={`$${month.toFixed(2)}`} sub="últimos 30 días" color="var(--codex)" />
-        <Stat label="POR PROYECTO" value="$3.94" sub="media · 6 proyectos" />
-        <Stat label="TOKENS / $" value="421K" sub="eficiencia media" color="var(--gemini)" />
+        <Stat label="MODELOS" value={String(COST_MODELS.length)} sub="con coste registrado" />
+        <Stat label="PROVEEDORES" value={String(COST_BY_AGENT.length)} sub="activos" color="var(--gemini)" />
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '320px 1fr', gap: 20 }}>

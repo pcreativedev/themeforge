@@ -83,12 +83,7 @@ function MarketScreen() {
     if (real) { setLoading(true); setDone(false); setMd(''); window.tfBridge.analyze_market(niche); return; }
     setLoading(true); setDone(false); setTimeout(() => { setLoading(false); setDone(true); }, 1400);
   };
-  const rows = [
-    ['Dental clinic landing', '$39', '★ 4.8', '1,240', 'alta'],
-    ['Medical / health WP', '$59', '★ 4.6', '890', 'media'],
-    ['Booking + calendar', '$49', '★ 4.9', '2,100', 'alta'],
-    ['Multipurpose business', '$29', '★ 4.4', '8,400', 'saturada'],
-  ];
+  const rows = [];
   return (
     <div style={{ padding: '34px 40px 60px', position: 'relative', zIndex: 2 }}>
       <Eyebrow jp="市場分析">MARKET · 市場</Eyebrow>
@@ -167,14 +162,7 @@ function MarketScreen() {
 }
 
 /* ---------------- SETTINGS / THEME EDITOR ---------------- */
-const _MOCK_APP_THEMES = [
-  { k: 'neotokyo', label: 'Neo-Tokyo', jp: 'ネオ東京', bg: '#04060c', acc: '#00f0ff', acc2: '#ff2e88' },
-  { k: 'tokyonight', label: 'Tokyo Night', jp: '東京夜', bg: '#1a1b26', acc: '#7aa2f7', acc2: '#bb9af7' },
-  { k: 'dracula', label: 'Dracula', jp: '吸血鬼', bg: '#282a36', acc: '#bd93f9', acc2: '#ff79c6' },
-  { k: 'nord', label: 'Nord', jp: '北', bg: '#2e3440', acc: '#88c0d0', acc2: '#81a1c1' },
-  { k: 'linear', label: 'Linear', jp: '線形', bg: '#0e0e10', acc: '#5e6ad2', acc2: '#8a8f98' },
-  { k: 'brutalism', label: 'Brutalism', jp: '粗野', bg: '#0a0a0a', acc: '#ffff00', acc2: '#ff0000' },
-];
+const _MOCK_APP_THEMES = [];
 
 // Temas REALES de ThemeForge (inyectados por el shell) con fallback al mock.
 const _TFD = (typeof window !== 'undefined' && window.__TF_DATA__) || {};
