@@ -3773,6 +3773,13 @@ def write_setup_script(
     parts.append(
         f'PYTHONPATH={shell_quote(str(_sw_dir))} python3 -m skills_wireup "$(pwd)" || true'
     )
+    # ── Exponer esas mismas skills a Hermes (auto-carga AGENTS.md, no .claude/skills) ──
+    # Sin esto Hermes no veía las skills de autoskills/uipro: el puente las lista
+    # en un bloque gestionado de AGENTS.md y le ordena leerlas+seguirlas.
+    parts.append('echo "→ Exponiendo skills a Hermes (AGENTS.md)…"')
+    parts.append(
+        f'PYTHONPATH={shell_quote(str(_sw_dir))} python3 -m hermes_skills_bridge "$(pwd)" || true'
+    )
 
     # ── BD: aprovisionamiento automático post-clone/scaffold ──
     # El propio script detecta si el proyecto necesita Postgres (drizzle/

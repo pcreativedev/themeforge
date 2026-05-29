@@ -207,6 +207,13 @@ class HermesTerminal(QWidget):
     def set_cwd(self, path):
         """Apunta el chat al directorio de un proyecto (auto-carga su contexto)."""
         self._cwd = str(path)
+        # Expone las skills de autoskills/uipro a Hermes (AGENTS.md) antes de
+        # cargar el chat — idempotente y barato.
+        try:
+            from hermes_skills_bridge import bridge_skills_for_hermes
+            bridge_skills_for_hermes(path)
+        except Exception:
+            pass
         self.lbl.setText(f"💬 Chat con Hermes · {Path(self._cwd).name}")
         if self._port:
             self._load()
