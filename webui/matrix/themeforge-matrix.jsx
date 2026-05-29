@@ -110,24 +110,36 @@ function burst(e) {
 const Slot = ({ id, cls, radius = 4, ph }) => React.createElement('image-slot', { id, class: cls, shape: 'rounded', radius: String(radius), placeholder: ph });
 
 /* ---- Gallery ---- */
-function ProjectCard({ p, onOpen }) {
-  const [fav, setFav] = useState(p.status === 'live');
-  const ag = AGENTS[p.agent], st = STATUS[p.status];
+function gop(slug, op, arg) {  // operación real de galería (favorito/tags/archivar/eliminar)
+  const B = window.tfBridge;
+  if (!B || !B.gallery_op) return Promise.resolve({});
+  return B.gallery_op(slug, op, arg || '').then(j => { try { return JSON.parse(j); } catch (e) { return {}; } });
+}
+function ProjectCard({ p, onOpen, onChanged, archived }) {
+  const ag = AGENTS[p.agent] || { color: 'var(--accent)', em: '◆', label: p.agent }, st = STATUS[p.status] || { color: 'var(--tx-dim)', em: '○', label: p.status };
+  const act = (e, op, arg) => { e.stopPropagation(); gop(p.id, op, arg).then(() => onChanged && onChanged()); };
   return (
-    <div className="pcard fade" style={{ opacity: p.status === 'archived' ? 0.65 : 1, cursor: 'pointer' }} onClick={() => onOpen(p)}>
+    <div className="pcard fade" style={{ opacity: archived ? 0.65 : 1, cursor: 'pointer' }} onClick={() => onOpen(p)}>
       <span className="pstatus" style={{ color: st.color }}>{st.em} {st.label}</span>
       <span className="pjp">{p.jp}</span>
       <Slot id={p.id} cls="pcover" radius={3} ph="// arrastra screenshot" />
-      <span className="pfav" onClick={(e) => { e.stopPropagation(); setFav(f => !f); burst(e); }}>{fav ? '★' : '☆'}</span>
+      <span className="pfav" title="favorito" onClick={(e) => { act(e, 'favorite'); burst(e); }}>{p.fav ? '★' : '☆'}</span>
       <div className="pbody">
         <div className="prow">
           <div><div className="pname">{p.name}</div><div className="ptype">{p.type}</div></div>
-          <div className="pcost">${p.cost.toFixed(2)}</div>
+          <div className="pcost">${(p.cost || 0).toFixed(2)}</div>
         </div>
-        <div className="ptags">{p.tags.map(t => <span key={t} className="tag">{t}</span>)}</div>
+        <div className="ptags">{(p.tags || []).map(t => <span key={t} className="tag">{t}</span>)}</div>
         <div className="pfoot">
           <span className="pagent" style={{ color: ag.color }}>{ag.em} {ag.label}</span>
           <span style={{ color: 'var(--tx-dim)' }}>{p.commits} commits · {p.updated}</span>
+        </div>
+        <div style={{ display: 'flex', gap: 6, marginTop: 8, flexWrap: 'wrap' }} onClick={e => e.stopPropagation()}>
+          <button className="tag" style={{ cursor: 'pointer' }} title="editar tags" onClick={(e) => { const v = prompt('Tags (separados por coma):', (p.tags || []).join(', ')); if (v !== null) act(e, 'tags', v); }}>🏷️ tags</button>
+          {archived
+            ? <button className="tag" style={{ cursor: 'pointer' }} title="restaurar" onClick={(e) => act(e, 'unarchive')}>♻ restaurar</button>
+            : <button className="tag" style={{ cursor: 'pointer' }} title="archivar" onClick={(e) => act(e, 'archive')}>📦 archivar</button>}
+          <button className="tag" style={{ cursor: 'pointer', color: 'var(--p3)', borderColor: 'var(--p3)' }} title="eliminar" onClick={(e) => { if (confirm('¿Eliminar «' + p.name + '» PARA SIEMPRE? (carpeta + contenedor)')) act(e, 'delete'); }}>🗑️</button>
         </div>
       </div>
     </div>
@@ -137,12 +149,21 @@ function ProjectCard({ p, onOpen }) {
 function Gallery({ onOpen }) {
   const [f, setF] = useState('all');
   const [projects, setProjects] = useState(PROJECTS);  // galería en vivo
-  useEffect(() => {
-    if (window.tfBridge && window.tfBridge.list_projects)
-      window.tfBridge.list_projects().then(j => { try { const a = JSON.parse(j); if (Array.isArray(a)) setProjects(a); } catch (e) {} });
-  }, []);
-  const fl = ['all', 'live', 'building', 'draft', 'archived'];
-  const list = projects.filter(p => f === 'all' || p.status === f);
+  const [arch, setArch] = useState([]);                // archivados
+  const [showArch, setShowArch] = useState(false);
+  const [favOnly, setFavOnly] = useState(false);
+  const [q, setQ] = useState('');
+  const load = () => {
+    const B = window.tfBridge;
+    if (B && B.list_projects) B.list_projects().then(j => { try { const a = JSON.parse(j); if (Array.isArray(a)) setProjects(a); } catch (e) {} });
+    if (B && B.list_archived) B.list_archived().then(j => { try { const a = JSON.parse(j); if (Array.isArray(a)) setArch(a); } catch (e) {} });
+  };
+  useEffect(load, []);
+  const fl = ['all', 'live', 'building', 'draft'];
+  const base = showArch ? arch : projects;
+  const ql = q.trim().toLowerCase();
+  const list = base.filter(p => (showArch || f === 'all' || p.status === f) && (!favOnly || p.fav)
+    && (!ql || (p.name + ' ' + (p.stack || '') + ' ' + (p.tags || []).join(' ')).toLowerCase().includes(ql)));
   const liveN = projects.filter(p => p.status === 'live').length;
   const buildingN = projects.filter(p => p.status === 'building').length;
   const totalCost = projects.reduce((s, p) => s + (p.cost || 0), 0);
@@ -153,11 +174,15 @@ function Gallery({ onOpen }) {
           <div className="stat" key={l}><div className="em">{e}</div><div className="n">{n}</div><div className="l">{l}</div></div>
         ))}
       </div>
-      <div className="filters">
-        {fl.map(x => <button key={x} className={'fchip' + (f === x ? ' on' : '')} onClick={() => setF(x)}>{x === 'all' ? '> todos' : STATUS[x].em + ' ' + STATUS[x].label}</button>)}
+      <div className="filters" style={{ alignItems: 'center', flexWrap: 'wrap' }}>
+        <input className="ta" value={q} onChange={e => setQ(e.target.value)} placeholder="🔍 filtrar (nombre/stack/tag)…" style={{ minHeight: 0, padding: '6px 12px', width: 220, fontSize: 12 }} />
+        {!showArch && fl.map(x => <button key={x} className={'fchip' + (f === x ? ' on' : '')} onClick={() => setF(x)}>{x === 'all' ? '> todos' : (STATUS[x].em + ' ' + STATUS[x].label)}</button>)}
+        <button className={'fchip' + (favOnly ? ' on' : '')} onClick={() => setFavOnly(v => !v)}>★ favoritos</button>
+        <button className={'fchip' + (showArch ? ' on' : '')} onClick={() => setShowArch(v => !v)}>📦 archivados</button>
+        <button className="fchip" onClick={load}>↻</button>
       </div>
-      <div className="grid">{list.map(p => <ProjectCard key={p.id} p={p} onOpen={onOpen} />)}</div>
-      {!list.length && <div style={{ color: 'var(--tx-dim)', fontFamily: 'var(--term)', padding: 30, textAlign: 'center' }}>// sin proyectos — crea uno en «+ Nuevo»</div>}
+      <div className="grid">{list.map(p => <ProjectCard key={p.id} p={p} onOpen={onOpen} onChanged={load} archived={showArch} />)}</div>
+      {!list.length && <div style={{ color: 'var(--tx-dim)', fontFamily: 'var(--term)', padding: 30, textAlign: 'center' }}>// {showArch ? 'sin proyectos archivados' : 'sin proyectos — crea uno en «+ Nuevo»'}</div>}
     </div>
   );
 }

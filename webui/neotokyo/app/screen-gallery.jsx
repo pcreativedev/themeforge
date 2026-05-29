@@ -14,8 +14,15 @@ function StatusDot({ status }) {
   );
 }
 
-function ProjectCard({ p, onOpen, i }) {
-  const ag = AGENTS[p.agent];
+function gop(slug, op, arg) {  // operación real de galería (favorito/tags/archivar/eliminar)
+  const B = window.tfBridge;
+  if (!B || !B.gallery_op) return Promise.resolve({});
+  return B.gallery_op(slug, op, arg || '').then(j => { try { return JSON.parse(j); } catch (e) { return {}; } });
+}
+function ProjectCard({ p, onOpen, i, onChanged, archived }) {
+  const ag = AGENTS[p.agent] || { color: 'var(--accent)', glyph: '◆', label: p.agent };
+  const act = (e, op, arg) => { e.stopPropagation(); gop(p.id, op, arg).then(() => onChanged && onChanged()); };
+  const cbtn = { cursor: 'pointer', fontSize: 10.5, padding: '3px 9px', borderRadius: 99, background: 'transparent', border: '1px solid var(--line)', color: 'var(--tx-dim)', fontFamily: 'var(--font-mono)' };
   return (
     <div className="panel card-corner fade-in" onClick={() => onOpen(p)}
       style={{
@@ -30,6 +37,8 @@ function ProjectCard({ p, onOpen, i }) {
       <div style={{ position: 'relative', height: 132, borderBottom: '1px solid var(--line)' }}>
         <MockPreview kind={p.preview} accent={p.accent} />
         <div style={{ position: 'absolute', top: 10, left: 10 }}><StatusDot status={p.status} /></div>
+        <span title="favorito" onClick={(e) => act(e, 'favorite')}
+          style={{ position: 'absolute', top: 8, left: '50%', transform: 'translateX(-50%)', cursor: 'pointer', fontSize: 15, color: p.fav ? '#ffd23f' : 'var(--tx-faint)', zIndex: 3 }}>{p.fav ? '★' : '☆'}</span>
         <div style={{
           position: 'absolute', top: 8, right: 10, fontFamily: 'var(--font-jp)',
           fontSize: 22, color: p.accent, opacity: 0.5, fontWeight: 700,
@@ -58,6 +67,13 @@ function ProjectCard({ p, onOpen, i }) {
           </span>
           <span className="mono faint" style={{ fontSize: 10.5 }}>{p.commits} commits · {p.updated}</span>
         </div>
+        <div style={{ display: 'flex', gap: 6, marginTop: 10, flexWrap: 'wrap' }} onClick={e => e.stopPropagation()}>
+          <button style={cbtn} title="editar tags" onClick={(e) => { const v = prompt('Tags (separados por coma):', (p.tags || []).join(', ')); if (v !== null) act(e, 'tags', v); }}>🏷 tags</button>
+          {archived
+            ? <button style={cbtn} title="restaurar" onClick={(e) => act(e, 'unarchive')}>♻ restaurar</button>
+            : <button style={cbtn} title="archivar" onClick={(e) => act(e, 'archive')}>📦 archivar</button>}
+          <button style={{ ...cbtn, color: 'var(--gemini, #ff2e88)', borderColor: 'var(--gemini, #ff2e88)' }} title="eliminar" onClick={(e) => { if (confirm('¿Eliminar «' + p.name + '» PARA SIEMPRE? (carpeta + contenedor)')) act(e, 'delete'); }}>🗑</button>
+        </div>
       </div>
     </div>
   );
@@ -66,20 +82,23 @@ function ProjectCard({ p, onOpen, i }) {
 function GalleryScreen({ onOpen }) {
   const [filter, setFilter] = useState('all');
   const [q, setQ] = useState('');
-  // Galería EN VIVO: re-escanea proyectos reales vía el puente al montar
-  // (así aparecen los recién creados sin recargar). Fallback a __TF_DATA__.
+  // Galería EN VIVO: re-escanea proyectos reales vía el puente al montar.
   const [projects, setProjects] = useState(PROJECTS);
-  useEffect(() => {
-    if (window.tfBridge && window.tfBridge.list_projects) {
-      window.tfBridge.list_projects().then(j => {
-        try { const arr = JSON.parse(j); if (Array.isArray(arr)) setProjects(arr); } catch (e) {}
-      });
-    }
-  }, []);
-  const filters = ['all', 'live', 'building', 'draft', 'archived'];
-  const list = projects.filter(p =>
-    (filter === 'all' || p.status === filter) &&
-    (p.name.toLowerCase().includes(q.toLowerCase()) || (p.type || '').toLowerCase().includes(q.toLowerCase()))
+  const [arch, setArch] = useState([]);
+  const [showArch, setShowArch] = useState(false);
+  const [favOnly, setFavOnly] = useState(false);
+  const load = () => {
+    const B = window.tfBridge;
+    if (B && B.list_projects) B.list_projects().then(j => { try { const a = JSON.parse(j); if (Array.isArray(a)) setProjects(a); } catch (e) {} });
+    if (B && B.list_archived) B.list_archived().then(j => { try { const a = JSON.parse(j); if (Array.isArray(a)) setArch(a); } catch (e) {} });
+  };
+  useEffect(load, []);
+  const filters = ['all', 'live', 'building', 'draft'];
+  const base = showArch ? arch : projects;
+  const ql = q.toLowerCase();
+  const list = base.filter(p =>
+    (showArch || filter === 'all' || p.status === filter) && (!favOnly || p.fav) &&
+    ((p.name || '').toLowerCase().includes(ql) || (p.type || '').toLowerCase().includes(ql) || (p.tags || []).join(' ').toLowerCase().includes(ql))
   );
   const total = projects.reduce((s, p) => s + (p.cost || 0), 0);
 
@@ -119,12 +138,17 @@ function GalleryScreen({ onOpen }) {
                 transition: 'all 0.15s',
               }}>{f === 'all' ? 'todos' : STATUS[f].label.toLowerCase()}</button>
           ))}
+          {(() => { const on = (active) => ({ fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', padding: '7px 13px', borderRadius: 99, cursor: 'pointer', background: active ? 'rgba(var(--accent-rgb),0.14)' : 'transparent', border: '1px solid ' + (active ? 'rgba(var(--accent-rgb),0.5)' : 'var(--line)'), color: active ? 'var(--accent)' : 'var(--tx-dim)' }); return [
+            <button key="fav" style={on(favOnly)} onClick={() => setFavOnly(v => !v)}>★ favoritos</button>,
+            <button key="arch" style={on(showArch)} onClick={() => setShowArch(v => !v)}>📦 archivados</button>,
+            <button key="rl" style={on(false)} onClick={load}>↻</button>,
+          ]; })()}
         </div>
       </div>
 
       {/* grid */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(290px, 1fr))', gap: 18 }}>
-        {list.map((p, i) => <ProjectCard key={p.id} p={p} onOpen={onOpen} i={i} />)}
+        {list.map((p, i) => <ProjectCard key={p.id} p={p} onOpen={onOpen} i={i} onChanged={load} archived={showArch} />)}
       </div>
       {list.length === 0 && (
         <div className="faint" style={{ textAlign: 'center', padding: 60, fontFamily: 'var(--font-mono)' }}>

@@ -132,17 +132,27 @@ def _stacks_data() -> list:
     return out
 
 
-def _projects_data() -> list:
+def _projects_data(archived: bool = False) -> list:
     try:
-        from themeforge import list_projects
-        rows = list_projects(archived=False)
+        from themeforge import list_projects, load_favorites, load_projects_meta
+        rows = list_projects(archived=archived)
     except Exception:
         return []
+    try:
+        favs = load_favorites()
+    except Exception:
+        favs = set()
+    try:
+        meta = load_projects_meta()
+    except Exception:
+        meta = {}
     rows.sort(key=lambda r: r.get("mtime", 0), reverse=True)
     out = []
     for r in rows:
         agent = (r.get("provider") or r.get("agent") or "claude")
         git = r.get("git_status", "")
+        slug = r.get("slug", "") or r.get("name", "")
+        mtags = (meta.get(slug, {}) or {}).get("tags") or []
         out.append({
             "id": r.get("slug", "") or r.get("name", ""),
             "name": r.get("name", "") or r.get("slug", ""),
@@ -158,7 +168,9 @@ def _projects_data() -> list:
             "updated": r.get("mtime_iso", "") or "",
             "accent": _AGENT_ACCENT.get(agent, "#00f0ff"),
             "desc": r.get("description", "") or r.get("stack", "") or "",
-            "tags": [t for t in [r.get("stack", "")] if t],
+            "tags": mtags if mtags else [t for t in [r.get("stack", "")] if t],
+            "fav": slug in favs,
+            "archived": bool(archived),
             "commits": int(r.get("commits", 0) or 0),
             "preview": "saas",
         })
@@ -1216,6 +1228,60 @@ class ThemeForgeBridge(QObject):
             return json.dumps(_projects_data())
         except Exception as e:
             return json.dumps({"error": str(e)})
+
+    @pyqtSlot(result=str)
+    def list_archived(self) -> str:
+        """Proyectos archivados (en ~/Proyectos/themes-archive/)."""
+        try:
+            return json.dumps(_projects_data(archived=True))
+        except Exception as e:
+            return json.dumps({"error": str(e)})
+
+    @pyqtSlot(str, str, str, result=str)
+    def gallery_op(self, slug: str, op: str, arg: str) -> str:
+        """Operaciones de la Galería sobre un proyecto (datos reales, igual que
+        la GalleryPanel nativa): favorite | tags | archive | unarchive | delete."""
+        try:
+            from themeforge import (load_favorites, save_favorites,
+                                    load_projects_meta, save_projects_meta,
+                                    archive_project, unarchive_project, PROJECTS_DIR)
+            if op == "favorite":
+                favs = load_favorites()
+                on = slug not in favs
+                (favs.add if on else favs.discard)(slug)
+                save_favorites(favs)
+                return json.dumps({"ok": True, "fav": on})
+            if op == "tags":
+                meta = load_projects_meta()
+                m = meta.get(slug, {}) or {}
+                m["tags"] = [t.strip() for t in (arg or "").split(",") if t.strip()]
+                meta[slug] = m
+                save_projects_meta(meta)
+                return json.dumps({"ok": True, "tags": m["tags"]})
+            if op == "archive":
+                ok, msg = archive_project(slug)
+                return json.dumps({"ok": ok, "msg": msg})
+            if op == "unarchive":
+                ok, msg = unarchive_project(slug)
+                return json.dumps({"ok": ok, "msg": msg})
+            if op == "delete":
+                import shutil
+                from pathlib import Path
+                d = PROJECTS_DIR / slug
+                # Limpieza best-effort del contenedor Docker (postgres/WP) si lo hubiera.
+                try:
+                    from wp_provisioner import destroy as _wp_destroy
+                    _wp_destroy(slug)
+                except Exception:
+                    pass
+                if Path(d).is_dir():
+                    shutil.rmtree(d, ignore_errors=True)
+                favs = load_favorites(); favs.discard(slug); save_favorites(favs)
+                meta = load_projects_meta(); meta.pop(slug, None); save_projects_meta(meta)
+                return json.dumps({"ok": True, "deleted": slug})
+            return json.dumps({"ok": False, "error": f"op desconocida: {op}"})
+        except Exception as e:
+            return json.dumps({"ok": False, "error": str(e)})
 
     @pyqtSlot(result=str)
     def bootstrap_data(self) -> str:
