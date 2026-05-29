@@ -29,7 +29,8 @@ from functools import partial
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-from PyQt6.QtCore import QObject, QUrl, QProcess, pyqtSlot, pyqtSignal
+from PyQt6.QtCore import (QObject, QUrl, QProcess, QProcessEnvironment, QTimer,
+                          pyqtSlot, pyqtSignal)
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QLabel
 
 WEBUI_DIR = Path(__file__).resolve().parent / "webui" / "neotokyo"
@@ -239,6 +240,8 @@ class ThemeForgeBridge(QObject):
     build_done = pyqtSignal(str)
     # Terminal real lista: JSON {path, url} para iframe.
     terminal_ready = pyqtSignal(str)
+    # Preview (dev server) listo: JSON {path, url} o {path, error}.
+    preview_ready = pyqtSignal(str)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -271,6 +274,44 @@ class ThemeForgeBridge(QObject):
         proc.start(node, [str(TERMINAL_DIR / "server.js"), "0"])
         self._procs.append(proc)
         return json.dumps({"ok": True, "starting": True})
+
+    @pyqtSlot(str, result=str)
+    def start_preview(self, path: str) -> str:
+        """Arranca el dev server real del proyecto (detección de preview.py) y
+        emite `preview_ready` con la URL para embeber por iframe."""
+        try:
+            from preview import (detect_preview_profile, apply_port,
+                                 get_port_for_project)
+            import platform_compat as pc
+            import shlex
+            from pathlib import Path
+            proj = Path(path)
+            prof = detect_preview_profile(proj)
+            if not prof:
+                self.preview_ready.emit(json.dumps(
+                    {"path": path, "error": "sin preview detectable (¿deps instaladas?)"}))
+                return json.dumps({"ok": False, "error": "sin preview"})
+            port = get_port_for_project(proj.name, prof.get("default_port", 5173))
+            cmd, env_extra, url = apply_port(prof, port)
+            proc = QProcess(self)
+            proc.setWorkingDirectory(str(proj))
+            proc.setProcessChannelMode(QProcess.ProcessChannelMode.MergedChannels)
+            env = QProcessEnvironment.systemEnvironment()
+            local_bin = str(Path.home() / ".local" / "bin")
+            env.insert("PATH", local_bin + os.pathsep + env.value("PATH", ""))
+            for k, v in (env_extra or {}).items():
+                env.insert(k, str(v))
+            proc.setProcessEnvironment(env)
+            cmd_str = " ".join(shlex.quote(c) for c in cmd)
+            sh, args = pc.shell_program_and_args(cmd_str)
+            proc.start(sh, args)
+            self._procs.append(proc)
+            QTimer.singleShot(4800, lambda: self.preview_ready.emit(
+                json.dumps({"path": path, "url": url})))
+            return json.dumps({"ok": True, "starting": True, "url": url})
+        except Exception as e:
+            self.preview_ready.emit(json.dumps({"path": path, "error": str(e)}))
+            return json.dumps({"ok": False, "error": str(e)})
 
     @pyqtSlot(str, result=str)
     def run_preflight(self, path: str) -> str:

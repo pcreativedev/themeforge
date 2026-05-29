@@ -88,6 +88,30 @@ function RealTerminal({ path, running }) {
   return <iframe src={url} style={{ flex: 1, width: '100%', height: '100%', border: 'none', background: '#0c0c0d' }} />;
 }
 
+// Preview REAL: arranca el dev server del proyecto (preview.py) y lo embebe.
+function RealPreview({ path, accent, narrow }) {
+  const [url, setUrl] = useState(null);
+  const [err, setErr] = useState(null);
+  useEffect(() => {
+    if (!window.tfBridge || !window.tfBridge.start_preview || !path) return;
+    const onReady = (j) => {
+      let r = {}; try { r = JSON.parse(j); } catch (e) {}
+      if (r.path === path) { if (r.url) setUrl(r.url); else setErr(r.error || 'error'); }
+    };
+    if (window.tfBridge.preview_ready && window.tfBridge.preview_ready.connect)
+      window.tfBridge.preview_ready.connect(onReady);
+    window.tfBridge.start_preview(path);
+    return () => {
+      if (window.tfBridge.preview_ready && window.tfBridge.preview_ready.disconnect)
+        try { window.tfBridge.preview_ready.disconnect(onReady); } catch (e) {}
+    };
+  }, [path]);
+  if (!window.tfBridge || !path) return <LivePreview accent={accent} narrow={narrow} />;
+  if (err) return <div className="mono faint" style={{ padding: 24 }}>// preview: {err}</div>;
+  if (!url) return <div className="mono faint" style={{ padding: 24 }}>// arrancando dev server real…</div>;
+  return <iframe src={url} style={{ width: '100%', height: '72vh', border: 'none', background: '#fff', borderRadius: 8 }} />;
+}
+
 function tfToast(msg, color) {
   const b = document.createElement('div');
   b.textContent = msg;
@@ -150,6 +174,15 @@ function ProjectWindow({ project, onBack, onDeploy, onBuild }) {
           <span>{ag.glyph}</span> {ag.label}
         </span>
         <Btn icon="check" variant="ghost" onClick={realPreflight}>Pre-flight</Btn>
+        <Btn icon="box" variant="ghost" onClick={() => {
+          if (window.tfBridge && window.tfBridge.build_zip && p.path) {
+            tfToast('⟳ Empaquetando ZIP…');
+            window.tfBridge.build_zip(p.path).then((j) => {
+              let r = {}; try { r = JSON.parse(j); } catch (e) {}
+              tfToast(r.zip_path || r.zip || r.path ? ('✓ ZIP: ' + (r.zip_path || r.zip || r.path)) : ('ZIP: ' + (r.error || 'hecho')), '#9dff3c');
+            }).catch(e => tfToast('ZIP error: ' + e, '#ff2e88'));
+          } else onBuild && onBuild();
+        }}>Build ZIP</Btn>
         <Btn icon="github" variant={pushed ? '' : 'primary'} onClick={() => setPushed(true)}>
           {pushed ? '✓ Pushed' : 'Push to GitHub'}
         </Btn>
@@ -193,7 +226,7 @@ function ProjectWindow({ project, onBack, onDeploy, onBuild }) {
             {tab === 'code'
               ? <CodePeek />
               : <div className="neon-edge" style={{ width: frameW[tab], maxWidth: '100%', background: '#070b16', borderRadius: 8, overflow: 'hidden', transition: 'width 0.3s' }}>
-                  <LivePreview accent={p.accent || 'var(--accent)'} narrow={tab === 'mobile'} />
+                  <RealPreview path={p.path} accent={p.accent || 'var(--accent)'} narrow={tab === 'mobile'} />
                 </div>}
           </div>
         </div>
