@@ -30,6 +30,7 @@ from PyQt6.QtWidgets import (
     QSpinBox, QComboBox, QMessageBox, QSplitter, QTabWidget, QFrame,
     QLineEdit, QListWidget, QListWidgetItem, QTableWidget, QTableWidgetItem,
     QHeaderView, QAbstractItemView, QFormLayout, QDialog, QDialogButtonBox,
+    QCheckBox,
 )
 
 # Reuse the existing, battle-tested widgets + helpers.
@@ -312,15 +313,36 @@ class MissionTab(QWidget):
         self.brief.setMaximumHeight(90)
         root.addWidget(self.brief)
 
+        # Stack: TODOS los de ThemeForge (Hermes los detecta vía el MCP, aquí
+        # el usuario puede fijar uno o dejar que Hermes elija).
+        row_stack = QHBoxLayout()
+        row_stack.addWidget(QLabel("Stack:"))
+        self.stack = QComboBox(); self.stack.setMinimumWidth(280)
+        self._populate_stacks()
+        row_stack.addWidget(self.stack, 1)
+        self.cb_research = QCheckBox("🌐 Investigación web")
+        self.cb_research.setChecked(True)
+        self.cb_research.setToolTip("Hermes estudia tendencias/competencia con "
+                                    "web_search/browser antes de diseñar.")
+        row_stack.addWidget(self.cb_research)
+        self.cb_audit = QCheckBox("🔒 Auditoría")
+        self.cb_audit.setChecked(True); self.cb_audit.setEnabled(False)
+        self.cb_audit.setToolTip("Auditoría de seguridad/compliance OBLIGATORIA "
+                                 "antes de empaquetar (gate no negociable).")
+        row_stack.addWidget(self.cb_audit)
+        root.addLayout(row_stack)
+
         ctl = QHBoxLayout()
         ctl.addWidget(QLabel("Variantes:"))
         self.variants = QSpinBox()
         self.variants.setRange(1, 6)
         self.variants.setValue(1)
         ctl.addWidget(self.variants)
-        ctl.addWidget(QLabel("Agente:"))
+        ctl.addWidget(QLabel("Agente build:"))
         self.provider = QComboBox()
         self.provider.addItems(["codex", "opencode", "claude-api", "gemini"])
+        self.provider.setToolTip("Agente que ESCRIBE el código (aparte del "
+                                 "modelo cerebro de Hermes → pestaña 🔌 Proveedor).")
         ctl.addWidget(self.provider)
         ctl.addStretch()
         self.btn_launch = QPushButton("🚀 Lanzar misión")
@@ -374,20 +396,50 @@ class MissionTab(QWidget):
         sb = self.log.verticalScrollBar()
         sb.setValue(sb.maximum())
 
+    def _populate_stacks(self):
+        """Carga TODOS los stacks de ThemeForge agrupados por categoría."""
+        self.stack.addItem("Auto — que Hermes sugiera/elija el stack", "")
+        try:
+            from stacks import STACKS
+        except Exception:
+            return
+        by_cat: dict[str, list] = {}
+        for key, v in STACKS.items():
+            cat = v.get("category", "Otros")
+            if cat == "Sin definir":
+                continue  # el sentinel "(Sin stack)" ya lo cubre "Auto"
+            by_cat.setdefault(cat, []).append((key, v.get("name", key)))
+        for cat in sorted(by_cat):
+            for key, name in sorted(by_cat[cat], key=lambda x: x[1]):
+                self.stack.addItem(f"{name}  ·  {cat}", key)
+
     def _build_prompt(self) -> str:
         brief = self.brief.toPlainText().strip()
         n = self.variants.value()
         prov = self.provider.currentText()
+        stack_key = self.stack.currentData() or ""
+        stack_line = (f"Target stack: {stack_key} (use it for create_project). "
+                      if stack_key else
+                      "Stack: not fixed — call suggest_stack/list_stacks and pick the "
+                      "best web stack. ")
+        research = ("FIRST do design research on the web (web_search + browser): niche "
+                    "trends, top ThemeForest/Dribbble/Awwwards references and 2-3 "
+                    "competitors → a short design brief that feeds the build prompts. "
+                    if self.cb_research.isChecked() else "")
         return (
             f"Run a ThemeForge Operator mission. Build agent (provider): {prov}. "
-            f"Number of variants: {n}. Mission brief: {brief}\n\n"
-            "Use the themeforge MCP tools and follow the themeforge-operator skill: "
-            "plan with a DISTINCT UI/UX Pro Max style+palette per variant, then for "
-            "each variant call create_project (run_autoskills=true, run_uipro=true), "
-            "run_agent_build with a detailed prompt (sections + complete demo data + "
-            "Unsplash/Pixabay images, Envato-ready), run_preflight in a QA loop "
-            "(max 3 fixes), and build_zip. For multiple variants dispatch parallel "
-            "delegate_task subagents. Report each variant: path, style, QA result, zip.")
+            f"Number of variants: {n}. {stack_line}Mission brief: {brief}\n\n"
+            "Follow the themeforge-operator skill (web/UX-UI specialized). " + research +
+            "Plan a MULTIPAGE web template with a DISTINCT UI/UX Pro Max style+palette "
+            "per variant; read & follow the skills listed in the project's AGENTS.md. "
+            "For each variant: create_project (run_autoskills=true, run_uipro=true), "
+            "run_agent_build with a detailed prompt (real routes/pages + complete demo "
+            "data + Unsplash/Pixabay images, Envato-ready), run_preflight in a QA loop "
+            "(max 3 fixes), THEN the mandatory SECURITY & COMPLIANCE AUDIT (no leaked "
+            "secrets, npm/composer audit, no malicious code, asset licenses, XSS/CSRF/"
+            "SQLi) — only package with build_zip if the audit passes. For multiple "
+            "variants dispatch parallel delegate_task subagents. Report each variant: "
+            "path, style, QA result, security verdict, zip.")
 
     # ── run / stop ──
     def _launch(self):
@@ -416,8 +468,11 @@ class MissionTab(QWidget):
         self._proc.finished.connect(self._on_finished)
         self._proc.errorOccurred.connect(
             lambda _e: self._append("✗ no se pudo ejecutar hermes."))
-        self._proc.start(self._hermes, ["chat", "-q", self._build_prompt(),
-                                        "-s", self.SKILL])
+        args = ["chat", "-q", self._build_prompt(), "-s", self.SKILL]
+        if self.cb_research.isChecked():
+            # Habilita búsqueda/navegación web para la investigación de diseño.
+            args += ["-t", "web,browser"]
+        self._proc.start(self._hermes, args)
 
     def _on_output(self):
         if not self._proc:
@@ -617,6 +672,183 @@ def _no_hermes_banner(text: str) -> QLabel:
     info.setStyleSheet("color:#7aa2f7; background:#1a1a22; padding:8px; "
                        "border-radius:6px;")
     return info
+
+
+# ───────────────────────── 🔌 Proveedor (cerebro de Hermes) ─────────────
+# El modelo "cerebro" de Hermes se configura aparte de los agentes de build
+# (codex/claude-OAuth/…). OJO: Claude para Hermes va SIEMPRE por API key
+# (no usa el OAuth de Claude Code que sí usan los agentes de build).
+HERMES_PROVIDERS = [
+    {"key": "anthropic", "label": "Anthropic (Claude) · API key",
+     "models": ["claude-opus-4-8", "claude-sonnet-4-6", "claude-haiku-4-5-20251001"],
+     "note": "Claude para Hermes requiere API key de Anthropic (no el login de "
+             "Claude Code / Pro-Max)."},
+    {"key": "openrouter", "label": "OpenRouter (200+ modelos) · API key",
+     "models": ["anthropic/claude-opus-4.8", "openai/gpt-5.5",
+                "google/gemini-2.5-pro", "deepseek/deepseek-r1"],
+     "note": "Un solo API key da acceso a cientos de modelos (sk-or-v1-…)."},
+    {"key": "openai", "label": "OpenAI · API key",
+     "models": ["gpt-5.5", "gpt-5.1", "o4"], "note": ""},
+    {"key": "google", "label": "Google (Gemini) · API key",
+     "models": ["gemini-2.5-pro", "gemini-2.5-flash"], "note": ""},
+    {"key": "nous", "label": "Nous Portal · OAuth/API",
+     "models": ["hermes-4-405b", "hermes-4-70b"],
+     "note": "`hermes setup --portal` configura OAuth + 300+ modelos + tool gateway."},
+]
+
+
+class ProviderTab(QWidget):
+    """Auth y selección del modelo CEREBRO de Hermes — independiente de los
+    agentes de build. Envuelve `hermes config set` + `hermes auth add`."""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._hermes = find_hermes()
+        root = QVBoxLayout(self)
+
+        title = QLabel("🔌 Proveedor de Hermes (cerebro)")
+        f = QFont(); f.setPointSize(13); f.setBold(True); title.setFont(f)
+        root.addWidget(title)
+        sub = QLabel(
+            "El modelo que <b>razona y orquesta</b> las misiones. Es <b>aparte</b> "
+            "de los agentes que escriben el código (codex/claude-OAuth/…). "
+            "Ojo: <b>Claude aquí va por API key</b>, no por el login de Claude Code.")
+        sub.setTextFormat(Qt.TextFormat.RichText); sub.setWordWrap(True)
+        sub.setStyleSheet("color:#9aa;")
+        root.addWidget(sub)
+
+        self.current = QLabel()
+        self.current.setTextFormat(Qt.TextFormat.RichText)
+        self.current.setStyleSheet("background:#15151c; border:1px solid #262633; "
+                                   "border-radius:6px; padding:8px;")
+        root.addWidget(self.current)
+
+        form = QFormLayout()
+        self.cb_provider = QComboBox()
+        for p in HERMES_PROVIDERS:
+            self.cb_provider.addItem(p["label"], p["key"])
+        self.cb_provider.currentIndexChanged.connect(self._provider_changed)
+        form.addRow("Proveedor:", self.cb_provider)
+
+        self.cb_model = QComboBox(); self.cb_model.setEditable(True)
+        form.addRow("Modelo:", self.cb_model)
+
+        self.in_key = QLineEdit()
+        self.in_key.setEchoMode(QLineEdit.EchoMode.Password)
+        self.in_key.setPlaceholderText("API key (se guarda en ~/.hermes/.env)")
+        form.addRow("API key:", self.in_key)
+        root.addLayout(form)
+
+        self.note = QLabel(); self.note.setWordWrap(True)
+        self.note.setStyleSheet("color:#7aa2f7;")
+        root.addWidget(self.note)
+
+        ctl = QHBoxLayout()
+        self.btn_savekey = QPushButton("💾 Guardar API key")
+        self.btn_savekey.clicked.connect(self._save_key)
+        ctl.addWidget(self.btn_savekey)
+        self.btn_apply = QPushButton("✅ Usar este modelo")
+        self.btn_apply.clicked.connect(self._apply_model)
+        ctl.addWidget(self.btn_apply)
+        ctl.addStretch()
+        self.btn_test = QPushButton("🧪 Probar")
+        self.btn_test.setToolTip("Manda un ping al modelo (hermes -z).")
+        self.btn_test.clicked.connect(self._test)
+        ctl.addWidget(self.btn_test)
+        self.btn_refresh = QPushButton("↻")
+        self.btn_refresh.setFixedWidth(32)
+        self.btn_refresh.clicked.connect(self.refresh)
+        ctl.addWidget(self.btn_refresh)
+        root.addLayout(ctl)
+
+        self.log = QPlainTextEdit(); self.log.setReadOnly(True)
+        self.log.setStyleSheet("font-family:monospace; font-size:11px; "
+                               "background:#111; color:#cdd;")
+        root.addWidget(self.log, 1)
+
+        if not self._hermes:
+            root.insertWidget(1, _no_hermes_banner(
+                "ℹ️ Hermes no instalado. El proveedor se configura en "
+                "<code>~/.hermes/config.yaml</code> + <code>.env</code>."))
+        self._provider_changed()
+        self.refresh()
+
+    def _spec(self) -> dict:
+        return HERMES_PROVIDERS[max(0, self.cb_provider.currentIndex())]
+
+    def _provider_changed(self):
+        sp = self._spec()
+        self.cb_model.clear()
+        self.cb_model.addItems(sp["models"])
+        self.note.setText("ℹ️ " + sp["note"] if sp.get("note") else "")
+
+    def refresh(self):
+        prov, model = _hermes_model_info()
+        txt = (f"<b>Activo:</b> {prov or '—'} · {model or '—'}"
+               if (prov or model) else "<b>Activo:</b> sin configurar")
+        if self._hermes:
+            code, out = run_hermes(["auth", "list"], timeout=12)
+            if code == 0 and out:
+                first = out.strip().splitlines()[0][:80]
+                txt += f"<br><span style='color:#888'>auth: {first}</span>"
+        self.current.setText(txt)
+        # Preselecciona el provider activo si coincide.
+        if prov:
+            for i, p in enumerate(HERMES_PROVIDERS):
+                if p["key"] == prov:
+                    self.cb_provider.setCurrentIndex(i); break
+
+    def _save_key(self):
+        if not self._hermes:
+            return
+        key = self.in_key.text().strip()
+        if not key:
+            QMessageBox.information(self, "Proveedor", "Pega una API key.")
+            return
+        prov = self._spec()["key"]
+        code, out = run_hermes(["auth", "add", prov, "--api-key", key], timeout=20)
+        self.in_key.clear()
+        self.log.appendPlainText(f"$ hermes auth add {prov} --api-key ****\n{out}")
+        self.log.appendPlainText("✓ key guardada" if code == 0 else f"✗ exit {code}")
+        self.refresh()
+
+    def _apply_model(self):
+        if not self._hermes:
+            return
+        prov = self._spec()["key"]
+        model = self.cb_model.currentText().strip()
+        if not model:
+            QMessageBox.information(self, "Proveedor", "Elige/escribe un modelo.")
+            return
+        c1, o1 = run_hermes(["config", "set", "model.provider", prov], timeout=15)
+        c2, o2 = run_hermes(["config", "set", "model.default", model], timeout=15)
+        self.log.appendPlainText(
+            f"$ hermes config set model.provider {prov}\n{o1}\n"
+            f"$ hermes config set model.default {model}\n{o2}")
+        self.log.appendPlainText("✓ modelo aplicado" if c1 == 0 and c2 == 0
+                                 else "✗ revisa la salida")
+        self.refresh()
+
+    def _test(self):
+        if not self._hermes:
+            return
+        self.log.appendPlainText("$ hermes -z \"ping: responde OK\"  (probando modelo…)")
+        self.btn_test.setEnabled(False)
+        buf: list[str] = []
+
+        def line(t): buf.append(t)
+
+        def done(code):
+            self.btn_test.setEnabled(True)
+            self.log.appendPlainText(("".join(buf).strip() or "(sin respuesta)")
+                                     + f"\n■ exit {code}")
+        _spawn_hermes(self, ["-z", "ping: responde solo 'OK'"], line, done)
+
+    def set_powered(self, on: bool):
+        for b in (self.btn_savekey, self.btn_apply, self.btn_test):
+            b.setEnabled(bool(self._hermes) and on)
+        if on:
+            self.refresh()
 
 
 # ───────────────────────── 🤖 Agentes (skills) ──────────────────────────
@@ -1438,6 +1670,7 @@ class HermesPanel(QWidget):
         outer.addWidget(self.tabs, 1)
 
         self.mission = MissionTab()
+        self.provider = ProviderTab()
         self.agents = AgentsTab()
         self.create = CreateAgentTab()
         self.memory = MemoryTab()
@@ -1447,6 +1680,7 @@ class HermesPanel(QWidget):
         self.admin = AdminTab()
 
         self.tabs.addTab(self.mission, "🚀 Misión")
+        self.tabs.addTab(self.provider, "🔌 Proveedor")
         self.tabs.addTab(self.agents, "🤖 Agentes")
         self.tabs.addTab(self.create, "➕ Crear")
         self.tabs.addTab(self.memory, "🧠 Memoria")
@@ -1465,8 +1699,8 @@ class HermesPanel(QWidget):
     def _apply_power(self, on: bool):
         self._powered = on
         self.strip.set_powered(on)
-        for t in (self.mission, self.agents, self.create, self.memory,
-                  self.kanban, self.cron, self.admin):
+        for t in (self.mission, self.provider, self.agents, self.create,
+                  self.memory, self.kanban, self.cron, self.admin):
             try:
                 t.set_powered(on)
             except Exception:
