@@ -40,6 +40,15 @@ def set(key: str, value) -> None:  # noqa: A003 (shadow builtin OK here)
     _save(d)
 
 
+# ── UI mode: 'web' (Neo-Tokyo WebEngine) | 'classic' (QWidgets nativo) ────
+def ui_mode(fallback: str = "web") -> str:
+    return get("ui_mode", fallback) or fallback
+
+
+def set_ui_mode(mode: str) -> None:
+    set("ui_mode", "classic" if mode == "classic" else "web")
+
+
 # ── Onboarding ──────────────────────────────────────────────────────────
 def onboarding_done() -> bool:
     return bool(get("onboarding_done", False))

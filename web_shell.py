@@ -153,6 +153,11 @@ def _providers_data() -> list:
         return []
 
 
+# Temas "web" (recolor en vivo de la UI Neo-Tokyo). El resto son clásicos
+# (UI nativa de QWidgets) y al elegirlos se reinicia en modo clásico.
+_WEB_THEMES = {"neotokyo"}
+
+
 def _hex_rgb(h: str) -> str:
     """'#rrggbb' → 'r, g, b' (para las CSS vars *-rgb del prototipo)."""
     try:
@@ -199,6 +204,9 @@ def _themes_data() -> dict:
                 "k": ti.name, "label": ti.display_name,
                 "jp": _THEME_JP.get(ti.name, ""),
                 "bg": bg, "acc": acc, "acc2": acc2, "vars": cssvars,
+                # 'web' = recolorea la UI web en vivo; el resto = UI nativa
+                # (requiere reinicio para cargar el sistema clásico de QWidgets).
+                "web": ti.name in _WEB_THEMES,
             })
         return {"themes": out, "current": cur}
     except Exception:
@@ -799,6 +807,41 @@ class ThemeForgeBridge(QObject):
             return json.dumps(bootstrap_data())
         except Exception as e:
             return json.dumps({"error": str(e)})
+
+    @pyqtSlot(str, result=str)
+    def switch_to_classic(self, theme: str) -> str:
+        """Cambia al SISTEMA DE TEMAS NORMAL (UI nativa QWidgets): persiste el
+        tema + ui_mode=classic y REINICIA ThemeForge para cargar la UI clásica
+        (los temas nativos no aplican sobre la UI web)."""
+        try:
+            import themes
+            import app_prefs as ap
+            themes.save_current_theme(theme)
+            ap.set_ui_mode("classic")
+            self._restart()
+            return json.dumps({"ok": True, "restarting": True})
+        except Exception as e:
+            return json.dumps({"ok": False, "error": str(e)})
+
+    @pyqtSlot(result=str)
+    def use_web_ui(self) -> str:
+        """Vuelve a la UI web Neo-Tokyo (ui_mode=web) y reinicia."""
+        try:
+            import app_prefs as ap
+            ap.set_ui_mode("web")
+            self._restart()
+            return json.dumps({"ok": True, "restarting": True})
+        except Exception as e:
+            return json.dumps({"ok": False, "error": str(e)})
+
+    def _restart(self):
+        """Reinicio limpio cross-platform (Qt docs): startDetached + quit."""
+        import sys
+        from PyQt6.QtWidgets import QApplication
+        QProcess.startDetached(sys.executable, sys.argv)
+        app = QApplication.instance()
+        if app is not None:
+            QTimer.singleShot(150, app.quit)
 
     @pyqtSlot(str, result=str)
     def set_theme(self, name: str) -> str:

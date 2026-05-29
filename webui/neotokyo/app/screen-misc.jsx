@@ -189,12 +189,19 @@ function SettingsScreen() {
       {sub === 'themes' && (
       <div className="fade-in" style={{ display: 'grid', gridTemplateColumns: '1fr 360px', gap: 22 }}>
         <div className="panel" style={{ padding: 22 }}>
-          <div className="eyebrow" style={{ marginBottom: 16 }}>TEMAS BUILT-IN · テーマ <span className="faint">· 8 + editor + Figma DTCG</span></div>
+          <div className="eyebrow" style={{ marginBottom: 6 }}>TEMAS WEB · ウェブ <span className="faint">· recolor en vivo (Neo-Tokyo)</span></div>
+          <div className="faint" style={{ fontSize: 11, marginBottom: 12 }}>Los <b style={{ color: 'var(--accent)' }}>web</b> recolorean esta UI al instante. Los <b style={{ color: 'var(--gemini)' }}>clásicos · 古典</b> usan la UI nativa de QWidgets → ThemeForge se reinicia para cargarlos.</div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 12 }}>
             {APP_THEMES.map(t => (
-              <button key={t.k} onClick={() => { setTheme(t.k); if (window.tfApplyTheme && t.vars) window.tfApplyTheme(t.vars); if (window.tfBridge) window.tfBridge.set_theme(t.k); }}
+              <button key={t.k} onClick={() => {
+                if (t.web) { setTheme(t.k); if (window.tfApplyTheme && t.vars) window.tfApplyTheme(t.vars); if (window.tfBridge) window.tfBridge.set_theme(t.k); }
+                else if (window.tfBridge && window.tfBridge.switch_to_classic) {
+                  if (confirm('Cambiar al tema clásico «' + t.label + '» (UI nativa). ThemeForge se reiniciará. ¿Continuar?')) window.tfBridge.switch_to_classic(t.k);
+                }
+              }}
                 className={theme === t.k ? 'neon-edge' : ''}
-                style={{ cursor: 'pointer', padding: 0, borderRadius: 10, overflow: 'hidden', border: '1px solid ' + (theme === t.k ? 'rgba(var(--accent-rgb),0.5)' : 'var(--line)'), background: 'transparent' }}>
+                style={{ cursor: 'pointer', padding: 0, borderRadius: 10, overflow: 'hidden', border: '1px solid ' + (theme === t.k ? 'rgba(var(--accent-rgb),0.5)' : 'var(--line)'), background: 'transparent', position: 'relative' }}>
+                {!t.web && <span style={{ position: 'absolute', top: 6, right: 6, zIndex: 2, fontSize: 8.5, padding: '2px 5px', borderRadius: 5, background: 'rgba(251,191,36,0.18)', color: 'var(--gemini)', fontFamily: 'var(--font-mono)' }}>古典 ↻</span>}
                 <div style={{ height: 64, background: t.bg, position: 'relative', padding: 10 }}>
                   <div style={{ display: 'flex', gap: 5 }}>
                     <span style={{ width: 14, height: 14, borderRadius: 4, background: t.acc, boxShadow: `0 0 8px ${t.acc}` }} />

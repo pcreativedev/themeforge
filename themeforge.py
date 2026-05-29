@@ -7408,8 +7408,20 @@ def main():
     # renderizado en WebEngine con datos reales vía puente). La UI clásica de
     # widgets sigue disponible con THEMEFORGE_CLASSIC=1 (acceso a todo lo que
     # aún no está cableado en la web).
+    # Modo de UI: 'web' (Neo-Tokyo WebEngine, por defecto) o 'classic' (QWidgets
+    # nativo). Lo decide app_prefs.ui_mode() (el usuario lo cambia desde
+    # Settings → Temas) o el env THEMEFORGE_CLASSIC=1 / THEMEFORGE_WEB=1.
+    try:
+        import app_prefs as _ap
+        _mode = _ap.ui_mode()
+    except Exception:
+        _mode = "web"
+    if os.environ.get("THEMEFORGE_CLASSIC") == "1":
+        _mode = "classic"
+    elif os.environ.get("THEMEFORGE_WEB") == "1":
+        _mode = "web"
     w = None
-    if os.environ.get("THEMEFORGE_CLASSIC") != "1":
+    if _mode != "classic":
         try:
             from web_shell import WebShell
             w = WebShell()

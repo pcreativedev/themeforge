@@ -146,6 +146,13 @@ class SettingsPanel(QWidget):
             except Exception:
                 pass
 
+            # Volver a la UI web Neo-Tokyo (sistema de temas web) — reinicia.
+            self.btn_use_web = QPushButton("🌐 Cambiar a UI Neo-Tokyo (web)")
+            self.btn_use_web.setToolTip(
+                "Cambia al sistema de temas WEB (UI Neo-Tokyo en WebEngine). "
+                "ThemeForge se reinicia para cargarlo.")
+            self.btn_use_web.clicked.connect(self._switch_to_web_ui)
+
             theme_box = QGroupBox("🎨 App theme")
             tb = QHBoxLayout()
             tb.addWidget(QLabel("Theme:"))
@@ -155,6 +162,7 @@ class SettingsPanel(QWidget):
             theme_outer = QVBoxLayout()
             theme_outer.addLayout(tb)
             theme_outer.addWidget(self.theme_help)
+            theme_outer.addWidget(self.btn_use_web)
             theme_box.setLayout(theme_outer)
         except Exception as e:
             theme_box = None
@@ -452,6 +460,24 @@ class SettingsPanel(QWidget):
             self.refresh_status()
         except Exception as e:
             QMessageBox.critical(self, "Setup wizard", f"Error: {e}")
+
+    def _switch_to_web_ui(self):
+        """Cambia a la UI web Neo-Tokyo (ui_mode=web) y reinicia ThemeForge."""
+        import sys
+        try:
+            import app_prefs as ap
+            from PyQt6.QtCore import QProcess, QTimer
+            from PyQt6.QtWidgets import QApplication
+            if QMessageBox.question(
+                self, "UI Neo-Tokyo (web)",
+                "Cambiar al sistema de temas WEB (UI Neo-Tokyo). ThemeForge se "
+                "reiniciará. ¿Continuar?") != QMessageBox.StandardButton.Yes:
+                return
+            ap.set_ui_mode("web")
+            QProcess.startDetached(sys.executable, sys.argv)
+            QTimer.singleShot(150, QApplication.instance().quit)
+        except Exception as e:
+            QMessageBox.critical(self, "UI web", f"Error: {e}")
 
     def _open_theme_editor(self):
         """Open the visual theme editor dialog. Changes apply live;
