@@ -104,6 +104,16 @@ function MarketScreen() {
         <Btn variant="primary" icon="search" onClick={run}>{loading ? 'Analizando…' : 'Analizar'}</Btn>
       </div>
 
+      {/* Tipos de análisis (como en la app normal) + crear proyecto. */}
+      {real && (
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 18 }}>
+          {[['@general', 'Mercado 2026'], ['@stacks', 'Stacks'], ['@prediction', 'Predicción 2027']].map(([k, l]) => (
+            <button key={k} className="chip" style={{ cursor: 'pointer' }} onClick={() => { setLoading(true); setDone(false); setMd(''); window.tfBridge.analyze_market(k); }}>{l}</button>
+          ))}
+          {done && md && <button className="chip" style={{ cursor: 'pointer', marginLeft: 'auto', color: 'var(--codex)', borderColor: 'var(--codex)' }} onClick={() => window.tfNav && window.tfNav('new')}>🚀 Crear proyecto desde este análisis</button>}
+        </div>
+      )}
+
       {loading && <div className="mono" style={{ color: 'var(--accent)', fontSize: 13, padding: 30, textAlign: 'center' }}><span style={{ animation: 'blink 0.8s infinite' }}>◢◣◤◥</span> analizando mercado con IA (OpenRouter) — puede tardar…</div>}
 
       {/* Análisis REAL: markdown del motor de ThemeForge (OpenRouter). */}

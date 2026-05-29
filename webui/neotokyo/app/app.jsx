@@ -143,6 +143,8 @@ function App() {
     }
     setProject(null); setRoute(id);
   };
+  // Exponer navegación global para que cualquier screen navegue (Market →New, etc.)
+  window.tfNav = nav;
   const openProject = (p) => {
     if (p && p.__new) { setRoute('new'); return; }
     // Todo en el diseño web Neo-Tokyo: navegamos al project screen, que

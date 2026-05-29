@@ -306,9 +306,12 @@ class ThemeForgeBridge(QObject):
 
         def _work():
             try:
+                # niche puede venir como "kind:valor" para forzar el tipo.
                 kind = "niche" if (niche or "").strip() else "general"
-                req = build_request(kind, DEFAULT_MODEL,
-                                    {"niche": niche} if kind == "niche" else None)
+                params = {"niche": niche} if kind == "niche" else None
+                if (niche or "").startswith("@"):  # @general / @stacks / @prediction
+                    kind = niche[1:].strip() or "general"; params = None
+                req = build_request(kind, DEFAULT_MODEL, params)
                 md = call_openrouter(req, key)
                 self.market_result.emit(json.dumps({"niche": niche, "markdown": md}))
             except Exception as e:
