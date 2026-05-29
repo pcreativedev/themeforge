@@ -75,7 +75,7 @@ function NewProjectScreen({ onLaunch, onAnalyze }) {
   const [thinking, setThinking] = useState(false);
   const [filled, setFilled] = useState(false);
   const [genPrompt, setGenPrompt] = useState('');
-  const [opts, setOpts] = useState({ uipro: true, mcp: true, postgres: false, licensing: false, docs: true });
+  const [opts, setOpts] = useState({ autoskills: true, uipro: true, mcp: true, postgres: false, licensing: false, licensing_gh: false, licensing_force: false, docs: true });
   const tog = (k) => setOpts(o => ({ ...o, [k]: !o[k] }));
 
   const runVibe = (preset) => {
@@ -224,8 +224,24 @@ function NewProjectScreen({ onLaunch, onAnalyze }) {
               });
             })()}
           </div>
+          {/* Tipo + agente (como el form nativo de Setup). */}
+          <div className="panel" style={{ padding: 18, marginBottom: 18, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+            <div>
+              <div className="eyebrow" style={{ marginBottom: 8 }}>TIPO DE TEMPLATE · 種類</div>
+              <input value={type} onChange={e => setType(e.target.value)} placeholder="SaaS Landing · E-commerce · Dashboard…"
+                style={{ width: '100%', background: 'var(--bg-void)', border: '1px solid var(--line-bright)', borderRadius: 8, padding: '9px 12px', color: 'var(--tx)', fontFamily: 'var(--font-mono)', fontSize: 12.5, outline: 'none' }} />
+            </div>
+            <div>
+              <div className="eyebrow" style={{ marginBottom: 8 }}>AGENTE IA · 代理</div>
+              <select value={agent} onChange={e => setAgent(e.target.value)}
+                style={{ width: '100%', background: 'var(--bg-void)', border: '1px solid var(--line-bright)', borderRadius: 8, padding: '9px 12px', color: 'var(--tx)', fontFamily: 'var(--font-mono)', fontSize: 12.5 }}>
+                {Object.keys(AGENTS).map(k => <option key={k} value={k}>{AGENTS[k].label}</option>)}
+              </select>
+            </div>
+          </div>
           <div className="panel" style={{ padding: '6px 20px 14px' }}>
-            <CheckRow label="UI Pro components" jp="高級UI" sub="shadcn/ui · Aceternity · Magic UI pre-instalados" on={opts.uipro} onToggle={() => tog('uipro')} />
+            <CheckRow label="npx autoskills" jp="技能" sub="auto-instala skills del stack (a11y/SEO/design) en .claude/skills/" on={opts.autoskills} onToggle={() => tog('autoskills')} />
+            <CheckRow label="UI/UX Pro Max" jp="高級UI" sub="shadcn/ui · Aceternity · Magic UI + sistema de diseño (67 estilos / 161 paletas)" on={opts.uipro} onToggle={() => tog('uipro')} />
             <CheckRow label="Pre-configurar MCP servers" jp="接続" sub="genera .mcp.json (filesystem · github · playwright · figma-context · themeforge…)" on={opts.mcp} onToggle={() => tog('mcp')} />
             <CheckRow label="Documentación" jp="文書" sub="documentation/ con guía de instalación + changelog" on={opts.docs} onToggle={() => tog('docs')} />
           </div>
@@ -289,9 +305,15 @@ function NewProjectScreen({ onLaunch, onAnalyze }) {
       {/* ---- EXTRAS ---- */}
       {sub === 'extras' && (
         <div className="fade-in panel" style={{ padding: '6px 20px 14px' }}>
-          <CheckRow label="PostgreSQL en Docker" jp="DB" sub="provisiona DB local + MCP postgres + .env" on={opts.postgres} onToggle={() => tog('postgres')} />
-          <CheckRow label="Sistema de licencias" jp="認可" sub="Lemon Squeezy / Polar / Paddle cableado en el tema" on={opts.licensing} onToggle={() => tog('licensing')} />
-          <CheckRow label="Forzar reinstalación de licensing" jp="強制" sub="sobreescribe license.ts existente" on={false} onToggle={() => {}} />
+          <div className="faint" style={{ fontSize: 11, padding: '8px 0' }}>Integraciones opcionales. Los toggles de build (autoskills · UI/UX Pro · MCP · docs) están en <b style={{ color: 'var(--accent)' }}>Setup 基礎</b>.</div>
+          <CheckRow label="🐘 PostgreSQL en Docker" jp="DB" sub="contenedor postgres:17 dedicado + DATABASE_URL en .env (requiere Docker)" on={opts.postgres} onToggle={() => tog('postgres')} />
+          <CheckRow label="🔑 Sistema de licencias (pcreative anti-nulled)" jp="認可" sub="genera verify-license + setup wizard según la familia del stack (tu backend en licensing.json)" on={opts.licensing} onToggle={() => tog('licensing')} />
+          {opts.licensing && (
+            <div style={{ paddingLeft: 18, borderLeft: '2px solid var(--line-bright)', marginLeft: 6 }}>
+              <CheckRow label="└─ Crear repo gh <org>/<slug>" jp="" sub="gh repo create privado tras el scaffold (org en licensing.json · github_org)" on={opts.licensing_gh} onToggle={() => tog('licensing_gh')} />
+              <CheckRow label="└─ Forzar también en adopt / existing" jp="強制" sub="por defecto el licensing solo corre en scratch/recreate" on={opts.licensing_force} onToggle={() => tog('licensing_force')} />
+            </div>
+          )}
         </div>
       )}
 

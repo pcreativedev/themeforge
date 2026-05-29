@@ -755,6 +755,9 @@ class ThemeForgeBridge(QObject):
                 create_github_repo=False, github_user=None,
                 embedded=True, run_uipro=run_uipro,
                 force_postgres=force_pg, adopt_src=adopt_src,
+                is_licensed_product=bool(opts.get("licensing", False)),
+                licensing_create_gh_repo=bool(opts.get("licensing_gh", False)),
+                licensing_force_all_modes=bool(opts.get("licensing_force", False)),
                 niche=(niche or None), launch_agent=False,
                 ai_analysis=ai_analysis, ai_analysis_kind="reference",
             )
