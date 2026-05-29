@@ -80,6 +80,13 @@ def _stacks_data() -> list:
     except Exception:
         return []
     out = []
+    # El stack "none" (sin stack — el agente decide) va PRIMERO, igual que en la
+    # app normal: crea el proyecto sin scaffolding y el agente propone el stack.
+    if "none" in STACKS:
+        v = STACKS["none"]
+        out.append({"key": "none", "label": v.get("name", "(Sin stack)"),
+                    "jp": "自由", "cat": v.get("category", "Sin definir") or "Sin definir",
+                    "n": "—"})
     for k, v in STACKS.items():
         if k == "none":
             continue
