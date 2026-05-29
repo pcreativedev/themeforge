@@ -194,13 +194,19 @@ function SettingsScreen() {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 12 }}>
             {APP_THEMES.map(t => (
               <button key={t.k} onClick={() => {
-                if (t.web) { setTheme(t.k); if (window.tfApplyTheme && t.vars) window.tfApplyTheme(t.vars); if (window.tfBridge) window.tfBridge.set_theme(t.k); }
-                else if (window.tfBridge && window.tfBridge.switch_to_classic) {
+                if (t.proto) {
+                  // Diseño web completo (prototipo): recarga el shell a ese diseño.
+                  if (window.tfBridge && window.tfBridge.use_web_theme) window.tfBridge.use_web_theme(t.k);
+                } else if (t.web) {
+                  // Pack recolor: aplica CSS vars en vivo sobre el diseño actual.
+                  setTheme(t.k); if (window.tfApplyTheme && t.vars) window.tfApplyTheme(t.vars); if (window.tfBridge) window.tfBridge.set_theme(t.k);
+                } else if (window.tfBridge && window.tfBridge.switch_to_classic) {
                   if (confirm('Cambiar al tema clásico «' + t.label + '» (UI nativa). ThemeForge se reiniciará. ¿Continuar?')) window.tfBridge.switch_to_classic(t.k);
                 }
               }}
                 className={theme === t.k ? 'neon-edge' : ''}
                 style={{ cursor: 'pointer', padding: 0, borderRadius: 10, overflow: 'hidden', border: '1px solid ' + (theme === t.k ? 'rgba(var(--accent-rgb),0.5)' : 'var(--line)'), background: 'transparent', position: 'relative' }}>
+                {t.proto && <span style={{ position: 'absolute', top: 6, right: 6, zIndex: 2, fontSize: 8.5, padding: '2px 5px', borderRadius: 5, background: 'rgba(0,240,255,0.18)', color: 'var(--accent)', fontFamily: 'var(--font-mono)' }}>診 ⟳</span>}
                 {!t.web && <span style={{ position: 'absolute', top: 6, right: 6, zIndex: 2, fontSize: 8.5, padding: '2px 5px', borderRadius: 5, background: 'rgba(251,191,36,0.18)', color: 'var(--gemini)', fontFamily: 'var(--font-mono)' }}>古典 ↻</span>}
                 <div style={{ height: 64, background: t.bg, position: 'relative', padding: 10 }}>
                   <div style={{ display: 'flex', gap: 5 }}>

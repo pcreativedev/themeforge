@@ -1,0 +1,755 @@
+/* ===================== ThemeForge // MATRIX ===================== */
+const { useState, useEffect, useRef } = React;
+
+/* agentes IA como daemons */
+const AGENTS = {
+  claude:   { label: 'claude',   em: '◈', color: '#00ff66', pid: 'd4e2' },
+  codex:    { label: 'codex',    em: '◇', color: '#00d9ff', pid: '7a1c' },
+  gemini:   { label: 'gemini',   em: '◆', color: '#ffb000', pid: '9f3b' },
+  opencode: { label: 'opencode', em: '◉', color: '#b46fff', pid: 'c5e8' },
+};
+
+const STATUS = {
+  live:     { label: 'online',   em: '●', color: '#00ff41' },
+  building: { label: 'compilando', em: '▶', color: '#ffb000' },
+  draft:    { label: 'borrador', em: '◌', color: '#00d9ff' },
+  archived: { label: 'archivado', em: '▣', color: '#3f7d54' },
+};
+
+const PROJECTS = [
+  { id: 'm-aurora', name: 'Aurora SaaS', jp: 'オーロラ', type: 'SaaS Landing', agent: 'claude', status: 'live', cost: 4.82, tags: ['next', 'tailwind'], commits: 47, updated: 'hace 3 min' },
+  { id: 'm-nordic', name: 'Nordic Forge', jp: '北欧', type: 'Agencia creativa', agent: 'codex', status: 'building', cost: 2.10, tags: ['astro', 'gsap'], commits: 23, updated: 'hace 12 min' },
+  { id: 'm-meridian', name: 'Meridian Shop', jp: '商店', type: 'E-commerce', agent: 'gemini', status: 'live', cost: 7.34, tags: ['shopify', 'remix'], commits: 89, updated: 'hace 1 h' },
+  { id: 'm-flux', name: 'Flux Admin', jp: '管理', type: 'Dashboard', agent: 'opencode', status: 'draft', cost: 0.41, tags: ['laravel', 'vue'], commits: 8, updated: 'hace 5 h' },
+  { id: 'm-zen', name: 'Zen Clinic', jp: '診療', type: 'Clínica · booking', agent: 'claude', status: 'live', cost: 3.95, tags: ['wp', 'acf'], commits: 34, updated: 'ayer' },
+  { id: 'm-pixel', name: 'Pixel Arcade', jp: '遊技', type: 'Landing · game', agent: 'codex', status: 'archived', cost: 1.22, tags: ['tauri', 'react'], commits: 19, updated: 'hace 3 días' },
+];
+
+const STACKS = [
+  { k: 'next', label: 'Next.js', jp: '次世代', em: '▲' },
+  { k: 'astro', label: 'Astro', jp: '星', em: '✦' },
+  { k: 'laravel', label: 'Laravel', jp: '帆', em: '◣' },
+  { k: 'wp', label: 'WordPress', jp: '出版', em: 'W' },
+  { k: 'shopify', label: 'Hydrogen', jp: '商', em: '⬡' },
+  { k: 'tauri', label: 'Tauri', jp: '鳥', em: '◈' },
+];
+
+const NAV = [
+  { id: 'gallery', em: '▤', label: 'Galería', jp: '制作' },
+  { id: 'new', em: '+', label: 'Nuevo', jp: '新規' },
+  { id: 'cost', em: '$', label: 'Coste IA', jp: '費用' },
+  { id: 'compare', em: '⇄', label: 'Comparar', jp: '比較' },
+  { id: 'operator', em: '⌬', label: 'Operator', jp: '司令' },
+  { id: 'market', em: '⊞', label: 'Market', jp: '市場' },
+  { id: 'licensing', em: '⚿', label: 'Licencias', jp: '認可' },
+  { id: 'settings', em: '⚙', label: 'Ajustes', jp: '設定' },
+];
+
+const MCP_SERVERS = [
+  { id: 'filesystem', label: 'filesystem', always: true, em: '▮', desc: 'Acceso al proyecto' },
+  { id: 'fetch', label: 'fetch', always: true, em: '⇆', desc: 'HTTP / scraping' },
+  { id: 'memory', label: 'memory', always: true, em: '⊟', desc: 'Memoria del agente' },
+  { id: 'github', label: 'github', always: true, em: '⎇', desc: 'Repos · PRs · push' },
+  { id: 'themeforge', label: 'themeforge', always: true, em: '鍛', desc: '8 tools: create · zip · preflight…' },
+  { id: 'playwright', label: 'playwright', em: '◐', desc: 'Navegador automatizado' },
+  { id: 'figma', label: 'figma-context', em: '◓', desc: 'Lee diseños de Figma' },
+  { id: 'shopify', label: 'shopify-dev', em: '⬡', desc: 'GraphQL Admin/Storefront' },
+  { id: 'postgres', label: 'postgres', em: '⊞', desc: 'Query a la DB' },
+];
+
+const DEPLOY_TARGETS = [
+  { id: 'netlify', label: 'Netlify', em: '◆' },
+  { id: 'vercel', label: 'Vercel', em: '▲' },
+  { id: 'cloudflare', label: 'Cloudflare', em: '◉' },
+  { id: 'surge', label: 'Surge', em: '⌁' },
+];
+
+const PREFLIGHT = [
+  { l: 'LICENSE presente', ok: true }, { l: 'documentation/ completa', ok: true },
+  { l: 'Lighthouse >= 90', ok: true, n: '94' }, { l: 'Sin secretos (.env limpio)', ok: true },
+  { l: 'Layout original (anti-copy)', ok: true }, { l: 'Imágenes con licencia', ok: false, n: '2 sin atribuir' },
+  { l: 'Responsive 320->1920', ok: true },
+];
+
+/* ---- digital rain ---- */
+function startRain() {
+  const c = document.getElementById('rain');
+  if (!c || c.dataset.on) return;
+  c.dataset.on = '1';
+  const ctx = c.getContext('2d');
+  const fontSize = 16;
+  const chars = 'アァカサタナハマヤャラワガザダバパイィキシチニヒミリヰギジヂビピウゥクスツヌフムユュルグズブヅプエェケセテネヘメレヱゲゼデベペオォコソトノホモヨョロヲゴゾドボポヴッン0123456789'.split('');
+  let cols = 0, drops = [];
+  function resize() {
+    c.width = window.innerWidth; c.height = window.innerHeight;
+    cols = Math.floor(c.width / fontSize);
+    drops = Array(cols).fill(0).map(() => Math.random() * -60);
+  }
+  resize(); window.addEventListener('resize', resize);
+  setInterval(() => {
+    ctx.fillStyle = 'rgba(4,8,4,0.10)';
+    ctx.fillRect(0, 0, c.width, c.height);
+    ctx.font = fontSize + "px 'Share Tech Mono', monospace";
+    for (let i = 0; i < cols; i++) {
+      const y = drops[i] * fontSize, x = i * fontSize;
+      ctx.fillStyle = '#c8ffd4';
+      ctx.fillText(chars[(Math.random() * chars.length) | 0], x, y);
+      ctx.fillStyle = 'rgba(0,255,65,0.55)';
+      ctx.fillText(chars[(Math.random() * chars.length) | 0], x, y - fontSize * 3);
+      if (y > c.height && Math.random() > 0.975) drops[i] = 0;
+      drops[i]++;
+    }
+  }, 55);
+}
+function burst(e) {
+  const h = document.createElement('div'); h.className = 'burstfx';
+  h.textContent = ['+1', '◈', '01', '▲', 'ACK'][Math.floor(Math.random() * 5)];
+  h.style.left = (e.clientX - 8) + 'px'; h.style.top = (e.clientY - 8) + 'px';
+  document.body.appendChild(h); setTimeout(() => h.remove(), 800);
+}
+const Slot = ({ id, cls, radius = 4, ph }) => React.createElement('image-slot', { id, class: cls, shape: 'rounded', radius: String(radius), placeholder: ph });
+
+/* ---- Gallery ---- */
+function ProjectCard({ p, onOpen }) {
+  const [fav, setFav] = useState(p.status === 'live');
+  const ag = AGENTS[p.agent], st = STATUS[p.status];
+  return (
+    <div className="pcard fade" style={{ opacity: p.status === 'archived' ? 0.65 : 1, cursor: 'pointer' }} onClick={() => onOpen(p)}>
+      <span className="pstatus" style={{ color: st.color }}>{st.em} {st.label}</span>
+      <span className="pjp">{p.jp}</span>
+      <Slot id={p.id} cls="pcover" radius={3} ph="// arrastra screenshot" />
+      <span className="pfav" onClick={(e) => { e.stopPropagation(); setFav(f => !f); burst(e); }}>{fav ? '★' : '☆'}</span>
+      <div className="pbody">
+        <div className="prow">
+          <div><div className="pname">{p.name}</div><div className="ptype">{p.type}</div></div>
+          <div className="pcost">${p.cost.toFixed(2)}</div>
+        </div>
+        <div className="ptags">{p.tags.map(t => <span key={t} className="tag">{t}</span>)}</div>
+        <div className="pfoot">
+          <span className="pagent" style={{ color: ag.color }}>{ag.em} {ag.label}</span>
+          <span style={{ color: 'var(--tx-dim)' }}>{p.commits} commits · {p.updated}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Gallery({ onOpen }) {
+  const [f, setF] = useState('all');
+  const fl = ['all', 'live', 'building', 'draft', 'archived'];
+  const list = PROJECTS.filter(p => f === 'all' || p.status === f);
+  return (
+    <div className="page fade">
+      <div className="stats">
+        {[['◫', '6', 'proyectos'], ['$', '19.84', 'cómputo IA'], ['●', '3', 'desplegados'], ['▶', '1', 'compilando']].map(([e, n, l]) => (
+          <div className="stat" key={l}><div className="em">{e}</div><div className="n">{n}</div><div className="l">{l}</div></div>
+        ))}
+      </div>
+      <div className="filters">
+        {fl.map(x => <button key={x} className={'fchip' + (f === x ? ' on' : '')} onClick={() => setF(x)}>{x === 'all' ? '> todos' : STATUS[x].em + ' ' + STATUS[x].label}</button>)}
+      </div>
+      <div className="grid">{list.map(p => <ProjectCard key={p.id} p={p} onOpen={onOpen} />)}</div>
+    </div>
+  );
+}
+
+/* ---- New project (vibe scaffolder) ---- */
+function NewProject() {
+  const [vibe, setVibe] = useState('');
+  const [stack, setStack] = useState('next');
+  const [agent, setAgent] = useState('claude');
+  const [thinking, setThinking] = useState(false);
+  const [done, setDone] = useState(false);
+  const go = () => { setThinking(true); setDone(false); setTimeout(() => { setThinking(false); setDone(true); setStack('next'); }, 1300); };
+  return (
+    <div className="page fade" style={{ maxWidth: 920 }}>
+      <h2 className="sec">{'>'} Vibe Scaffolder <span style={{ fontFamily: 'var(--term)', fontSize: 13, color: 'var(--tx-dim)' }}>新規制作</span></h2>
+      <div style={{ display: 'grid', gridTemplateColumns: '1.3fr 1fr', gap: 16 }}>
+        <div className="panelc">
+          <div style={{ fontWeight: 600, marginBottom: 10, fontFamily: 'var(--term)' }}>$ describe el objetivo</div>
+          <textarea className="ta" value={vibe} onChange={e => setVibe(e.target.value)} placeholder='Ej: "Landing premium para clínica dental en Madrid, paleta cálida…"' />
+          <button className="btn pri" style={{ marginTop: 14 }} onClick={go}>{thinking ? '> procesando…' : '> Pre-rellenar con IA'}</button>
+          {thinking && <span style={{ marginLeft: 10, color: 'var(--accent)', fontFamily: 'var(--term)' }}>{AGENTS[agent].em} analizando…</span>}
+          {done && (
+            <div className="fade" style={{ marginTop: 16, background: 'var(--bg)', border: '1px solid var(--line)', borderRadius: 4, padding: 14, fontSize: 13, lineHeight: 1.65, fontFamily: 'var(--term)' }}>
+              <b style={{ color: 'var(--accent)' }}>[ prompt generado ]</b><br />Build a production-ready landing usando <b style={{ color: 'var(--accent)' }}>Next.js</b>. {vibe || 'Estética hacker/terminal, verde fósforo sobre negro, monoespaciada.'} Sistema de diseño coherente, accesible, imágenes del nicho, deploy-ready.
+            </div>
+          )}
+        </div>
+        <div className="panelc">
+          <div style={{ fontWeight: 600, marginBottom: 10, fontFamily: 'var(--term)' }}>daemon IA</div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+            {Object.entries(AGENTS).map(([k, a]) => (
+              <button key={k} className={'tile' + (agent === k ? ' on' : '')} onClick={() => setAgent(k)} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ fontSize: 16, color: a.color }}>{a.em}</span><span style={{ fontSize: 13, fontWeight: 600, fontFamily: 'var(--term)' }}>{a.label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+      <h2 className="sec" style={{ margin: '26px 0 14px' }}>{'#'} Stack <span style={{ fontFamily: 'var(--term)', fontSize: 13, color: 'var(--tx-dim)' }}>基盤</span></h2>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(140px,1fr))', gap: 10 }}>
+        {STACKS.map(s => (
+          <button key={s.k} className={'tile' + (stack === s.k ? ' on' : '')} onClick={() => setStack(s.k)}>
+            <div style={{ fontSize: 20, fontFamily: 'var(--term)', color: 'var(--accent)' }}>{s.em}</div>
+            <div style={{ fontWeight: 600, fontSize: 14, marginTop: 4 }}>{s.label}</div>
+            <div style={{ fontFamily: 'var(--term)', fontSize: 11, color: 'var(--tx-dim)' }}>{s.jp}</div>
+          </button>
+        ))}
+      </div>
+      <div className="panelc" style={{ marginTop: 22, display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontFamily: 'var(--term)' }}>
+        <span style={{ color: 'var(--tx-dim)' }}><b style={{ color: 'var(--accent)' }}>{STACKS.find(s => s.k === stack).label}</b> · {AGENTS[agent].label} · ~$0.40</span>
+        <button className="btn pri">▶ Forjar proyecto</button>
+      </div>
+    </div>
+  );
+}
+
+/* ---- Cost ---- */
+const COST = [{ k: 'claude', v: 12.77 }, { k: 'gemini', v: 7.34 }, { k: 'codex', v: 3.32 }, { k: 'opencode', v: 1.63 }];
+function Cost() {
+  const total = COST.reduce((s, d) => s + d.v, 0);
+  const days = Array.from({ length: 14 }, (_, i) => 0.3 + Math.abs(Math.sin(i / 2)) * 1.4 + (i > 10 ? 0.6 : 0));
+  const max = Math.max(...days);
+  let acc = 0; const C = 2 * Math.PI * 70;
+  return (
+    <div className="page fade">
+      <h2 className="sec">$ Coste de IA <span style={{ fontFamily: 'var(--term)', fontSize: 13, color: 'var(--tx-dim)' }}>費用追跡</span></h2>
+      <div className="stats" style={{ marginBottom: 22 }}>
+        {[['Σ', total.toFixed(2), 'total'], ['◴', '8.42', 'este mes'], ['÷', '3.94', 'media/proyecto'], ['⚡', '421K', 'tokens/$']].map(([e, n, l]) => (
+          <div className="stat" key={l}><div className="em">{e}</div><div className="n">{l === 'total' || l === 'este mes' || l === 'media/proyecto' ? '$' : ''}{n}</div><div className="l">{l}</div></div>
+        ))}
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: '300px 1fr', gap: 16 }}>
+        <div className="panelc" style={{ textAlign: 'center' }}>
+          <div style={{ fontWeight: 600, marginBottom: 10, fontFamily: 'var(--term)' }}>por daemon</div>
+          <svg viewBox="0 0 180 180" style={{ width: 180, height: 180 }}>
+            <circle cx="90" cy="90" r="70" fill="none" stroke="var(--bg)" strokeWidth="18" />
+            {COST.map(d => {
+              const frac = d.v / total, dash = C * frac;
+              const el = <circle key={d.k} cx="90" cy="90" r="70" fill="none" stroke={AGENTS[d.k].color} strokeWidth="18" strokeDasharray={`${dash - 3} ${C}`} strokeDashoffset={-C * acc} transform="rotate(-90 90 90)" style={{ filter: `drop-shadow(0 0 4px ${AGENTS[d.k].color})` }} />;
+              acc += frac; return el;
+            })}
+            <text x="90" y="98" textAnchor="middle" style={{ fontFamily: 'var(--display)', fontSize: 30, fill: 'var(--accent)' }}>${total.toFixed(0)}</text>
+          </svg>
+          <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 7 }}>
+            {COST.map(d => (
+              <div key={d.k} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12.5, fontFamily: 'var(--term)' }}>
+                <span style={{ color: AGENTS[d.k].color }}>{AGENTS[d.k].em}</span><span style={{ flex: 1, textAlign: 'left' }}>{AGENTS[d.k].label}</span><span style={{ color: 'var(--accent)' }}>${d.v.toFixed(2)}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="panelc">
+          <div style={{ fontWeight: 600, marginBottom: 16, fontFamily: 'var(--term)' }}>gasto diario</div>
+          <div style={{ display: 'flex', alignItems: 'flex-end', gap: 7, height: 180 }}>
+            {days.map((v, i) => (
+              <div key={i} style={{ flex: 1, height: (v / max * 100) + '%', borderRadius: '2px 2px 0 0', background: i > 10 ? 'linear-gradient(var(--p3),var(--accent))' : 'linear-gradient(var(--accent),var(--accent2))', boxShadow: '0 0 6px rgba(0,255,65,0.4)' }} title={'$' + v.toFixed(2)} />
+            ))}
+          </div>
+          <div style={{ textAlign: 'center', marginTop: 10, color: 'var(--tx-dim)', fontFamily: 'var(--term)', fontSize: 12 }}>últimos 14 días</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ---- Compare ---- */
+function Compare() {
+  const [run, setRun] = useState(false);
+  const outs = {
+    claude: ['> analizando…', 'export function Pricing()', '[OK] 1.2s'],
+    codex: ['> tokenizando…', 'const Pricing = () =>', '[OK] 1.6s'],
+    gemini: ['> planeando…', 'function PricingGrid()', '[OK] 1.4s'],
+    opencode: ['> cargando local…', 'export const Pricing', '[OK] 3.1s'],
+  };
+  return (
+    <div className="page fade">
+      <h2 className="sec">⇄ Comparar agentes <span style={{ fontFamily: 'var(--term)', fontSize: 13, color: 'var(--tx-dim)' }}>比較</span></h2>
+      <div className="panelc" style={{ display: 'flex', gap: 10, marginBottom: 18 }}>
+        <input className="ta" style={{ minHeight: 0, padding: '11px 14px' }} defaultValue="Crea una sección de pricing de 3 tiers con toggle anual" />
+        <button className="btn pri" onClick={() => { setRun(false); setTimeout(() => setRun(true), 50); }}>▶ Ejecutar</button>
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+        {Object.entries(AGENTS).map(([k, a]) => (
+          <div className="panelc" key={k} style={{ padding: 16 }}>
+            <div style={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10, fontFamily: 'var(--term)' }}><span style={{ fontSize: 16, color: a.color }}>{a.em}</span> {a.label} <span style={{ color: 'var(--tx-dim)', fontSize: 11 }}>pid:{a.pid}</span></div>
+            <div style={{ background: 'var(--bg)', border: '1px solid var(--line)', borderRadius: 4, padding: 12, fontSize: 12.5, lineHeight: 1.9, minHeight: 80, fontFamily: 'var(--term)', color: 'var(--tx-dim)' }}>
+              {run ? outs[k].map((l, i) => <div key={i} style={{ color: l.startsWith('[OK]') ? a.color : 'var(--tx-dim)' }}>{l}</div>) : <span>esperando ejecución…</span>}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ---- Operator ---- */
+const MISSIONS = [
+  { id: 'o1', name: 'Aurora · hero + pricing', agent: 'claude', st: 'corriendo', pct: 68, eta: '2m 10s' },
+  { id: 'o2', name: 'Nordic · case studies', agent: 'codex', st: 'corriendo', pct: 34, eta: '5m 40s' },
+  { id: 'o3', name: 'Meridian · checkout', agent: 'gemini', st: 'en cola', pct: 0, eta: '—' },
+  { id: 'o4', name: 'Zen · booking widget', agent: 'claude', st: 'listo', pct: 100, eta: '✓' },
+];
+function Operator() {
+  return (
+    <div className="page fade">
+      <h2 className="sec">⌬ Mission Control <span style={{ fontFamily: 'var(--term)', fontSize: 13, color: 'var(--tx-dim)' }}>司令室</span></h2>
+      <div className="stats" style={{ marginBottom: 22 }}>
+        {[['▶', '2', 'activas'], ['◴', '1', 'en cola'], ['●', '12', 'hoy'], ['$', '8.40', 'coste hoy']].map(([e, n, l]) => (
+          <div className="stat" key={l}><div className="em">{e}</div><div className="n">{l === 'coste hoy' ? '$' : ''}{n}</div><div className="l">{l}</div></div>
+        ))}
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 11 }}>
+        {MISSIONS.map(m => {
+          const a = AGENTS[m.agent];
+          return (
+            <div className="panelc" key={m.id} style={{ padding: '15px 20px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontFamily: 'var(--term)' }}>
+                <span style={{ fontSize: 15, color: a.color }}>{a.em}</span>
+                <b style={{ flex: 1 }}>{m.name}</b>
+                <span style={{ color: m.pct === 100 ? 'var(--accent)' : 'var(--p3)' }}>{m.st}</span>
+                <span style={{ color: 'var(--tx-dim)', width: 56, textAlign: 'right' }}>{m.eta}</span>
+              </div>
+              <div className="bar2" style={{ marginTop: 11 }}><i style={{ width: m.pct + '%' }} /></div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/* ---- Settings ---- */
+const THEMES = [
+  { k: 'matrix', label: 'Matrix', a: '#00ff41', b: '#008f11', bg: '#040804' },
+  { k: 'neotokyo', label: 'Neo-Tokyo', a: '#00f0ff', b: '#ff2e88', bg: '#04060c' },
+  { k: 'kawaii', label: 'Kawaii', a: '#ff8fc7', b: '#b9a3ff', bg: '#fff5fa' },
+  { k: 'amber', label: 'Amber CRT', a: '#ffb000', b: '#ff7b00', bg: '#0a0600' },
+  { k: 'ice', label: 'Ice / Cyan', a: '#00d9ff', b: '#0090ff', bg: '#02060a' },
+  { k: 'redpill', label: 'Red Pill', a: '#ff3131', b: '#b00020', bg: '#0a0202' },
+];
+function Settings() {
+  const [th, setTh] = useState('matrix');
+  return (
+    <div className="page fade" style={{ maxWidth: 820 }}>
+      <h2 className="sec">⚙ Temas de la app <span style={{ fontFamily: 'var(--term)', fontSize: 13, color: 'var(--tx-dim)' }}>テーマ</span></h2>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 14 }}>
+        {THEMES.map(t => (
+          <button key={t.k} className={'tile' + (th === t.k ? ' on' : '')} onClick={() => setTh(t.k)} style={{ padding: 0, overflow: 'hidden' }}>
+            <div style={{ height: 64, background: t.bg, padding: 10, display: 'flex', gap: 6, alignItems: 'flex-start' }}>
+              <span style={{ width: 18, height: 18, borderRadius: 3, background: t.a, boxShadow: `0 0 8px ${t.a}` }} />
+              <span style={{ width: 18, height: 18, borderRadius: 3, background: t.b }} />
+            </div>
+            <div style={{ padding: '10px 12px', fontWeight: 600, fontSize: 14, fontFamily: 'var(--term)' }}>{t.label}</div>
+          </button>
+        ))}
+      </div>
+      <div className="panelc" style={{ marginTop: 20 }}>
+        <div style={{ fontWeight: 600, marginBottom: 8, fontFamily: 'var(--term)' }}>avatar del operador</div>
+        <div style={{ display: 'flex', gap: 14, alignItems: 'center' }}>
+          <Slot id="mascot" cls="" radius={4} ph="// arrastra avatar" />
+          <span style={{ color: 'var(--tx-dim)', fontFamily: 'var(--term)', fontSize: 13 }}>Arrastra una imagen para tu avatar de operador — aparecerá en cada arranque del sistema.</span>
+        </div>
+      </div>
+
+      <h2 className="sec" style={{ margin: '26px 0 14px' }}>⇆ MCP servers <span style={{ fontFamily: 'var(--term)', fontSize: 13, color: 'var(--tx-dim)' }}>接続</span></h2>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(220px,1fr))', gap: 12 }}>
+        {MCP_SERVERS.map(m => (
+          <div className="panelc" key={m.id} style={{ padding: 15 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontFamily: 'var(--term)' }}><span style={{ fontSize: 15, color: 'var(--accent)' }}>{m.em}</span><b style={{ flex: 1, fontSize: 13.5 }}>{m.label}</b>{m.always && <span className="tag" style={{ color: 'var(--accent)', borderColor: 'var(--accent)' }}>always</span>}</div>
+            <div style={{ color: 'var(--tx-dim)', fontFamily: 'var(--term)', fontSize: 12, marginTop: 8, lineHeight: 1.5 }}>{m.desc}</div>
+          </div>
+        ))}
+      </div>
+
+      <h2 className="sec" style={{ margin: '26px 0 14px' }}>⌗ Pixel Office <span style={{ fontFamily: 'var(--term)', fontSize: 13, color: 'var(--tx-dim)' }}>可視化</span></h2>
+      <div className="panelc" style={{ textAlign: 'center' }}>
+        <div style={{ color: 'var(--tx-dim)', fontFamily: 'var(--term)', fontSize: 13, maxWidth: 480, margin: '0 auto 16px', lineHeight: 1.6 }}>Visualizador pixel-art que muestra tus sesiones de IA como avatares en una oficina virtual.</div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(8,1fr)', gap: 4, maxWidth: 280, margin: '0 auto 18px' }}>
+          {Array.from({ length: 24 }, (_, i) => { const a = [9, 12, 18].includes(i); const cols = ['#00ff66', '#00d9ff', '#ffb000']; return <div key={i} style={{ aspectRatio: '1', borderRadius: 3, background: a ? cols[i % 3] : 'var(--bg)', border: '1px solid var(--line)', boxShadow: a ? `0 0 8px ${cols[i % 3]}` : 'none' }} />; })}
+        </div>
+        <button className="btn pri">▶ Lanzar dashboard</button>
+      </div>
+      <style>{`#mascot{width:120px;height:120px;flex-shrink:0;}`}</style>
+    </div>
+  );
+}
+
+/* ---- Project Window (preview + terminal) ---- */
+const TERM_K = [
+  { c: 'var(--accent)', s: '$ themeforge agent --task "build hero + features"' },
+  { c: '#00ff66', s: '◈ claude · session forge-7f2a · pid d4e2' },
+  { c: 'var(--tx-dim)', s: '> leyendo CLAUDE.md … contexto cargado' },
+  { c: 'var(--accent)', s: '[OK] creado Hero.tsx (+148 −0)' },
+  { c: 'var(--accent)', s: '[OK] creado FeatureBento.tsx (+212 −0)' },
+  { c: 'var(--tx-dim)', s: '> tipando … tsc — 0 errores' },
+  { c: 'var(--p3)', s: '◤ tarea completa · preview actualizado' },
+];
+function MatrixTerminal({ run }) {
+  const [n, setN] = useState(0);
+  const box = useRef(null);
+  useEffect(() => {
+    if (!run) { setN(0); return; }
+    setN(0); let i = 0;
+    const t = setInterval(() => { i++; setN(i); if (i >= TERM_K.length) clearInterval(t); }, 460);
+    return () => clearInterval(t);
+  }, [run]);
+  useEffect(() => { if (box.current) box.current.scrollTop = box.current.scrollHeight; }, [n]);
+  return (
+    <div ref={box} style={{ background: 'var(--bg)', border: '1px solid var(--line)', borderRadius: 4, padding: 14, fontFamily: 'var(--term)', fontSize: 13, lineHeight: 1.85, flex: 1, overflowY: 'auto', minHeight: 0 }}>
+      {TERM_K.slice(0, n).map((l, i) => <div key={i} style={{ color: l.c }}>{l.s}</div>)}
+      {run && n < TERM_K.length && <span style={{ color: 'var(--accent)' }}>▊</span>}
+      {!run && <span style={{ color: 'var(--tx-dim)' }}>terminal lista — pulsa ▶</span>}
+    </div>
+  );
+}
+function ProjectWindow({ p, onBack, onDeploy, onBuild }) {
+  const [tab, setTab] = useState('desktop');
+  const [run, setRun] = useState(false);
+  const [pushed, setPushed] = useState(false);
+  const ag = AGENTS[p.agent], st = STATUS[p.status];
+  useEffect(() => { const t = setTimeout(() => setRun(true), 500); return () => clearTimeout(t); }, []);
+  const tabs = [['desktop', '▭ Desktop'], ['mobile', '▯ Mobile'], ['code', '⌗ Code']];
+  return (
+    <div className="page fade" style={{ height: '100%', display: 'flex', flexDirection: 'column', paddingBottom: 26 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16, flexWrap: 'wrap' }}>
+        <button className="btn" onClick={onBack}>← Galería</button>
+        <b style={{ fontSize: 18, fontFamily: 'var(--display)' }}>{p.name}</b><span style={{ fontFamily: 'var(--term)', color: 'var(--tx-dim)' }}>{p.jp}</span>
+        <span className="pstatus" style={{ position: 'static', color: st.color }}>{st.em} {st.label}</span>
+        <div style={{ flex: 1 }} />
+        <button className="btn" onClick={onBuild}>✓ Pre-flight</button>
+        <button className={'btn' + (pushed ? '' : ' pri')} onClick={() => setPushed(true)}>{pushed ? '✓ Pushed' : '⎇ Push'}</button>
+        <button className="btn pri" onClick={onDeploy}>▶ Deploy</button>
+      </div>
+      <div style={{ display: 'flex', gap: 6, marginBottom: 14, flexWrap: 'wrap', alignItems: 'center' }}>
+        <span style={{ fontSize: 11, fontFamily: 'var(--term)', color: 'var(--tx-dim)' }}>MCP ·</span>
+        {MCP_SERVERS.slice(0, 7).map(m => <span key={m.id} className="tag" style={{ color: m.always ? 'var(--accent)' : 'var(--tx-dim)', borderColor: m.always ? 'var(--accent)' : 'var(--line)' }}>{m.em} {m.label}</span>)}
+      </div>
+      <div style={{ flex: 1, display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: 16, minHeight: 0 }}>
+        <div className="panelc" style={{ display: 'flex', flexDirection: 'column', padding: 14, minHeight: 0 }}>
+          <div style={{ display: 'flex', gap: 6, marginBottom: 12 }}>
+            {tabs.map(([k, l]) => <button key={k} className={'fchip' + (tab === k ? ' on' : '')} onClick={() => setTab(k)}>{l}</button>)}
+            <span style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--tx-dim)', fontFamily: 'var(--term)', alignSelf: 'center' }}>localhost:5173</span>
+          </div>
+          <div style={{ flex: 1, display: 'grid', placeItems: 'center', background: 'var(--bg)', border: '1px solid var(--line)', borderRadius: 4, padding: 16, minHeight: 0, overflow: 'auto' }}>
+            <Slot id={'pw-' + p.id} cls="" radius={4} ph="// preview del tema (arrastra screenshot)" />
+          </div>
+        </div>
+        <div className="panelc" style={{ display: 'flex', flexDirection: 'column', padding: 14, minHeight: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10, fontFamily: 'var(--term)' }}>
+            <b>⌗ Terminal del agente</b>
+            <span className="tag" style={{ marginLeft: 'auto', color: ag.color, borderColor: ag.color }}>{ag.em} {ag.label}</span>
+          </div>
+          <MatrixTerminal run={run} />
+          <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+            <input className="ta" style={{ minHeight: 0, padding: '9px 14px', flex: 1 }} placeholder="responder al agente…" />
+            <button className="btn pri" onClick={() => { setRun(false); setTimeout(() => setRun(true), 60); }}>▶</button>
+          </div>
+        </div>
+      </div>
+      <style>{`#pw-${p.id}{width:100%;height:${tab === 'mobile' ? '320px' : '300px'};max-width:${tab === 'mobile' ? '280px' : 'none'};}`}</style>
+    </div>
+  );
+}
+
+/* ---- Market ---- */
+function Market() {
+  const [q, setQ] = useState('');
+  const [done, setDone] = useState(false);
+  const [load, setLoad] = useState(false);
+  const go = () => { setLoad(true); setDone(false); setTimeout(() => { setLoad(false); setDone(true); }, 1200); };
+  const rows = [['Dental clinic landing', '$39', '4.8', '1,240', 'alta'], ['Booking + calendar', '$49', '4.9', '2,100', 'alta'], ['Multipurpose business', '$29', '4.4', '8,400', 'saturada']];
+  return (
+    <div className="page fade">
+      <h2 className="sec">⊞ Market Analyzer <span style={{ fontFamily: 'var(--term)', fontSize: 13, color: 'var(--tx-dim)' }}>市場分析</span></h2>
+      <div className="panelc" style={{ display: 'flex', gap: 10, marginBottom: 18 }}>
+        <input className="ta" style={{ minHeight: 0, padding: '11px 16px' }} value={q} onChange={e => setQ(e.target.value)} placeholder='Nicho a investigar — ej: "clínica dental"' />
+        <button className="btn pri" onClick={go}>{load ? '> escaneando…' : '> Analizar'}</button>
+      </div>
+      {load && <div className="panelc" style={{ textAlign: 'center', color: 'var(--accent)', fontFamily: 'var(--term)' }}>{'>'} consultando ThemeForest · Creative Market · Gumroad…</div>}
+      {done && (
+        <div className="fade" style={{ display: 'grid', gridTemplateColumns: '1fr 280px', gap: 16 }}>
+          <div className="panelc" style={{ padding: 0, overflow: 'hidden' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, fontFamily: 'var(--term)' }}>
+              <thead><tr style={{ background: 'var(--bg)' }}>{['Template', 'Precio', 'Rating', 'Ventas', 'Competencia'].map((h, i) => <th key={h} style={{ textAlign: i === 0 ? 'left' : 'right', padding: '12px 16px', color: 'var(--tx-dim)', fontWeight: 600, borderBottom: '1px solid var(--line)' }}>{h}</th>)}</tr></thead>
+              <tbody>{rows.map((r, i) => <tr key={i} style={{ borderTop: '1px solid var(--line)' }}>
+                <td style={{ padding: '12px 16px', color: 'var(--tx)' }}>{r[0]}</td>
+                <td style={{ textAlign: 'right', padding: '12px 16px', color: 'var(--accent)' }}>{r[1]}</td>
+                <td style={{ textAlign: 'right', padding: '12px 16px', color: 'var(--p3)' }}>★ {r[2]}</td>
+                <td style={{ textAlign: 'right', padding: '12px 16px', color: 'var(--tx-dim)' }}>{r[3]}</td>
+                <td style={{ textAlign: 'right', padding: '12px 16px' }}><span className="tag" style={{ color: r[4] === 'alta' ? 'var(--accent)' : 'var(--p3)', borderColor: 'currentColor' }}>{r[4]}</span></td>
+              </tr>)}</tbody>
+            </table>
+          </div>
+          <div className="panelc" style={{ textAlign: 'center' }}>
+            <div style={{ fontSize: 12, color: 'var(--tx-dim)', fontFamily: 'var(--term)', letterSpacing: '.1em' }}>VEREDICTO</div>
+            <div style={{ fontFamily: 'var(--display)', fontSize: 34, color: 'var(--accent)', margin: '8px 0', textShadow: 'var(--glow)' }}>FORJAR ▶</div>
+            <div style={{ fontSize: 13, color: 'var(--tx-dim)', fontFamily: 'var(--term)', lineHeight: 1.6 }}>Demanda alta, sweet-spot <b style={{ color: 'var(--accent)' }}>$45–55</b>. Diferénciate con booking integrado.</div>
+          </div>
+        </div>
+      )}
+      {!done && !load && <div className="panelc" style={{ textAlign: 'center', color: 'var(--tx-dim)', fontFamily: 'var(--term)' }}>introduce un nicho para empezar</div>}
+    </div>
+  );
+}
+
+/* ---- Licensing ---- */
+function Licensing() {
+  const [pr, setPr] = useState('lemon');
+  const provs = [['lemon', 'Lemon Squeezy', '◆'], ['polar', 'Polar', '◉'], ['paddle', 'Paddle', '▲'], ['custom', 'Custom', '⬡']];
+  return (
+    <div className="page fade" style={{ maxWidth: 900 }}>
+      <h2 className="sec">⚿ Licencias <span style={{ fontFamily: 'var(--term)', fontSize: 13, color: 'var(--tx-dim)' }}>認可</span></h2>
+      <div className="panelc" style={{ marginBottom: 18 }}>
+        <div style={{ fontWeight: 600, marginBottom: 12, fontFamily: 'var(--term)' }}>proveedor</div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 10 }}>
+          {provs.map(([k, l, e]) => <button key={k} className={'tile' + (pr === k ? ' on' : '')} onClick={() => setPr(k)} style={{ textAlign: 'center' }}><div style={{ fontSize: 22, color: 'var(--accent)' }}>{e}</div><div style={{ fontWeight: 600, fontSize: 13, marginTop: 6, fontFamily: 'var(--term)' }}>{l}</div></button>)}
+        </div>
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+        <div className="panelc">
+          <div style={{ fontWeight: 600, marginBottom: 12, fontFamily: 'var(--term)' }}>config</div>
+          {[['Store ID', 'store_8f2a9c'], ['Product ID', 'prod_matrix_01'], ['API key', '••••••••3f7a']].map(([l, v]) => (
+            <div key={l} style={{ marginBottom: 11 }}>
+              <div style={{ fontSize: 11.5, fontFamily: 'var(--term)', color: 'var(--tx-dim)', marginBottom: 4, letterSpacing: '.05em' }}>{l}</div>
+              <div style={{ background: 'var(--bg)', border: '1px solid var(--line)', borderRadius: 4, padding: '9px 13px', fontFamily: 'var(--term)', fontSize: 13, color: 'var(--tx)' }}>{v}</div>
+            </div>
+          ))}
+          <button className="btn pri" style={{ marginTop: 6 }}>⚿ Cablear en proyecto</button>
+        </div>
+        <div className="panelc">
+          <div style={{ fontWeight: 600, marginBottom: 12, fontFamily: 'var(--term)' }}>validador · license.ts</div>
+          <div style={{ background: 'var(--bg)', border: '1px solid var(--line)', borderRadius: 4, padding: 14, fontSize: 12.5, lineHeight: 1.8, fontFamily: 'var(--term)', color: 'var(--tx-dim)' }}>
+            <div><b style={{ color: 'var(--p4)' }}>export async function</b> <b style={{ color: 'var(--accent)' }}>validate</b>(key) {'{'}</div>
+            <div>&nbsp;&nbsp;<b style={{ color: 'var(--p4)' }}>const</b> r = await fetch(API);</div>
+            <div>&nbsp;&nbsp;<b style={{ color: 'var(--p4)' }}>return</b> r.valid; {'}'}</div>
+          </div>
+          <div style={{ marginTop: 12, color: 'var(--accent)', fontFamily: 'var(--term)', fontSize: 13 }}>[OK] Validación activa · 256-bit</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ---- Modals ---- */
+function Modal({ title, jp, onClose, children, w = 560 }) {
+  useEffect(() => { const h = e => e.key === 'Escape' && onClose(); window.addEventListener('keydown', h); return () => window.removeEventListener('keydown', h); }, []);
+  return (
+    <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 300, background: 'rgba(0,8,2,0.6)', backdropFilter: 'blur(4px)', display: 'grid', placeItems: 'center', padding: 24 }}>
+      <div className="panelc fade" onClick={e => e.stopPropagation()} style={{ width: `min(${w}px,94vw)`, maxHeight: '86vh', overflowY: 'auto', boxShadow: 'var(--glow),0 20px 50px -10px rgba(0,0,0,.8)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', marginBottom: 16 }}>
+          <div><div style={{ fontFamily: 'var(--display)', fontSize: 22, color: 'var(--tx)' }}>{title}</div><div style={{ fontFamily: 'var(--term)', fontSize: 12, color: 'var(--tx-dim)' }}>{jp}</div></div>
+          <button className="btn" style={{ marginLeft: 'auto', padding: '6px 12px' }} onClick={onClose}>✕</button>
+        </div>
+        {children}
+      </div>
+    </div>
+  );
+}
+function DeployModal({ onClose }) {
+  const [t, setT] = useState('netlify'); const [phase, setPhase] = useState('idle'); const [log, setLog] = useState([]);
+  const go = () => { setPhase('go'); setLog([]); const steps = ['> npm run build …', '[OK] build · 1.2 MB', `> subiendo a ${t} …`, '[OK] desplegado', '◤ LIVE']; let i = 0; const tick = () => { if (i >= steps.length) { setPhase('done'); return; } setLog(l => [...l, steps[i]]); i++; setTimeout(tick, 550); }; tick(); };
+  return (
+    <Modal title="▶ Deploy demo" jp="展開" onClose={onClose}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 16 }}>
+        {DEPLOY_TARGETS.map(d => <button key={d.id} className={'tile' + (t === d.id ? ' on' : '')} disabled={phase !== 'idle'} onClick={() => setT(d.id)} style={{ display: 'flex', alignItems: 'center', gap: 8 }}><span style={{ fontSize: 16, color: 'var(--accent)' }}>{d.em}</span><b style={{ fontSize: 14, fontFamily: 'var(--term)' }}>{d.label}</b></button>)}
+      </div>
+      {phase === 'idle' ? <button className="btn pri" style={{ width: '100%', justifyContent: 'center' }} onClick={go}>▶ Deploy a {DEPLOY_TARGETS.find(d => d.id === t).label}</button>
+        : <div style={{ background: 'var(--bg)', border: '1px solid var(--line)', borderRadius: 4, padding: 14, fontFamily: 'var(--term)', fontSize: 13, lineHeight: 1.9, minHeight: 110 }}>{log.map((l, i) => <div key={i} style={{ color: l.startsWith('[OK]') || l.startsWith('◤') ? 'var(--accent)' : 'var(--tx-dim)' }}>{l}</div>)}{phase === 'done' && <div style={{ color: 'var(--p3)', marginTop: 8 }}>→ https://{t}-aurora.app</div>}</div>}
+    </Modal>
+  );
+}
+function BuildModal({ onClose }) {
+  const [zip, setZip] = useState(false);
+  const ok = PREFLIGHT.filter(p => p.ok).length;
+  return (
+    <Modal title="✓ Pre-flight & ZIP" jp="出荷検査" onClose={onClose}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12, fontFamily: 'var(--term)' }}><span style={{ color: 'var(--tx-dim)' }}>Checklist marketplace</span><span className="tag" style={{ color: 'var(--accent)', borderColor: 'var(--accent)' }}>{ok}/{PREFLIGHT.length} OK</span></div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 16 }}>
+        {PREFLIGHT.map((c, i) => <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 9, background: 'var(--bg)', border: '1px solid var(--line)', borderRadius: 4, padding: '9px 13px', fontFamily: 'var(--term)', fontSize: 13 }}><span style={{ color: c.ok ? 'var(--accent)' : 'var(--p3)' }}>{c.ok ? '[OK]' : '[!!]'}</span><span style={{ flex: 1 }}>{c.l}</span>{c.n && <span style={{ color: 'var(--tx-dim)', fontSize: 12 }}>{c.n}</span>}</div>)}
+      </div>
+      {!zip ? <button className="btn pri" style={{ width: '100%', justifyContent: 'center' }} onClick={() => setZip(true)}>⊞ Build ZIP para marketplace</button>
+        : <div className="fade" style={{ background: 'var(--bg)', border: '1px solid var(--line)', borderRadius: 4, padding: 16, fontFamily: 'var(--term)' }}><b style={{ color: 'var(--accent)' }}>[OK] aurora-matrix.zip</b><div style={{ color: 'var(--tx-dim)', fontSize: 13, marginTop: 8 }}>312 archivos · 8.4 MB → <b style={{ color: 'var(--accent)' }}>2.1 MB</b> (75%)<br /><span style={{ fontSize: 11.5 }}>excluye node_modules · .env · context/ · reference/</span></div><button className="btn" style={{ marginTop: 12 }}>⬇ Descargar</button></div>}
+    </Modal>
+  );
+}
+
+/* ---- Command palette ---- */
+function Palette({ open, onClose, onNav, onOpenProject }) {
+  const [q, setQ] = useState(''); const [sel, setSel] = useState(0); const inp = useRef(null);
+  const actions = [
+    ...NAV.map(n => ({ id: n.id, label: 'Ir a ' + n.label, em: n.em, kind: 'nav' })),
+    ...PROJECTS.map(p => ({ id: p.id, label: 'Abrir · ' + p.name, em: '▸', kind: 'proj', p })),
+    { id: 'deploy', label: 'Deploy demo', em: '▶', kind: 'cmd' }, { id: 'zip', label: 'Build ZIP', em: '⊞', kind: 'cmd' },
+  ];
+  const f = actions.filter(a => a.label.toLowerCase().includes(q.toLowerCase()));
+  useEffect(() => { if (open) { setQ(''); setSel(0); setTimeout(() => inp.current?.focus(), 30); } }, [open]);
+  useEffect(() => { setSel(0); }, [q]);
+  const run = a => { if (!a) return; if (a.kind === 'proj') onOpenProject(a.p); else onNav(a.id); onClose(); };
+  if (!open) return null;
+  return (
+    <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 320, background: 'rgba(0,8,2,0.6)', backdropFilter: 'blur(4px)', display: 'grid', placeItems: 'start center', paddingTop: '12vh' }}>
+      <div className="panelc fade" onClick={e => e.stopPropagation()} style={{ width: 'min(560px,92vw)', padding: 12, boxShadow: 'var(--glow),0 20px 50px -10px rgba(0,0,0,.8)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', borderBottom: '1px solid var(--line)', marginBottom: 8, fontFamily: 'var(--term)' }}>
+          <span style={{ fontSize: 16, color: 'var(--accent)' }}>{'>'}</span>
+          <input ref={inp} value={q} onChange={e => setQ(e.target.value)} onKeyDown={e => { if (e.key === 'ArrowDown') { e.preventDefault(); setSel(s => Math.min(f.length - 1, s + 1)); } else if (e.key === 'ArrowUp') { e.preventDefault(); setSel(s => Math.max(0, s - 1)); } else if (e.key === 'Enter') run(f[sel]); }} placeholder="buscar comandos, proyectos…" style={{ flex: 1, border: 'none', background: 'none', outline: 'none', fontFamily: 'var(--term)', fontSize: 15, color: 'var(--tx)' }} />
+          <span className="tag">ESC</span>
+        </div>
+        <div style={{ maxHeight: 340, overflowY: 'auto' }}>
+          {f.map((a, i) => <div key={a.id + a.kind} onMouseEnter={() => setSel(i)} onClick={() => run(a)} style={{ display: 'flex', alignItems: 'center', gap: 11, padding: '10px 13px', borderRadius: 4, cursor: 'pointer', background: i === sel ? 'rgba(0,255,65,0.12)' : 'transparent', color: i === sel ? 'var(--accent)' : 'var(--tx)', fontFamily: 'var(--term)', border: i === sel ? '1px solid var(--accent)' : '1px solid transparent' }}><span style={{ fontSize: 15 }}>{a.em}</span>{a.label}</div>)}
+          {f.length === 0 && <div style={{ padding: 24, textAlign: 'center', color: 'var(--tx-dim)', fontFamily: 'var(--term)' }}>sin coincidencias</div>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ---- App shell ---- */
+const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+  "palette": ["#00ff41", "#00b894"],
+  "light": false,
+  "rain": true
+}/*EDITMODE-END*/;
+
+const PALETTES = {
+  'Matrix verde': ['#00ff41', '#00b894'],
+  'Amber CRT': ['#ffb000', '#ff7b00'],
+  'Ice / cyan': ['#00d9ff', '#0090ff'],
+  'Red pill': ['#ff3131', '#b00020'],
+  'Violeta': ['#b46fff', '#7c3aed'],
+};
+
+/* ---- Boot ---- */
+function MatrixBoot({ onDone }) {
+  const steps = [
+    { s: 'estableciendo conexión segura', e: '◇' },
+    { s: 'descifrando clave RSA-4096', e: '⚿' },
+    { s: 'montando sistema de archivos', e: '▮' },
+    { s: 'despertando daemons IA', e: '◈' },
+    { s: 'inyectando contexto del proyecto', e: '⊟' },
+    { s: 'ACCESO CONCEDIDO', e: '●' },
+  ];
+  const [n, setN] = useState(0);
+  const [fade, setFade] = useState(false);
+  useEffect(() => {
+    if (n < steps.length) {
+      const t = setTimeout(() => setN(n + 1), n === 0 ? 280 : 340 + Math.random() * 180);
+      return () => clearTimeout(t);
+    }
+    const a = setTimeout(() => setFade(true), 560);
+    const b = setTimeout(onDone, 1120);
+    return () => { clearTimeout(a); clearTimeout(b); };
+  }, [n]);
+  const pct = Math.round((n / steps.length) * 100);
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 900, display: 'grid', placeItems: 'center',
+      background: 'radial-gradient(circle at 50% 35%,#08140a,#020402 70%)',
+      transition: 'opacity .5s ease', opacity: fade ? 0 : 1, pointerEvents: fade ? 'none' : 'auto',
+    }}>
+      <div style={{ textAlign: 'center', position: 'relative', zIndex: 2, width: 'min(440px,88vw)' }}>
+        <div style={{ fontFamily: 'var(--term)', fontSize: 92, lineHeight: 1, color: 'var(--accent)', textShadow: 'var(--glow)', animation: 'flick 2.4s infinite' }}>鍛</div>
+        <div style={{ fontFamily: 'var(--display)', fontSize: 44, lineHeight: 1, color: 'var(--accent)', marginTop: 10, textShadow: 'var(--glow)' }}>ThemeForge</div>
+        <div style={{ fontFamily: 'var(--term)', color: 'var(--tx-dim)', letterSpacing: '.42em', fontSize: 12, marginTop: 6 }}>// SISTEMA DE FORJA v3.0</div>
+        <div style={{ minHeight: 24, marginTop: 26, fontFamily: 'var(--term)', color: n >= steps.length ? 'var(--accent)' : 'var(--tx)', fontSize: 14.5, textShadow: n >= steps.length ? 'var(--glow)' : 'none' }}>
+          {n < steps.length
+            ? <span className="fade" key={n}>{steps[n].e} {steps[n].s}<span style={{ animation: 'blinkk 1s infinite' }}> ▊</span></span>
+            : <span>{steps[steps.length - 1].e} {steps[steps.length - 1].s}</span>}
+        </div>
+        <div style={{ height: 10, background: '#020402', border: '1px solid var(--line)', borderRadius: 2, marginTop: 18, overflow: 'hidden' }}>
+          <div style={{ height: '100%', width: pct + '%', background: 'linear-gradient(90deg,var(--accent2),var(--accent))', boxShadow: '0 0 8px var(--accent)', transition: 'width .35s cubic-bezier(.3,1,.5,1)' }} />
+        </div>
+        <div style={{ marginTop: 8, fontFamily: 'var(--term)', color: 'var(--tx-dim)', fontSize: 13 }}>{pct}%</div>
+        <div style={{ marginTop: 22, display: 'flex', gap: 16, justifyContent: 'center', fontFamily: 'var(--term)', fontSize: 20 }}>
+          {Object.values(AGENTS).map((a, i) => (
+            <span key={i} style={{ color: a.color, animation: `blinkk 1.4s ease-in-out ${i * 0.18}s infinite` }}>{a.em}</span>
+          ))}
+        </div>
+      </div>
+      <style>{`
+        @keyframes blinkk{0%,49%{opacity:1}50%,100%{opacity:.25}}
+        @keyframes flick{0%,100%{opacity:1}92%{opacity:1}94%{opacity:.4}96%{opacity:1}}
+      `}</style>
+    </div>
+  );
+}
+
+function App() {
+  const [t, setTweak] = useTweaks(TWEAK_DEFAULTS);
+  const [booted, setBooted] = useState(false);
+  const [route, setRoute] = useState('gallery');
+  const [project, setProject] = useState(null);
+  const [modal, setModal] = useState(null);
+  const [palette, setPalette] = useState(false);
+  useEffect(() => {
+    const r = document.documentElement.style;
+    const [a, b] = Array.isArray(t.palette) ? t.palette : ['#00ff41', '#00b894'];
+    r.setProperty('--accent', a); r.setProperty('--accent2', b);
+    r.setProperty('--glow', `0 0 12px ${a}88`);
+    r.setProperty('--rain', t.rain ? '1' : '0');
+    document.body.classList.toggle('light', t.light);
+  }, [t]);
+  useEffect(() => { startRain(); }, []);
+  useEffect(() => {
+    const h = e => { if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); setPalette(o => !o); } };
+    window.addEventListener('keydown', h); return () => window.removeEventListener('keydown', h);
+  }, []);
+
+  const nav = (id) => { setProject(null); setRoute(id); };
+  const openProject = (p) => { setProject(p); setRoute('project'); };
+  const titles = { gallery: '▤ Galería', new: '+ Nuevo proyecto', cost: '$ Coste de IA', compare: '⇄ Comparar agentes', operator: '⌬ Mission Control', market: '⊞ Market Analyzer', licensing: '⚿ Licencias', settings: '⚙ Ajustes', project: '▸ ' + (project ? project.name : '') };
+
+  return (
+    <div className="app">
+      {!booted && <MatrixBoot onDone={() => setBooted(true)} />}
+      <div className="side">
+        <div className="brand"><span className="gl">ThemeForge</span><small>// MATRIX BUILD</small></div>
+        <div className="nav">
+          {NAV.map(n => (
+            <button key={n.id} className={'navi' + (route === n.id ? ' on' : '')} onClick={() => nav(n.id)}>
+              <span className="ico">{n.em}</span> {n.label} <span className="jp">{n.jp}</span>
+            </button>
+          ))}
+        </div>
+        <div className="agents">
+          <div className="lbl">daemons IA</div>
+          {Object.entries(AGENTS).map(([k, a], i) => (
+            <div className="agrow" key={k}><span className="em" style={{ color: a.color }}>{a.em}</span> {a.label}<span className="dot" style={{ background: i < 2 ? a.color : 'var(--line)', boxShadow: i < 2 ? `0 0 6px ${a.color}` : 'none' }} /></div>
+          ))}
+        </div>
+      </div>
+
+      <div className="main">
+        <div className="bar">
+          <h1 className="h1">{titles[route]}</h1>
+          <div className="search" onClick={() => setPalette(true)} style={{ cursor: 'pointer' }}><span style={{ color: 'var(--accent)' }}>{'>'}</span> <input placeholder="buscar…  ⌘K" readOnly style={{ cursor: 'pointer' }} /></div>
+          <button className="btn pri" onClick={() => nav('new')}>+ Nuevo</button>
+        </div>
+        {route === 'gallery' && <Gallery onOpen={openProject} />}
+        {route === 'new' && <NewProject />}
+        {route === 'cost' && <Cost />}
+        {route === 'compare' && <Compare />}
+        {route === 'operator' && <Operator />}
+        {route === 'market' && <Market />}
+        {route === 'licensing' && <Licensing />}
+        {route === 'settings' && <Settings />}
+        {route === 'project' && <ProjectWindow p={project || PROJECTS[0]} onBack={() => nav('gallery')} onDeploy={() => setModal('deploy')} onBuild={() => setModal('build')} />}
+      </div>
+
+      {modal === 'deploy' && <DeployModal onClose={() => setModal(null)} />}
+      {modal === 'build' && <BuildModal onClose={() => setModal(null)} />}
+      <Palette open={palette} onClose={() => setPalette(false)} onNav={nav} onOpenProject={openProject} />
+
+      <TweaksPanel title="Tweaks">
+        <TweakSection label="Phosphor" />
+        <TweakColor label="Paleta" value={t.palette} options={Object.values(PALETTES)} onChange={v => setTweak('palette', v)} />
+        <TweakToggle label="Modo claro" value={t.light} onChange={v => setTweak('light', v)} />
+        <TweakSection label="Atmósfera" />
+        <TweakToggle label="Lluvia digital" value={t.rain} onChange={v => setTweak('rain', v)} />
+      </TweaksPanel>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);

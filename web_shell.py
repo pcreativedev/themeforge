@@ -36,6 +36,34 @@ from PyQt6.QtWidgets import QWidget, QVBoxLayout, QLabel
 WEBUI_DIR = Path(__file__).resolve().parent / "webui" / "neotokyo"
 TERMINAL_DIR = Path(__file__).resolve().parent / "terminal"
 
+# Bootstrap del puente inyectado en CUALQUIER prototipo (tras qwebchannel.js).
+# Define window.tfApplyTheme + window.tfBridge / tfBridgeReady, y aplica las
+# CSS vars del tema activo. Idempotente.
+_BRIDGE_BOOTSTRAP_JS = r"""
+(function(){
+  window.tfApplyTheme = function(vars){
+    if(!vars) return; var r=document.documentElement;
+    Object.keys(vars).forEach(function(k){ r.style.setProperty(k, vars[k]); });
+  };
+  try { var d=window.__TF_DATA__||{}; var cur=d.current_theme;
+    var t=(d.themes||[]).find(function(x){return x.k===cur;});
+    if(t&&t.vars) window.tfApplyTheme(t.vars);
+  } catch(e){}
+  if (window.__tfBridgeInit) return; window.__tfBridgeInit = true;
+  window.tfBridge = null;
+  window.tfBridgeReady = new Promise(function(resolve){
+    function connect(){
+      if(typeof qt==='undefined' || !qt.webChannelTransport){ return resolve(null); }
+      new QWebChannel(qt.webChannelTransport, function(ch){
+        window.tfBridge = ch.objects.bridge; resolve(window.tfBridge);
+      });
+    }
+    if(document.readyState!=='loading') connect();
+    else window.addEventListener('DOMContentLoaded', connect);
+  });
+})();
+"""
+
 
 def _free_port() -> int:
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -213,6 +241,32 @@ def _web_theme_packs() -> list:
     return out
 
 
+# Paleta de swatch para las cards de los prototipos web (color de preview).
+_PROTO_META = {
+    "neotokyo": {"label": "Neo-Tokyo", "jp": "ネオ東京", "bg": "#04060c", "acc": "#00f0ff", "acc2": "#ff2e88"},
+    "matrix":   {"label": "Matrix", "jp": "マトリックス", "bg": "#040804", "acc": "#00ff41", "acc2": "#00b894"},
+    "kawaii":   {"label": "Kawaii", "jp": "カワイイ", "bg": "#fff5fa", "acc": "#ff8fc7", "acc2": "#b9a3ff"},
+}
+
+
+def _web_prototypes() -> list:
+    """Prototipos web completos (carpetas en webui/ con index.html). Cada uno es
+    un DISEÑO entero con su splash; cambiar a uno recarga el WebShell."""
+    out = []
+    base = WEBUI_DIR.parent
+    if not base.is_dir():
+        return out
+    for d in sorted(base.iterdir()):
+        if not d.is_dir() or d.name == "themes" or not (d / "index.html").is_file():
+            continue
+        m = _PROTO_META.get(d.name, {"label": d.name.title(), "jp": "",
+                                     "bg": "#0b0b10", "acc": "#888", "acc2": "#aaa"})
+        out.append({"k": d.name, "label": m["label"], "jp": m["jp"],
+                    "bg": m["bg"], "acc": m["acc"], "acc2": m["acc2"],
+                    "vars": {}, "web": True, "proto": True})
+    return out
+
+
 def _themes_data() -> dict:
     try:
         import themes
@@ -221,8 +275,12 @@ def _themes_data() -> dict:
             cur = ap.get("web_theme") or themes.current_theme_name()
         except Exception:
             cur = themes.current_theme_name()
-        out = list(_web_theme_packs())
+        # Prototipos web (diseños completos) primero, luego packs recolor.
+        out = _web_prototypes() + list(_web_theme_packs())
+        _proto_keys = {p["k"] for p in out if p.get("proto")}
         for ti in themes.list_themes():
+            if ti.name in _proto_keys:  # neotokyo ya está como prototipo web
+                continue
             try:
                 pack = themes.load_theme(ti.name)
                 acc = pack.color.accent
@@ -424,6 +482,21 @@ class ThemeForgeBridge(QObject):
     compare_ready = pyqtSignal(str)
     # Resultado de suggest_stack (Vibe pre-fill): JSON {stack, template_type, prompt} o {error}.
     suggest_result = pyqtSignal(str)
+    # Pide al WebShell recargar el prototipo activo (cambio de diseño web).
+    reload_requested = pyqtSignal()
+
+    @pyqtSlot(str, result=str)
+    def use_web_theme(self, slug: str) -> str:
+        """Cambia el DISEÑO web (prototipo Neo-Tokyo/Matrix/Kawaii): persiste y
+        recarga el WebShell al prototipo elegido (cada uno con su splash propio)."""
+        try:
+            import app_prefs as ap
+            ap.set("web_theme", slug)
+            ap.set_ui_mode("web")
+            self.reload_requested.emit()
+            return json.dumps({"ok": True, "slug": slug})
+        except Exception as e:
+            return json.dumps({"ok": False, "error": str(e)})
 
     @pyqtSlot(str, result=str)
     def compare(self, prompt: str) -> str:
@@ -1285,6 +1358,7 @@ class WebShell(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self._httpd = None
+        self._port = None
         root = QVBoxLayout(self)
         root.setContentsMargins(0, 0, 0, 0)
 
@@ -1295,37 +1369,66 @@ class WebShell(QWidget):
             root.addWidget(QLabel(f"QtWebEngine no disponible: {e}"))
             return
 
-        if not (WEBUI_DIR / "index.html").is_file():
-            root.addWidget(QLabel(f"No se encuentra el prototipo en {WEBUI_DIR}"))
-            return
-
-        port = _free_port()
-        self._httpd = _serve(WEBUI_DIR, port)
+        webui_root = WEBUI_DIR.parent  # sirve TODA webui/ → /<tema>/index.html
+        self._port = _free_port()
+        self._httpd = _serve(webui_root, self._port)
 
         self._view = QWebEngineView()
         self._bridge = ThemeForgeBridge()
+        # Reload del shell cuando se cambia de prototipo web (Matrix/Kawaii/…).
+        self._bridge.reload_requested.connect(self._reload_active)
         self._channel = QWebChannel(self._view.page())
         self._channel.registerObject("bridge", self._bridge)
         self._view.page().setWebChannel(self._channel)
+        self._inject_scripts()
+        root.addWidget(self._view)
+        self._reload_active()
 
-        # Inyecta los DATOS REALES como window.__TF_DATA__ en DocumentCreation
-        # (antes de que corra cualquier script de la página), así React los lee
-        # síncronamente al montar — sin carrera con el puente asíncrono.
+    def _active_slug(self) -> str:
+        """Prototipo web activo (carpeta en webui/). Packs/temas sin carpeta →
+        prototipo base 'neotokyo' (el pack recolorea encima)."""
+        try:
+            import app_prefs as ap
+            raw = (ap.get("web_theme") or "neotokyo")
+        except Exception:
+            raw = "neotokyo"
+        slug = raw[4:] if raw.startswith("web:") else raw
+        if (WEBUI_DIR.parent / slug / "index.html").is_file():
+            return slug
+        return "neotokyo"
+
+    def _inject_scripts(self):
+        """Inyecta en DocumentCreation: (1) window.__TF_DATA__ con datos reales,
+        (2) el puente (qwebchannel + window.tfBridge + tfApplyTheme). Así CUALQUIER
+        prototipo (Neo-Tokyo/Matrix/Kawaii) recibe datos + puente sin editar su HTML."""
         try:
             from PyQt6.QtWebEngineCore import QWebEngineScript
-            data_js = "window.__TF_DATA__ = " + json.dumps(bootstrap_data()) + ";"
-            script = QWebEngineScript()
-            script.setName("tf_bootstrap_data")
-            script.setSourceCode(data_js)
-            script.setInjectionPoint(QWebEngineScript.InjectionPoint.DocumentCreation)
-            script.setWorldId(QWebEngineScript.ScriptWorldId.MainWorld)
-            script.setRunsOnSubFrames(False)
-            self._view.page().scripts().insert(script)
+            page = self._view.page()
+            # 1) datos reales.
+            s1 = QWebEngineScript()
+            s1.setName("tf_data")
+            s1.setSourceCode("window.__TF_DATA__ = " + json.dumps(bootstrap_data()) + ";")
+            s1.setInjectionPoint(QWebEngineScript.InjectionPoint.DocumentCreation)
+            s1.setWorldId(QWebEngineScript.ScriptWorldId.MainWorld)
+            page.scripts().insert(s1)
+            # 2) puente (qwebchannel.js embebido + bootstrap).
+            qwc = ""
+            qwc_file = WEBUI_DIR / "qwebchannel.js"
+            if qwc_file.is_file():
+                qwc = qwc_file.read_text(encoding="utf-8", errors="replace")
+            s2 = QWebEngineScript()
+            s2.setName("tf_bridge")
+            s2.setSourceCode(qwc + "\n" + _BRIDGE_BOOTSTRAP_JS)
+            s2.setInjectionPoint(QWebEngineScript.InjectionPoint.DocumentCreation)
+            s2.setWorldId(QWebEngineScript.ScriptWorldId.MainWorld)
+            page.scripts().insert(s2)
         except Exception as e:
-            print(f"[webshell] no se pudo inyectar __TF_DATA__: {e}")
+            print(f"[webshell] no se pudieron inyectar scripts: {e}")
 
-        self._view.setUrl(QUrl(f"http://127.0.0.1:{port}/index.html"))
-        root.addWidget(self._view)
+    def _reload_active(self):
+        from PyQt6.QtCore import QUrl
+        slug = self._active_slug()
+        self._view.setUrl(QUrl(f"http://127.0.0.1:{self._port}/{slug}/index.html"))
 
     def shutdown(self):
         if self._httpd is not None:
