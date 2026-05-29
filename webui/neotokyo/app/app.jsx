@@ -108,6 +108,7 @@ function App() {
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [booted, setBooted] = useState(false);
   const [modal, setModal] = useState(null); // 'ref' | 'deploy' | 'build'
+  const [buildLog, setBuildLog] = useState([]);
 
   // apply tweaks → CSS vars
   useEffect(() => {
@@ -152,32 +153,28 @@ function App() {
     setProject(p); setRoute('project');
   };
   const launch = (cfg) => {
-    // Crear proyecto REAL vía el shell nativo: scaffold + autoskills + UI/UX
-    // Pro, y al terminar abre la ProjectWindow nativa (terminal real).
-    if (window.tfBridge && window.tfBridge.create_project) {
-      try {
-        if (window.tfBridge.progress && window.tfBridge.progress.connect && !window.__tfProgWired) {
-          window.__tfProgWired = true;
-          window.tfBridge.progress.connect((line) => console.log('[forge]', line));
-          window.tfBridge.build_done && window.tfBridge.build_done.connect &&
-            window.tfBridge.build_done.connect((j) => {
-              let r = {}; try { r = JSON.parse(j); } catch (e) {}
-              if (r.path) { setProject({ id: r.slug, name: r.name, path: r.path, status: 'live', accent: 'var(--accent)' }); setRoute('project'); }
-            });
-        }
-        window.tfBridge.create_project(JSON.stringify(cfg));
-      } catch (e) { console.error('create_project', e); }
-      // Aviso visible: el scaffold corre en segundo plano y abrirá su ventana.
-      const b = document.createElement('div');
-      b.textContent = '⚙ Creando «' + (cfg.name || 'proyecto') + '» — se abrirá su ventana al terminar…';
-      b.style.cssText = 'position:fixed;left:50%;bottom:18px;transform:translateX(-50%);z-index:99999;' +
-        'background:#0b1020;color:#00f0ff;border:1px solid #00f0ff;border-radius:10px;padding:10px 18px;' +
-        'font:13px JetBrains Mono,monospace;box-shadow:0 0 18px rgba(0,240,255,.45)';
-      document.body.appendChild(b);
-      setTimeout(() => b.remove(), 6000);
-      return;
+    // Crear proyecto REAL: abre YA la ProjectWindow en estado «building» con el
+    // SETUP en vivo (scaffold + autoskills + UI/UX Pro + MCP); al terminar
+    // (build_done) pasa a la IA (terminal real) + preview.
+    window.__tfLastAgent = cfg.agent;
+    setBuildLog([]);
+    if (!(window.tfBridge && window.tfBridge.create_project)) {
+      setProject({ ...cfg, id: cfg.name, status: 'building', jp: '制作', accent: 'var(--accent)' }); setRoute('project'); return;
     }
-    setProject({ ...cfg, status: 'building', jp: '制作', accent: 'var(--accent)' }); setRoute('project');
+    if (!window.__tfProgWired) {
+      window.__tfProgWired = true;
+      if (window.tfBridge.progress && window.tfBridge.progress.connect)
+        window.tfBridge.progress.connect((line) => setBuildLog(l => (l.length > 1200 ? l.slice(-1200) : l).concat(line)));
+      if (window.tfBridge.build_done && window.tfBridge.build_done.connect)
+        window.tfBridge.build_done.connect((j) => { let r = {}; try { r = JSON.parse(j); } catch (e) {}
+          setProject(prev => ({ ...(prev || {}), id: r.slug || (prev && prev.id), name: r.name || (prev && prev.name), path: r.path || (prev && prev.path), agent: window.__tfLastAgent || 'claude', status: r.ok ? 'live' : 'draft', jp: '制作', accent: 'var(--accent)' }));
+          setRoute('project'); });
+    }
+    try {
+      window.tfBridge.create_project(JSON.stringify(cfg)).then((j) => { let r = {}; try { r = JSON.parse(j); } catch (e) {}
+        if (r && r.ok && r.path) { setProject({ id: r.slug, name: cfg.name, path: r.path, agent: cfg.agent, status: 'building', jp: '制作', accent: 'var(--accent)' }); setRoute('project'); }
+        else if (r && r.ok === false) tfToast('Error al crear: ' + (r.error || ''), '#ff2e88'); });
+    } catch (e) { console.error('create_project', e); }
   };
 
   const pad = t.density === 'compact' ? 0.85 : t.density === 'comfy' ? 1.15 : 1;
@@ -194,7 +191,7 @@ function App() {
           <Atmosphere />
           {route === 'gallery' && <GalleryScreen onOpen={openProject} />}
           {route === 'new' && <NewProjectScreen onLaunch={launch} onAnalyze={() => setModal('ref')} />}
-          {route === 'project' && <ProjectWindow project={project || PROJECTS[0]} onBack={() => nav('gallery')} onDeploy={() => setModal('deploy')} onBuild={() => setModal('build')} />}
+          {route === 'project' && <ProjectWindow project={project || PROJECTS[0]} onBack={() => nav('gallery')} onDeploy={() => setModal('deploy')} onBuild={() => setModal('build')} buildLog={buildLog} />}
           {route === 'cost' && <CostScreen />}
           {route === 'compare' && <CompareScreen />}
           {route === 'operator' && <OperatorScreen />}

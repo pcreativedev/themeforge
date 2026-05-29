@@ -88,28 +88,60 @@ function RealTerminal({ path, running }) {
   return <iframe src={url} style={{ flex: 1, width: '100%', height: '100%', border: 'none', background: '#0c0c0d' }} />;
 }
 
-// Preview REAL: arranca el dev server del proyecto (preview.py) y lo embebe.
+// Preview REAL con controles (Start/Stop/Reload/Navegador/Re-detectar), igual
+// que la barra de preview de la ProjectWindow nativa.
 function RealPreview({ path, accent, narrow }) {
+  const B = window.tfBridge;
   const [url, setUrl] = useState(null);
   const [err, setErr] = useState(null);
+  const [status, setStatus] = useState('idle');
+  const [k, setK] = useState(0);
   useEffect(() => {
-    if (!window.tfBridge || !window.tfBridge.start_preview || !path) return;
-    const onReady = (j) => {
-      let r = {}; try { r = JSON.parse(j); } catch (e) {}
-      if (r.path === path) { if (r.url) setUrl(r.url); else setErr(r.error || 'error'); }
-    };
-    if (window.tfBridge.preview_ready && window.tfBridge.preview_ready.connect)
-      window.tfBridge.preview_ready.connect(onReady);
-    window.tfBridge.start_preview(path);
-    return () => {
-      if (window.tfBridge.preview_ready && window.tfBridge.preview_ready.disconnect)
-        try { window.tfBridge.preview_ready.disconnect(onReady); } catch (e) {}
-    };
+    if (!B || !B.preview_ready || !B.preview_ready.connect) return;
+    const onReady = (j) => { let r = {}; try { r = JSON.parse(j); } catch (e) {} if (r.path !== path) return;
+      if (r.stopped) { setUrl(null); setStatus('stopped'); return; }
+      if (r.url) { setUrl(r.url); setErr(null); setStatus('up'); } else if (r.error) { setErr(r.error); setStatus('error'); } };
+    B.preview_ready.connect(onReady);
+    return () => { try { B.preview_ready.disconnect(onReady); } catch (e) {} };
   }, [path]);
-  if (!window.tfBridge || !path) return <LivePreview accent={accent} narrow={narrow} />;
-  if (err) return <div className="mono faint" style={{ padding: 24 }}>// preview: {err}</div>;
-  if (!url) return <div className="mono faint" style={{ padding: 24 }}>// arrancando dev server real…</div>;
-  return <iframe src={url} style={{ width: '100%', height: '72vh', border: 'none', background: '#fff', borderRadius: 8 }} />;
+  const start = () => { if (B && B.start_preview && path) { setErr(null); setStatus('starting'); B.start_preview(path); } };
+  const stop = () => { if (B && B.stop_preview && path) { B.stop_preview(path); setUrl(null); setStatus('stopped'); } };
+  const reload = () => setK(x => x + 1);
+  const openExt = () => { if (B && B.open_preview_external && path) B.open_preview_external(path); };
+  const redetect = () => { if (B && B.refresh_profile && path) B.refresh_profile(path).then(j => { let r = {}; try { r = JSON.parse(j); } catch (e) {} tfToast(r.detected ? ('✓ preview detectable: ' + r.profile) : 'aún sin preview (instala deps o corre setup)', r.detected ? '#9dff3c' : '#ffb000'); }); };
+  useEffect(() => { if (B && path && status === 'idle') start(); }, [path]);
+  if (!B || !path) return <LivePreview accent={accent} narrow={narrow} />;
+  const cbtn = { cursor: 'pointer', padding: '5px 10px', borderRadius: 7, fontSize: 11.5, fontFamily: 'var(--font-display)', background: 'transparent', border: '1px solid var(--line-bright)', color: 'var(--tx-dim)' };
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', width: '100%', height: '100%', minHeight: 0 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 10px', borderBottom: '1px solid var(--line)', flexWrap: 'wrap' }}>
+        <button style={{ ...cbtn, opacity: (status === 'up' || status === 'starting') ? 0.4 : 1 }} onClick={start}>▶ Start</button>
+        <button style={{ ...cbtn, opacity: status !== 'up' ? 0.4 : 1 }} onClick={stop}>■ Stop</button>
+        <button style={{ ...cbtn, opacity: status !== 'up' ? 0.4 : 1 }} onClick={reload}>↻ Reload</button>
+        <button style={{ ...cbtn, opacity: status !== 'up' ? 0.4 : 1 }} onClick={openExt}>🗗 Navegador</button>
+        <button style={cbtn} onClick={redetect}>🔄 Re-detectar</button>
+        <input className="mono" readOnly value={url || ''} placeholder="URL del preview…" style={{ flex: 1, minWidth: 100, background: 'var(--bg-void)', border: '1px solid var(--line)', borderRadius: 7, padding: '5px 9px', color: 'var(--tx-dim)', fontSize: 11, outline: 'none' }} />
+      </div>
+      <div style={{ flex: 1, display: 'grid', placeItems: 'stretch', minHeight: 0, overflow: 'auto', background: '#070b16' }}>
+        {err ? <div className="mono faint" style={{ placeSelf: 'center', padding: 24 }}>// preview: {err}</div>
+          : status === 'stopped' ? <div className="mono faint" style={{ placeSelf: 'center', padding: 24 }}>■ preview detenido — pulsa ▶ Start</div>
+          : !url ? <div className="mono faint" style={{ placeSelf: 'center', padding: 24 }}>// arrancando dev server real…</div>
+          : <iframe key={k} src={url} style={{ width: narrow ? 320 : '100%', maxWidth: '100%', height: '100%', minHeight: 320, border: 'none', background: '#fff', justifySelf: 'center' }} />}
+      </div>
+    </div>
+  );
+}
+
+// Log del setup/scaffold en vivo (señal progress) mientras se construye.
+function BuildLog({ lines }) {
+  const box = useRef(null);
+  useEffect(() => { if (box.current) box.current.scrollTop = box.current.scrollHeight; }, [lines]);
+  return (
+    <div ref={box} className="mono" style={{ flex: 1, padding: 16, fontSize: 12, lineHeight: 1.7, overflowY: 'auto', minHeight: 0, whiteSpace: 'pre-wrap', color: 'var(--tx-dim)', background: '#03050b' }}>
+      {(lines && lines.length) ? lines.join('') : '> esperando salida del scaffold…'}
+      <div style={{ color: 'var(--accent)' }}>▊ instalando (scaffold · autoskills · UI/UX Pro · MCP)…</div>
+    </div>
+  );
 }
 
 function tfToast(msg, color) {
@@ -122,12 +154,14 @@ function tfToast(msg, color) {
   setTimeout(() => b.remove(), 6000);
 }
 
-function ProjectWindow({ project, onBack, onDeploy, onBuild }) {
+function ProjectWindow({ project, onBack, onDeploy, onBuild, buildLog }) {
   const p = project;
   const [tab, setTab] = useState('desktop');
   const [running, setRunning] = useState(false);
   const [pushed, setPushed] = useState(false);
   const [reply, setReply] = useState('');
+  const building = p.status === 'building';
+  const B = window.tfBridge;
   const ag = AGENTS[p.agent || 'claude'] || { color: 'var(--accent)', glyph: '◆', label: p.agent || 'agent' };
 
   useEffect(() => { const t = setTimeout(() => setRunning(true), 600); return () => clearTimeout(t); }, []);
@@ -173,8 +207,12 @@ function ProjectWindow({ project, onBack, onDeploy, onBuild }) {
         <span style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 12, color: ag.color }}>
           <span>{ag.glyph}</span> {ag.label}
         </span>
-        <Btn icon="folderOpen" variant="ghost" onClick={() => window.tfBridge && window.tfBridge.open_folder && window.tfBridge.open_folder(p.path)}>Folder</Btn>
-        <Btn icon="code" variant="ghost" onClick={() => window.tfBridge && window.tfBridge.open_vscode && window.tfBridge.open_vscode(p.path)}>VSCode</Btn>
+        <Btn icon="sparkles" variant="ghost" onClick={() => window.tfNav && window.tfNav('new')}>Nuevo</Btn>
+        <Btn icon="folderOpen" variant="ghost" onClick={() => window.tfNav && window.tfNav('gallery')}>Abrir otro</Btn>
+        <Btn icon="folderOpen" variant="ghost" onClick={() => B && B.open_folder && B.open_folder(p.path)}>Folder</Btn>
+        <Btn icon="code" variant="ghost" onClick={() => B && B.open_vscode && B.open_vscode(p.path)}>VSCode</Btn>
+        <Btn icon="terminal" variant="ghost" onClick={() => B && B.open_external_terminal && B.open_external_terminal(p.path)}>Terminal ext.</Btn>
+        <Btn icon="rocket" variant="ghost" onClick={() => window.tfNav && window.tfNav('operator')}>Operator</Btn>
         <Btn icon="check" variant="ghost" onClick={realPreflight}>Pre-flight</Btn>
         <Btn icon="box" variant="ghost" onClick={() => {
           if (window.tfBridge && window.tfBridge.build_zip && p.path) {
@@ -185,11 +223,12 @@ function ProjectWindow({ project, onBack, onDeploy, onBuild }) {
             }).catch(e => tfToast('ZIP error: ' + e, '#ff2e88'));
           } else onBuild && onBuild();
         }}>Build ZIP</Btn>
+        <Btn icon="github" variant="ghost" onClick={() => { if (B && B.github_create && p.path) { tfToast('⎇ GitHub: creando/empujando repo… mira el log'); B.github_create(p.path); } }}>GitHub</Btn>
         <Btn icon="github" variant={pushed ? '' : 'primary'} onClick={() => {
           if (window.tfBridge && window.tfBridge.git_push && p.path) {
             tfToast('⟳ git add+commit+push…'); window.tfBridge.git_push(p.path); setPushed(true);
           } else setPushed(true);
-        }}>{pushed ? '✓ Pushed' : 'Push to GitHub'}</Btn>
+        }}>{pushed ? '✓ Pushed' : 'Push'}</Btn>
         <Btn icon="rocket" onClick={() => {
           if (window.tfBridge && window.tfBridge.deploy_demo && p.path) {
             const prov = prompt('Deploy a (netlify/vercel/cloudflare/surge):', 'surge');
@@ -231,12 +270,12 @@ function ProjectWindow({ project, onBack, onDeploy, onBuild }) {
             <button className="btn btn-ghost" style={{ padding: '5px 8px' }}><Icon name="refresh" size={13} /></button>
             <button className="btn btn-ghost" style={{ padding: '5px 8px' }}><Icon name="external" size={13} /></button>
           </div>
-          <div style={{ flex: 1, overflow: 'auto', background: 'radial-gradient(circle at 50% 0%, #0a1020, #04060c)', display: 'grid', placeItems: 'center', padding: 20, minHeight: 0 }}>
-            {tab === 'code'
-              ? <CodePeek />
-              : <div className="neon-edge" style={{ width: frameW[tab], maxWidth: '100%', background: '#070b16', borderRadius: 8, overflow: 'hidden', transition: 'width 0.3s' }}>
-                  <RealPreview path={p.path} accent={p.accent || 'var(--accent)'} narrow={tab === 'mobile'} />
-                </div>}
+          <div style={{ flex: 1, overflow: 'hidden', background: 'radial-gradient(circle at 50% 0%, #0a1020, #04060c)', display: 'grid', placeItems: 'stretch', minHeight: 0 }}>
+            {building
+              ? <div className="mono faint" style={{ placeSelf: 'center', padding: 24 }}>⟳ preview disponible cuando termine el scaffold…</div>
+              : tab === 'code'
+              ? <div style={{ overflow: 'auto', placeSelf: 'center' }}><CodePeek /></div>
+              : <RealPreview path={p.path} accent={p.accent || 'var(--accent)'} narrow={tab === 'mobile'} />}
           </div>
         </div>
 
@@ -244,19 +283,19 @@ function ProjectWindow({ project, onBack, onDeploy, onBuild }) {
         <div style={{ display: 'flex', flexDirection: 'column', minHeight: 0 }}>
           <div style={{ padding: '10px 16px', borderBottom: '1px solid var(--line)', display: 'flex', alignItems: 'center', gap: 8 }}>
             <Icon name="terminal" size={15} style={{ color: 'var(--accent)' }} />
-            <span style={{ fontSize: 12.5, fontWeight: 600 }}>Agent Terminal</span>
-            <span className="chip" style={{ marginLeft: 'auto', fontSize: 9.5 }}>xterm · node-pty</span>
-            {running && <span style={{ width: 7, height: 7, borderRadius: 99, background: 'var(--codex)', boxShadow: '0 0 8px var(--codex)', animation: 'blink 1.1s infinite' }} />}
+            <span style={{ fontSize: 12.5, fontWeight: 600 }}>{building ? 'Setup inicial' : 'Agent Terminal'}</span>
+            <span className="chip" style={{ marginLeft: 'auto', fontSize: 9.5 }}>{building ? 'scaffold · skills · UI Pro' : 'xterm · node-pty'}</span>
+            {(running || building) && <span style={{ width: 7, height: 7, borderRadius: 99, background: 'var(--codex)', boxShadow: '0 0 8px var(--codex)', animation: 'blink 1.1s infinite' }} />}
           </div>
-          <RealTerminal path={p.path} running={running} />
+          {building ? <BuildLog lines={buildLog} /> : <RealTerminal path={p.path} running={running} />}
           {/* reply box */}
-          <div style={{ borderTop: '1px solid var(--line)', padding: 12, display: 'flex', gap: 8 }}>
+          {!building && <div style={{ borderTop: '1px solid var(--line)', padding: 12, display: 'flex', gap: 8 }}>
             <input value={reply} onChange={e => setReply(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter' && reply.trim()) { setReply(''); setRunning(false); setTimeout(() => setRunning(true), 60); } }}
               placeholder="Responder al agente…  (⏎ envía)"
               style={{ flex: 1, background: 'var(--bg-void)', border: '1px solid var(--line-bright)', borderRadius: 8, padding: '9px 12px', color: 'var(--tx)', fontFamily: 'var(--font-mono)', fontSize: 12, outline: 'none' }} />
             <Btn variant="primary" icon="play" onClick={() => { setRunning(false); setTimeout(() => setRunning(true), 60); }}>Run</Btn>
-          </div>
+          </div>}
         </div>
       </div>
     </div>
