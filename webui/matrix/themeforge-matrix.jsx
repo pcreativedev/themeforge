@@ -399,31 +399,44 @@ function Cost() {
   );
 }
 
-/* ---- Compare ---- */
+/* ---- Compare (terminales reales lado a lado) ---- */
+function AgentPane({ k, url }) {
+  const a = AGENTS[k] || { color: 'var(--accent)', em: '◆', label: k };
+  return (
+    <div className="panelc" style={{ padding: 0, overflow: 'hidden', borderColor: url ? a.color : 'var(--line)', display: 'flex', flexDirection: 'column', minHeight: 320 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', borderBottom: '1px solid var(--line)', fontFamily: 'var(--term)' }}>
+        <span style={{ color: a.color, fontSize: 15 }}>{a.em}</span>
+        <span style={{ fontSize: 12.5, fontWeight: 600 }}>{a.label}</span>
+        {!url && <span style={{ marginLeft: 'auto', width: 6, height: 6, borderRadius: 99, background: a.color, boxShadow: `0 0 8px ${a.color}` }} />}
+      </div>
+      {url ? <iframe src={url} style={{ flex: 1, width: '100%', minHeight: 280, border: 'none', background: '#040804' }} />
+        : <div style={{ padding: 16, flex: 1, color: 'var(--tx-dim)', fontFamily: 'var(--term)' }}>// esperando terminal real…</div>}
+    </div>
+  );
+}
 function Compare() {
-  const [run, setRun] = useState(false);
-  const outs = {
-    claude: ['> analizando…', 'export function Pricing()', '[OK] 1.2s'],
-    codex: ['> tokenizando…', 'const Pricing = () =>', '[OK] 1.6s'],
-    gemini: ['> planeando…', 'function PricingGrid()', '[OK] 1.4s'],
-    opencode: ['> cargando local…', 'export const Pricing', '[OK] 3.1s'],
-  };
+  const real = !!(window.tfBridge && window.tfBridge.compare);
+  const [prompt, setPrompt] = useState('Crea una sección de pricing de 3 tiers con toggle anual');
+  const [urls, setUrls] = useState({});
+  const [providers, setProviders] = useState([]);
+  useEffect(() => {
+    if (!real || !window.tfBridge.compare_ready || !window.tfBridge.compare_ready.connect) return;
+    const onReady = (j) => { let r = {}; try { r = JSON.parse(j); } catch (e) {} if (r.provider && r.url) setUrls(u => ({ ...u, [r.provider]: r.url })); };
+    window.tfBridge.compare_ready.connect(onReady);
+    return () => { try { window.tfBridge.compare_ready.disconnect(onReady); } catch (e) {} };
+  }, []);
+  const go = () => { if (!real || !prompt.trim()) return; setUrls({}); setProviders([]); window.tfBridge.compare(prompt).then(j => { let r = {}; try { r = JSON.parse(j); } catch (e) {} setProviders(r.providers || []); }); };
+  const shownKeys = providers.length ? providers : Object.keys(AGENTS);
   return (
     <div className="page fade">
       <h2 className="sec">⇄ Comparar agentes <span style={{ fontFamily: 'var(--term)', fontSize: 13, color: 'var(--tx-dim)' }}>比較</span></h2>
       <div className="panelc" style={{ display: 'flex', gap: 10, marginBottom: 18 }}>
-        <input className="ta" style={{ minHeight: 0, padding: '11px 14px' }} defaultValue="Crea una sección de pricing de 3 tiers con toggle anual" />
-        <button className="btn pri" onClick={() => { setRun(false); setTimeout(() => setRun(true), 50); }}>▶ Ejecutar</button>
+        <input className="ta" style={{ minHeight: 0, padding: '11px 14px', flex: 1 }} value={prompt} onChange={e => setPrompt(e.target.value)} />
+        <button className="btn pri" onClick={go}>{providers.length ? '↻ Re-run' : '▶ Ejecutar'}</button>
       </div>
+      {!real && <div className="panelc" style={{ textAlign: 'center', color: 'var(--tx-dim)', fontFamily: 'var(--term)', marginBottom: 16 }}>// compare no disponible (sin puente)</div>}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-        {Object.entries(AGENTS).map(([k, a]) => (
-          <div className="panelc" key={k} style={{ padding: 16 }}>
-            <div style={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10, fontFamily: 'var(--term)' }}><span style={{ fontSize: 16, color: a.color }}>{a.em}</span> {a.label} <span style={{ color: 'var(--tx-dim)', fontSize: 11 }}>pid:{a.pid}</span></div>
-            <div style={{ background: 'var(--bg)', border: '1px solid var(--line)', borderRadius: 4, padding: 12, fontSize: 12.5, lineHeight: 1.9, minHeight: 80, fontFamily: 'var(--term)', color: 'var(--tx-dim)' }}>
-              {run ? outs[k].map((l, i) => <div key={i} style={{ color: l.startsWith('[OK]') ? a.color : 'var(--tx-dim)' }}>{l}</div>) : <span>esperando ejecución…</span>}
-            </div>
-          </div>
-        ))}
+        {shownKeys.map(k => <AgentPane key={k} k={k} url={urls[k]} />)}
       </div>
     </div>
   );
@@ -515,6 +528,19 @@ function Settings() {
         </div>
       </div>
 
+      <h2 className="sec" style={{ margin: '26px 0 14px' }}>⚿ Credenciales <span style={{ fontFamily: 'var(--term)', fontSize: 13, color: 'var(--tx-dim)' }}>鍵</span></h2>
+      <div className="panelc" style={{ padding: '6px 18px 14px' }}>
+        {((window.__TF_DATA__ && window.__TF_DATA__.creds) || [{ id: 'anthropic', label: 'Anthropic API key', configured: false }, { id: 'openrouter', label: 'OpenRouter key', configured: false }]).map(cr => (
+          <div key={cr.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 0', borderBottom: '1px solid var(--line)', fontFamily: 'var(--term)' }}>
+            <span style={{ color: 'var(--accent)', fontSize: 14, width: 16 }}>◈</span>
+            <div style={{ flex: 1 }}><div style={{ fontSize: 13.5 }}>{cr.label}</div><div style={{ fontSize: 11, marginTop: 2, color: 'var(--tx-dim)' }}>{cr.configured ? ('✓ configurada' + (cr.via === 'oauth' ? ' · OAuth/CLI login' : cr.via === 'gh-cli' ? ' · gh CLI' : ' · API key')) : 'sin configurar'}</div></div>
+            <span style={{ width: 7, height: 7, borderRadius: 99, background: cr.configured ? 'var(--accent)' : 'var(--tx-dim)', boxShadow: cr.configured ? '0 0 8px var(--accent)' : 'none' }} />
+            <button className="btn" style={{ padding: '6px 10px' }} onClick={() => { if (!(window.tfBridge && window.tfBridge.set_credential)) return; const v = prompt('Pega la ' + cr.label + ' (vacío para borrar):'); if (v === null) return; window.tfBridge.set_credential(cr.id, v).then(() => location.reload()); }}>✎ Editar</button>
+          </div>
+        ))}
+        <div style={{ fontSize: 11, marginTop: 12, color: 'var(--tx-dim)', fontFamily: 'var(--term)' }}>Las claves se guardan en ~/.config/themeforge/keys.json (chmod 0600) · nunca en el proyecto.</div>
+      </div>
+
       <h2 className="sec" style={{ margin: '26px 0 14px' }}>⇆ MCP servers <span style={{ fontFamily: 'var(--term)', fontSize: 13, color: 'var(--tx-dim)' }}>接続</span></h2>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(220px,1fr))', gap: 12 }}>
         {MCP_SERVERS.map(m => (
@@ -531,7 +557,7 @@ function Settings() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(8,1fr)', gap: 4, maxWidth: 280, margin: '0 auto 18px' }}>
           {Array.from({ length: 24 }, (_, i) => { const a = [9, 12, 18].includes(i); const cols = ['#00ff66', '#00d9ff', '#ffb000']; return <div key={i} style={{ aspectRatio: '1', borderRadius: 3, background: a ? cols[i % 3] : 'var(--bg)', border: '1px solid var(--line)', boxShadow: a ? `0 0 8px ${cols[i % 3]}` : 'none' }} />; })}
         </div>
-        <button className="btn pri">▶ Lanzar dashboard</button>
+        <button className="btn pri" onClick={() => window.tfBridge && window.tfBridge.pixel_office_launch && window.tfBridge.pixel_office_launch().then(j => { let r = {}; try { r = JSON.parse(j); } catch (e) {} alert(r.ok ? (r.already ? 'Pixel Office ya está activo.' : '▶ Pixel Office lanzado.') : ('Error: ' + (r.error || ''))); })}>▶ Lanzar dashboard</button>
       </div>
       <style>{`#mascot{width:120px;height:120px;flex-shrink:0;}`}</style>
     </div>
@@ -816,7 +842,6 @@ function Palette({ open, onClose, onNav, onOpenProject }) {
   const actions = [
     ...NAV.map(n => ({ id: n.id, label: 'Ir a ' + n.label, em: n.em, kind: 'nav' })),
     ...PROJECTS.map(p => ({ id: p.id, label: 'Abrir · ' + p.name, em: '▸', kind: 'proj', p })),
-    { id: 'deploy', label: 'Deploy demo', em: '▶', kind: 'cmd' }, { id: 'zip', label: 'Build ZIP', em: '⊞', kind: 'cmd' },
   ];
   const f = actions.filter(a => a.label.toLowerCase().includes(q.toLowerCase()));
   useEffect(() => { if (open) { setQ(''); setSel(0); setTimeout(() => inp.current?.focus(), 30); } }, [open]);
