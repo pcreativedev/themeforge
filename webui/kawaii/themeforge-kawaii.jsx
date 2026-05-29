@@ -1205,11 +1205,22 @@ function KawaiiBoot({ onDone }) {
   );
 }
 
+function _hashProj() {
+  try {
+    const h = window.location.hash || '';
+    const m = /[#&]proj=([^&]+)/.exec(h);
+    if (!m) return null;
+    const path = decodeURIComponent(m[1]);
+    return { path, name: path.replace(/\/+$/, '').split('/').pop(), fresh: /[#&]fresh=1/.test(h) };
+  } catch (e) { return null; }
+}
 function App() {
+  const _hp = _hashProj();
+  const _isWin = !!_hp;
   const [t, setTweak] = useTweaks(TWEAK_DEFAULTS);
-  const [booted, setBooted] = useState(false);
+  const [booted, setBooted] = useState(_isWin);
   const [route, setRoute] = useState('gallery');
-  const [project, setProject] = useState(null);
+  const [project, setProject] = useState(_hp ? { id: _hp.name, name: _hp.name, path: _hp.path, fresh: _hp.fresh, status: 'live', jp: '制作' } : null);
   const [modal, setModal] = useState(null);
   const [buildLog, setBuildLog] = useState([]);
   const [palette, setPalette] = useState(false);
@@ -1228,23 +1239,21 @@ function App() {
 
   const nav = (id) => { setProject(null); setRoute(id); };
   useEffect(() => { window.tfNav = nav; }, []);
-  const openProject = (p) => { setProject(p); };  // ventana/modal aparte (no reemplaza la galería) ♡
-  // Crear proyecto REAL: abre el proyecto en una VENTANA/MODAL aparte (como la
-  // ProjectWindow nativa) con el SETUP en vivo; al terminar pasa a la IA ♡.
+  // Abre el proyecto en una VENTANA NUEVA del SO (como el nativo); fallback overlay ♡.
+  const openProject = (p) => {
+    if (!_isWin && window.tfBridge && window.tfBridge.open_project_window && p && p.path) { window.tfBridge.open_project_window(p.path, false); return; }
+    setProject(p);
+  };
   const launch = (cfg) => {
     window.__tfLastAgent = cfg.agent;
     if (!(window.tfBridge && window.tfBridge.create_project)) {
       setProject({ ...cfg, id: cfg.name, status: 'live', fresh: true, jp: '制作' }); return;
     }
-    if (!window.__tfWired) {
-      window.__tfWired = true;
-      if (window.tfBridge.build_done && window.tfBridge.build_done.connect)
-        window.tfBridge.build_done.connect((j) => { let r = {}; try { r = JSON.parse(j); } catch (e) {}
-          setProject(prev => ({ ...(prev || {}), id: r.slug || (prev && prev.id), name: r.name || (prev && prev.name), path: r.path || (prev && prev.path), agent: window.__tfLastAgent || 'claude', status: r.ok ? 'live' : 'draft', fresh: r.fresh || (prev && prev.fresh), jp: '制作' })); });
-    }
     window.tfBridge.create_project(JSON.stringify(cfg)).then(j => { let r = {}; try { r = JSON.parse(j); } catch (e) {}
-      if (r && r.ok && r.path) { setProject({ id: r.slug, name: cfg.name, path: r.path, agent: cfg.agent, status: 'live', fresh: true, jp: '制作' }); }
-      else if (r && r.ok === false) alert('Error al crear: ' + (r.error || '')); });
+      if (r && r.ok && r.path) {
+        if (window.tfBridge.open_project_window) { window.tfBridge.open_project_window(r.path, true); setRoute('gallery'); }
+        else setProject({ id: r.slug, name: cfg.name, path: r.path, agent: cfg.agent, status: 'live', fresh: true, jp: '制作' });
+      } else if (r && r.ok === false) alert('Error al crear: ' + (r.error || '')); });
   };
   const titles = { gallery: '🖼️ Galería de proyectos', new: '✨ Nuevo proyecto', cost: '💰 Coste de IA', compare: '⚔️ Comparar agentes', operator: '🚀 Mission Control', market: '🌷 Market Analyzer', licensing: '🔑 Licencias', settings: '🎨 Ajustes', project: '📂 ' + (project ? project.name : '') };
 
@@ -1287,7 +1296,7 @@ function App() {
       {/* Proyecto en VENTANA/MODAL aparte (como la ProjectWindow nativa) ♡ */}
       {project && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 600, background: 'var(--bg, #fff5fa)', display: 'flex', flexDirection: 'column', padding: 20, overflow: 'auto' }}>
-          <ProjectWindow p={project} onBack={() => setProject(null)} onDeploy={() => setModal('deploy')} onBuild={() => setModal('build')} onRef={() => setModal('ref')} buildLog={buildLog} />
+          <ProjectWindow p={project} onBack={() => { if (_isWin) window.close(); else setProject(null); }} onDeploy={() => setModal('deploy')} onBuild={() => setModal('build')} onRef={() => setModal('ref')} buildLog={buildLog} />
         </div>
       )}
 

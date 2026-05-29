@@ -101,12 +101,24 @@ function TopChrome({ onPalette }) {
   );
 }
 
+// ¿Esta ventana se abrió como «ventana de proyecto» (#proj=…)? → solo muestra el proyecto.
+function _hashProj() {
+  try {
+    const h = window.location.hash || '';
+    const m = /[#&]proj=([^&]+)/.exec(h);
+    if (!m) return null;
+    const path = decodeURIComponent(m[1]);
+    return { path, name: path.replace(/\/+$/, '').split('/').pop(), fresh: /[#&]fresh=1/.test(h) };
+  } catch (e) { return null; }
+}
 function App() {
+  const _hp = _hashProj();
+  const _isWin = !!_hp;
   const [t, setTweak] = useTweaks(TWEAK_DEFAULTS);
   const [route, setRoute] = useState('gallery');
-  const [project, setProject] = useState(null);
+  const [project, setProject] = useState(_hp ? { id: _hp.name, name: _hp.name, path: _hp.path, fresh: _hp.fresh, status: 'live', jp: '制作', accent: 'var(--accent)' } : null);
   const [paletteOpen, setPaletteOpen] = useState(false);
-  const [booted, setBooted] = useState(false);
+  const [booted, setBooted] = useState(_isWin);  // en ventana de proyecto, sin boot splash
   const [modal, setModal] = useState(null); // 'ref' | 'deploy' | 'build'
   const [buildLog, setBuildLog] = useState([]);
 
@@ -148,9 +160,11 @@ function App() {
   window.tfNav = nav;
   const openProject = (p) => {
     if (p && p.__new) { setRoute('new'); return; }
-    // El proyecto se abre en una VENTANA/MODAL aparte (como la ProjectWindow
-    // nativa) — no reemplaza la galería. Solo seteamos `project`; el overlay
-    // se renderiza encima de la UI actual.
+    // Abre el proyecto en una VENTANA NUEVA del SO (como la app nativa). Si no
+    // hay puente, cae al overlay en la misma ventana.
+    if (!_isWin && window.tfBridge && window.tfBridge.open_project_window && p && p.path) {
+      window.tfBridge.open_project_window(p.path, false); return;
+    }
     setProject(p);
   };
   const launch = (cfg) => {
@@ -161,16 +175,13 @@ function App() {
     if (!(window.tfBridge && window.tfBridge.create_project)) {
       setProject({ ...cfg, id: cfg.name, status: 'live', fresh: true, jp: '制作', accent: 'var(--accent)' }); return;
     }
-    if (!window.__tfProgWired) {
-      window.__tfProgWired = true;
-      if (window.tfBridge.build_done && window.tfBridge.build_done.connect)
-        window.tfBridge.build_done.connect((j) => { let r = {}; try { r = JSON.parse(j); } catch (e) {}
-          setProject(prev => ({ ...(prev || {}), id: r.slug || (prev && prev.id), name: r.name || (prev && prev.name), path: r.path || (prev && prev.path), agent: window.__tfLastAgent || 'claude', status: r.ok ? 'live' : 'draft', fresh: r.fresh || (prev && prev.fresh), jp: '制作', accent: 'var(--accent)' })); });
-    }
     try {
       window.tfBridge.create_project(JSON.stringify(cfg)).then((j) => { let r = {}; try { r = JSON.parse(j); } catch (e) {}
-        if (r && r.ok && r.path) { setProject({ id: r.slug, name: cfg.name, path: r.path, agent: cfg.agent, status: 'live', fresh: true, jp: '制作', accent: 'var(--accent)' }); }
-        else if (r && r.ok === false) tfToast('Error al crear: ' + (r.error || ''), '#ff2e88'); });
+        if (r && r.ok && r.path) {
+          // Abre el proyecto recién creado en una VENTANA NUEVA (como el nativo).
+          if (window.tfBridge.open_project_window) { window.tfBridge.open_project_window(r.path, true); setRoute('gallery'); }
+          else setProject({ id: r.slug, name: cfg.name, path: r.path, agent: cfg.agent, status: 'live', fresh: true, jp: '制作', accent: 'var(--accent)' });
+        } else if (r && r.ok === false) tfToast('Error al crear: ' + (r.error || ''), '#ff2e88'); });
     } catch (e) { console.error('create_project', e); }
   };
 
@@ -200,7 +211,7 @@ function App() {
       {/* Proyecto en VENTANA/MODAL aparte (como la ProjectWindow nativa) */}
       {project && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 600, background: 'var(--bg-void, #04060c)', display: 'flex', flexDirection: 'column' }}>
-          <ProjectWindow project={project} onBack={() => setProject(null)} onDeploy={() => setModal('deploy')} onBuild={() => setModal('build')} buildLog={buildLog} />
+          <ProjectWindow project={project} onBack={() => { if (_isWin) window.close(); else setProject(null); }} onDeploy={() => setModal('deploy')} onBuild={() => setModal('build')} buildLog={buildLog} />
         </div>
       )}
 

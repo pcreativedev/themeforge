@@ -509,6 +509,11 @@ def bootstrap_data() -> dict:
     }
 
 
+# Scripts de setup pendientes (path → script), GLOBAL para que la pestaña Setup
+# de una VENTANA DE PROYECTO nueva (otra instancia de bridge) lo encuentre.
+_SETUP_SCRIPTS = {}
+
+
 class ThemeForgeBridge(QObject):
     """Objeto puente expuesto a la página como `window.tfBridge`. Cada
     @pyqtSlot es invocable desde JavaScript. Aquí va la lógica REAL de
@@ -534,6 +539,8 @@ class ThemeForgeBridge(QObject):
     reload_requested = pyqtSignal()
     # El setup (pestaña Setup) terminó: JSON {path} → la UI pasa a la pestaña Agente.
     setup_done = pyqtSignal(str)
+    # Pide al WebShell abrir el proyecto en una VENTANA NUEVA (como el nativo): (path, fresh).
+    open_window_requested = pyqtSignal(str, bool)
 
     @pyqtSlot(str, result=str)
     def use_web_theme(self, slug: str) -> str:
@@ -637,7 +644,7 @@ class ThemeForgeBridge(QObject):
         self._procs = []  # mantener vivas las QProcess en vuelo
         self._preview_procs = {}  # path -> (QProcess, url) del dev server de preview
         self._preview_states = {}  # path -> dict de estado del sondeo de preview
-        self._setup_scripts = {}  # path -> ruta del setup script pendiente (pestaña Setup)
+        self._setup_scripts = _SETUP_SCRIPTS  # ref al dict GLOBAL (compartido entre ventanas)
         self._dialogs = []  # refs a diálogos nativos abiertos (evitar GC)
         self._last_reference_analysis = None  # (value, texto) del último análisis IA
 
@@ -2074,6 +2081,14 @@ class ThemeForgeBridge(QObject):
         except Exception as e:
             return json.dumps({"ok": False, "error": str(e)})
 
+    @pyqtSlot(str, bool, result=str)
+    def open_project_window(self, path: str, fresh: bool) -> str:
+        """Abre el proyecto en una VENTANA NUEVA del SO (como la ProjectWindow
+        nativa) — no en la misma ventana. El WebShell crea un QWebEngineView
+        aparte con el mismo tema apuntando a #proj=<path>."""
+        self.open_window_requested.emit(path, bool(fresh))
+        return json.dumps({"ok": True})
+
     @pyqtSlot(str, result=str)
     def ping(self, msg: str) -> str:
         return json.dumps({"pong": msg})
@@ -2101,16 +2116,53 @@ class WebShell(QWidget):
         self._port = _free_port()
         self._httpd = _serve(webui_root, self._port)
 
+        self._child_windows = []  # ventanas de proyecto aparte (evitar GC)
         self._view = QWebEngineView()
         self._bridge = ThemeForgeBridge()
         # Reload del shell cuando se cambia de prototipo web (Matrix/Kawaii/…).
         self._bridge.reload_requested.connect(self._reload_active)
+        # Abrir proyecto en VENTANA NUEVA (como el nativo).
+        self._bridge.open_window_requested.connect(self._spawn_project_window)
         self._channel = QWebChannel(self._view.page())
         self._channel.registerObject("bridge", self._bridge)
         self._view.page().setWebChannel(self._channel)
-        self._inject_scripts()
+        self._inject_scripts(self._view.page())
         root.addWidget(self._view)
         self._reload_active()
+
+    def _spawn_project_window(self, path: str, fresh: bool):
+        """Crea una ventana NUEVA (QWidget top-level) con su propio WebEngineView
+        + puente, cargando el mismo tema en modo «solo proyecto» (#proj=<path>)."""
+        try:
+            import urllib.parse
+            from PyQt6.QtWebEngineWidgets import QWebEngineView
+            from PyQt6.QtWebChannel import QWebChannel
+            from PyQt6.QtCore import QUrl
+            win = QWidget()
+            from pathlib import Path as _P
+            win.setWindowTitle(f"ThemeForge — {_P(path).name}")
+            win.resize(1280, 860)
+            lay = QVBoxLayout(win)
+            lay.setContentsMargins(0, 0, 0, 0)
+            view = QWebEngineView()
+            bridge = ThemeForgeBridge()
+            bridge.reload_requested.connect(self._reload_active)
+            bridge.open_window_requested.connect(self._spawn_project_window)
+            ch = QWebChannel(view.page())
+            ch.registerObject("bridge", bridge)
+            view.page().setWebChannel(ch)
+            self._inject_scripts(view.page())
+            lay.addWidget(view)
+            slug = self._active_slug()
+            frag = f"#proj={urllib.parse.quote(path)}&fresh={'1' if fresh else '0'}"
+            view.setUrl(QUrl(f"http://127.0.0.1:{self._port}/{slug}/index.html{frag}"))
+            # Mantener refs vivas (view+channel+bridge+win) mientras la ventana exista.
+            self._child_windows.append((win, view, ch, bridge))
+            win.show()
+            win.raise_()
+            win.activateWindow()
+        except Exception as e:
+            print(f"[webshell] no se pudo abrir ventana de proyecto: {e}")
 
     def _active_slug(self) -> str:
         """Prototipo web activo (carpeta en webui/). Packs/temas sin carpeta →
@@ -2125,13 +2177,14 @@ class WebShell(QWidget):
             return slug
         return "neotokyo"
 
-    def _inject_scripts(self):
+    def _inject_scripts(self, page=None):
         """Inyecta en DocumentCreation: (1) window.__TF_DATA__ con datos reales,
         (2) el puente (qwebchannel + window.tfBridge + tfApplyTheme). Así CUALQUIER
         prototipo (Neo-Tokyo/Matrix/Kawaii) recibe datos + puente sin editar su HTML."""
         try:
             from PyQt6.QtWebEngineCore import QWebEngineScript
-            page = self._view.page()
+            if page is None:
+                page = self._view.page()
             # 1) datos reales.
             s1 = QWebEngineScript()
             s1.setName("tf_data")
