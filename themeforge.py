@@ -7358,24 +7358,22 @@ def main():
         w.raise_()
         w.activateWindow()
 
-    # Splash de bienvenida en video (assets/videosplash.mp4). Reproduce
-    # completo con audio; el usuario puede saltarlo con clic/tecla. Cuando
-    # acaba (o se salta, o falla el backend) entra a la app.
-    # Si no hay video o el módulo multimedia no carga, entramos directo.
-    _splash_video = _assets_dir / "videosplash.mp4"
+    # Splash de bienvenida Neo-Tokyo (boot sequence): animación de arranque
+    # estilo terminal sobre la atmósfera cyberpunk. Es QPainter puro — sin
+    # multimedia ni OpenGL — así que funciona también en entornos sin GPU
+    # (USE_SOFTWARE_GL) sin dejar la ventana negra. El usuario puede saltarlo
+    # con clic/tecla; una red de seguridad garantiza la entrada a la app.
+    # THEMEFORGE_NO_SPLASH=1 lo desactiva.
     _splash = None
-    # Saltar el splash si: lo pide el usuario (THEMEFORGE_NO_SPLASH=1) o si
-    # estamos en entorno sin GPU (USE_SOFTWARE_GL) — ahí el QVideoWidget deja
-    # el contexto OpenGL en mal estado y la ventana principal sale negra.
-    _no_splash = os.environ.get("THEMEFORGE_NO_SPLASH") == "1" or USE_SOFTWARE_GL
-    if _splash_video.is_file() and not _no_splash:
+    _no_splash = os.environ.get("THEMEFORGE_NO_SPLASH") == "1"
+    if not _no_splash:
         try:
-            from video_splash import VideoSplash
-            _splash = VideoSplash(_splash_video)
+            from boot_splash import BootSplash
+            _splash = BootSplash()
             _splash.finished.connect(_enter_app)
             _splash.start()
         except Exception as e:
-            print(f"[splash] no se pudo reproducir el video: {e}", file=sys.stderr)
+            print(f"[splash] no se pudo mostrar el boot splash: {e}", file=sys.stderr)
             _splash = None
 
     if _splash is None:
