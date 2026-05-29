@@ -470,13 +470,34 @@ function MatrixTerminal({ run }) {
     </div>
   );
 }
+function RealPreview({ path }) {
+  const [url, setUrl] = useState(null); const [err, setErr] = useState(null);
+  useEffect(() => {
+    if (!window.tfBridge || !window.tfBridge.start_preview || !path) return;
+    const onReady = (j) => { let r = {}; try { r = JSON.parse(j); } catch (e) {} if (r.path === path) { if (r.url) setUrl(r.url); else setErr(r.error || 'error'); } };
+    if (window.tfBridge.preview_ready && window.tfBridge.preview_ready.connect) window.tfBridge.preview_ready.connect(onReady);
+    window.tfBridge.start_preview(path);
+    return () => { try { window.tfBridge.preview_ready.disconnect(onReady); } catch (e) {} };
+  }, [path]);
+  if (!window.tfBridge || !path) return <Slot id={'pw'} cls="" radius={4} ph="// preview" />;
+  if (err) return <div style={{ color: 'var(--tx-dim)', fontFamily: 'var(--term)' }}>// preview: {err}</div>;
+  if (!url) return <div style={{ color: 'var(--tx-dim)', fontFamily: 'var(--term)' }}>// arrancando dev server real…</div>;
+  return <iframe src={url} style={{ width: '100%', height: '100%', minHeight: 300, border: 'none', borderRadius: 4, background: '#fff' }} />;
+}
+
 function ProjectWindow({ p, onBack, onDeploy, onBuild }) {
   const [tab, setTab] = useState('desktop');
   const [run, setRun] = useState(false);
   const [pushed, setPushed] = useState(false);
-  const ag = AGENTS[p.agent], st = STATUS[p.status];
+  const ag = AGENTS[p.agent] || { color: 'var(--accent)', em: '◆', label: p.agent || 'agent' };
+  const st = STATUS[p.status] || { color: 'var(--tx-dim)', em: '○', label: p.status || '' };
   useEffect(() => { const t = setTimeout(() => setRun(true), 500); return () => clearTimeout(t); }, []);
   const tabs = [['desktop', '▭ Desktop'], ['mobile', '▯ Mobile'], ['code', '⌗ Code']];
+  const B = window.tfBridge;
+  const preflight = () => { if (B && B.run_preflight) { alert('⟳ Pre-flight…'); B.run_preflight(p.path).then(j => { let r = {}; try { r = JSON.parse(j); } catch (e) {} alert('Pre-flight: ' + (r.verdict || r.status || (r.ok ? 'PASS' : JSON.stringify(r).slice(0, 200)))); }); } else onBuild && onBuild(); };
+  const buildzip = () => { if (B && B.build_zip) { alert('⟳ Empaquetando ZIP…'); B.build_zip(p.path).then(j => { let r = {}; try { r = JSON.parse(j); } catch (e) {} alert('ZIP: ' + (r.zip_path || r.zip || r.error || 'hecho')); }); } };
+  const push = () => { if (B && B.git_push) { B.git_push(p.path); setPushed(true); } else setPushed(true); };
+  const deploy = () => { if (B && B.deploy_demo) { const pv = prompt('Deploy a (netlify/vercel/cloudflare/surge):', 'surge'); if (pv) B.deploy_demo(p.path, pv); } else onDeploy && onDeploy(); };
   return (
     <div className="page fade" style={{ height: '100%', display: 'flex', flexDirection: 'column', paddingBottom: 26 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16, flexWrap: 'wrap' }}>
@@ -484,9 +505,10 @@ function ProjectWindow({ p, onBack, onDeploy, onBuild }) {
         <b style={{ fontSize: 18, fontFamily: 'var(--display)' }}>{p.name}</b><span style={{ fontFamily: 'var(--term)', color: 'var(--tx-dim)' }}>{p.jp}</span>
         <span className="pstatus" style={{ position: 'static', color: st.color }}>{st.em} {st.label}</span>
         <div style={{ flex: 1 }} />
-        <button className="btn" onClick={onBuild}>✓ Pre-flight</button>
-        <button className={'btn' + (pushed ? '' : ' pri')} onClick={() => setPushed(true)}>{pushed ? '✓ Pushed' : '⎇ Push'}</button>
-        <button className="btn pri" onClick={onDeploy}>▶ Deploy</button>
+        <button className="btn" onClick={preflight}>✓ Pre-flight</button>
+        <button className="btn" onClick={buildzip}>⊞ ZIP</button>
+        <button className={'btn' + (pushed ? '' : ' pri')} onClick={push}>{pushed ? '✓ Pushed' : '⎇ Push'}</button>
+        <button className="btn pri" onClick={deploy}>▶ Deploy</button>
       </div>
       <div style={{ display: 'flex', gap: 6, marginBottom: 14, flexWrap: 'wrap', alignItems: 'center' }}>
         <span style={{ fontSize: 11, fontFamily: 'var(--term)', color: 'var(--tx-dim)' }}>MCP ·</span>
@@ -498,8 +520,8 @@ function ProjectWindow({ p, onBack, onDeploy, onBuild }) {
             {tabs.map(([k, l]) => <button key={k} className={'fchip' + (tab === k ? ' on' : '')} onClick={() => setTab(k)}>{l}</button>)}
             <span style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--tx-dim)', fontFamily: 'var(--term)', alignSelf: 'center' }}>localhost:5173</span>
           </div>
-          <div style={{ flex: 1, display: 'grid', placeItems: 'center', background: 'var(--bg)', border: '1px solid var(--line)', borderRadius: 4, padding: 16, minHeight: 0, overflow: 'auto' }}>
-            <Slot id={'pw-' + p.id} cls="" radius={4} ph="// preview del tema (arrastra screenshot)" />
+          <div style={{ flex: 1, display: 'grid', placeItems: 'stretch', background: 'var(--bg)', border: '1px solid var(--line)', borderRadius: 4, padding: 0, minHeight: 0, overflow: 'auto' }}>
+            <RealPreview path={p.path} />
           </div>
         </div>
         <div className="panelc" style={{ display: 'flex', flexDirection: 'column', padding: 14, minHeight: 0 }}>
