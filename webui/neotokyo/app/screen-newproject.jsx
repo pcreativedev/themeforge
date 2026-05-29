@@ -64,6 +64,7 @@ function CheckRow({ label, sub, on, onToggle, jp }) {
 function NewProjectScreen({ onLaunch, onAnalyze }) {
   const [sub, setSub] = useState('vibe');
   const [vibe, setVibe] = useState('');
+  const [pname, setPname] = useState('');  // nombre del proyecto
   const [stack, setStack] = useState((typeof STACKS !== 'undefined' && STACKS[0]) ? STACKS[0].key : 'next');
   const [agent, setAgent] = useState('claude');
   const [type, setType] = useState('SaaS Landing');
@@ -181,6 +182,13 @@ function NewProjectScreen({ onLaunch, onAnalyze }) {
       {/* ---- SETUP (stack + UI Pro + MCP) ---- */}
       {sub === 'setup' && (
         <div className="fade-in">
+          {/* Nombre del proyecto (carpeta ~/Proyectos/themes/<slug>). */}
+          <div className="panel" style={{ padding: 20, marginBottom: 18 }}>
+            <div className="eyebrow" style={{ marginBottom: 10 }}>NOMBRE DEL PROYECTO · 名前</div>
+            <input value={pname} onChange={e => setPname(e.target.value)}
+              placeholder="Ej: Aurora Dental · se crea en ~/Proyectos/themes/<slug>"
+              style={{ width: '100%', background: 'var(--bg-void)', border: '1px solid var(--line-bright)', borderRadius: 8, padding: '11px 14px', color: 'var(--tx)', fontFamily: 'var(--font-display)', fontSize: 14, outline: 'none' }} />
+          </div>
           <div className="panel" style={{ padding: 20, marginBottom: 18 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 14 }}>
               <div className="eyebrow">STACK · 基盤 <span style={{ color: 'var(--tx-faint)' }}>· {STACKS.length} disponibles</span></div>
@@ -309,7 +317,12 @@ function NewProjectScreen({ onLaunch, onAnalyze }) {
         <div className="mono" style={{ fontSize: 12.5, color: 'var(--tx-dim)' }}>
           <span style={{ color: 'var(--accent)' }}>{(STACKS.find(s => s.key === stack)||{label:stack}).label}</span>{' · '}{(MODES.find(m => m.k === mode)||{label:mode}).label}{' · '}<span style={{ color: AGENTS[agent].color }}>{AGENTS[agent].label}</span>{' · ~$0.40'}
         </div>
-        <Btn variant="primary" icon="rocket" onClick={() => onLaunch({ stack, agent, type, mode, opts, niche: vibe, name: ((vibe || '').trim().slice(0, 42) || type || 'Untitled Forge') })}>Forjar proyecto</Btn>
+        <Btn variant="primary" icon="rocket" onClick={() => {
+          const name = (pname || '').trim() || (vibe || '').trim().slice(0, 42) || type || 'Untitled Forge';
+          if (!(pname || '').trim() && !confirm('Sin nombre — se usará «' + name + '». ¿Continuar?')) return;
+          onLaunch({ stack, agent, type, mode, opts, niche: vibe, name,
+            reference: refVal, reference_kind: refKind });
+        }}>Forjar proyecto</Btn>
       </div>
     </div>
   );

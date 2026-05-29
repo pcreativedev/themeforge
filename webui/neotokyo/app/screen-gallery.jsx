@@ -66,12 +66,22 @@ function ProjectCard({ p, onOpen, i }) {
 function GalleryScreen({ onOpen }) {
   const [filter, setFilter] = useState('all');
   const [q, setQ] = useState('');
+  // Galería EN VIVO: re-escanea proyectos reales vía el puente al montar
+  // (así aparecen los recién creados sin recargar). Fallback a __TF_DATA__.
+  const [projects, setProjects] = useState(PROJECTS);
+  useEffect(() => {
+    if (window.tfBridge && window.tfBridge.list_projects) {
+      window.tfBridge.list_projects().then(j => {
+        try { const arr = JSON.parse(j); if (Array.isArray(arr)) setProjects(arr); } catch (e) {}
+      });
+    }
+  }, []);
   const filters = ['all', 'live', 'building', 'draft', 'archived'];
-  const list = PROJECTS.filter(p =>
+  const list = projects.filter(p =>
     (filter === 'all' || p.status === filter) &&
-    (p.name.toLowerCase().includes(q.toLowerCase()) || p.type.toLowerCase().includes(q.toLowerCase()))
+    (p.name.toLowerCase().includes(q.toLowerCase()) || (p.type || '').toLowerCase().includes(q.toLowerCase()))
   );
-  const total = PROJECTS.reduce((s, p) => s + p.cost, 0);
+  const total = projects.reduce((s, p) => s + (p.cost || 0), 0);
 
   return (
     <div style={{ padding: '34px 40px 60px', position: 'relative', zIndex: 2 }}>
@@ -83,7 +93,7 @@ function GalleryScreen({ onOpen }) {
             <span className="neon-text">GALLERY</span>
           </h1>
           <div className="dim" style={{ fontSize: 13.5, marginTop: 6 }}>
-            {PROJECTS.length} proyectos forjados · <span className="mono" style={{ color: 'var(--accent)' }}>${total.toFixed(2)}</span> en cómputo IA
+            {projects.length} proyectos forjados · <span className="mono" style={{ color: 'var(--accent)' }}>${total.toFixed(2)}</span> en cómputo IA
           </div>
         </div>
         <Btn variant="primary" icon="plus" onClick={() => onOpen({ __new: true })}>Nuevo proyecto</Btn>

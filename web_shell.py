@@ -729,29 +729,58 @@ class ThemeForgeBridge(QObject):
         # igual que el modo recreate del normal — así "se queda guardado".
         ai_analysis = None
         ref_value = (cfg.get("reference") or "").strip()
+        ref_kind = cfg.get("reference_kind") or None
         if self._last_reference_analysis and self._last_reference_analysis[1]:
             stored_val, stored_txt = self._last_reference_analysis
             if (not ref_value) or stored_val == ref_value:
                 ai_analysis = stored_txt
         mode = cfg.get("mode") or "scratch"
+        if mode not in ("scratch", "recreate", "adopt", "existing"):
+            mode = "scratch"
+        # Toggles del Setup (como en el normal): autoskills + UI/UX Pro + MCP.
+        run_autoskills = bool(opts.get("autoskills", True))
+        run_uipro = bool(opts.get("uipro", True))
+        want_mcp = bool(opts.get("mcp", True))
+        force_pg = bool(opts.get("postgres", False))
+        adopt_src = ref_value if mode == "adopt" else None
         try:
             script = write_setup_script(
                 project_dir=project_dir, stack_key=stack, template_type=ttype,
                 project_name=name, agent_key=provider,
-                run_autoskills=bool(opts.get("uipro", True)),
-                mode="scratch", reference_kind=None, reference_value=None,
-                existing_repo=None, create_github_repo=False, github_user=None,
-                embedded=True, run_uipro=bool(opts.get("uipro", True)),
+                run_autoskills=run_autoskills,
+                mode=mode,
+                reference_kind=(ref_kind if mode == "recreate" else None),
+                reference_value=(ref_value if mode == "recreate" else None),
+                existing_repo=(ref_value if mode == "existing" else None),
+                create_github_repo=False, github_user=None,
+                embedded=True, run_uipro=run_uipro,
+                force_postgres=force_pg, adopt_src=adopt_src,
                 niche=(niche or None), launch_agent=False,
                 ai_analysis=ai_analysis, ai_analysis_kind="reference",
             )
         except Exception as e:
             return json.dumps({"ok": False, "error": f"write_setup_script: {e}"})
+        # Pre-configurar MCP servers (.mcp.json) si el toggle está activo —
+        # paso separado, igual que el builder nativo.
+        if want_mcp:
+            try:
+                import mcp_catalog as _mc
+                project_dir.mkdir(parents=True, exist_ok=True)
+                recs = _mc.recommend_for_stack(stack, STACKS.get(stack, {}))
+                if (mode == "recreate" and ref_kind == "figma"
+                        and not any(getattr(e, "key", "") == "figma-context" for e in recs)):
+                    _fig = next((e for e in _mc.CATALOG if e.key == "figma-context"), None)
+                    if _fig:
+                        recs.append(_fig)
+                _mc.write_mcp_json(project_dir, recs)
+            except Exception as e:
+                self.progress.emit(f"[mcp] aviso: {e}\n")
+        # Registrar en projects-meta (igual que el normal).
         try:
             meta = load_projects_meta()
-            if slug not in meta:
-                meta[slug] = {"name": name, "stack": stack}
-                save_projects_meta(meta)
+            meta[slug] = {"name": name, "stack": stack, "provider": provider,
+                          "mode": mode, "type": ttype}
+            save_projects_meta(meta)
         except Exception:
             pass
 
@@ -829,6 +858,15 @@ class ThemeForgeBridge(QObject):
     def list_stacks(self) -> str:
         """Acción real: devuelve los stacks de verdad de ThemeForge."""
         return json.dumps(_stacks_data())
+
+    @pyqtSlot(result=str)
+    def list_projects(self) -> str:
+        """Galería en vivo: re-escanea ~/Proyectos/themes/ y devuelve los
+        proyectos reales (para refrescar tras crear uno, sin recargar)."""
+        try:
+            return json.dumps(_projects_data())
+        except Exception as e:
+            return json.dumps({"error": str(e)})
 
     @pyqtSlot(result=str)
     def bootstrap_data(self) -> str:
