@@ -282,7 +282,16 @@ function NewProjectScreen({ onLaunch, onAnalyze }) {
                   if (!window.tfBridge) return;
                   const picker = refKind === 'zip' ? window.tfBridge.pick_file : window.tfBridge.pick_folder;
                   if (!picker) return;
-                  picker().then(j => { let r = {}; try { r = JSON.parse(j); } catch (e) {} if (r.path) setRefVal(r.path); });
+                  picker().then(j => {
+                    let r = {}; try { r = JSON.parse(j); } catch (e) {}
+                    if (!r.path) return;
+                    setRefVal(r.path);
+                    // Auto-detecta el stack (WordPress) desde la referencia, como el normal.
+                    if (window.tfBridge.detect_ref_stack) window.tfBridge.detect_ref_stack(r.path).then(dj => {
+                      let d = {}; try { d = JSON.parse(dj); } catch (e) {}
+                      if (d.stack && STACKS.find(s => s.key === d.stack)) setStack(d.stack);
+                    });
+                  });
                 }}>Examinar</Btn>
               </div>
               <div style={{ marginTop: 14, display: 'flex', gap: 10, alignItems: 'center' }}>

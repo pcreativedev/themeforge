@@ -642,6 +642,35 @@ class ThemeForgeBridge(QObject):
             except Exception as e:
                 return json.dumps({"ok": False, "error": str(e)})
 
+    @pyqtSlot(str, result=str)
+    def detect_ref_stack(self, path: str) -> str:
+        """Auto-detección de stack desde una referencia (igual que el normal):
+        si la carpeta/.zip es un theme/plugin de WordPress, devuelve ese stack
+        para fijarlo automáticamente; si no, devuelve el framework detectado."""
+        from pathlib import Path
+        try:
+            import reference_analyzer as ra
+            from stacks import STACKS
+            p = Path(path)
+            if not p.exists():
+                return json.dumps({"stack": "", "framework": ""})
+            wp = None
+            try:
+                wp = ra.detect_wordpress_stack(p)
+            except Exception:
+                wp = None
+            if wp and wp in STACKS:
+                return json.dumps({"stack": wp, "label": STACKS[wp].get("name", wp), "wp": True})
+            # Framework genérico (informativo; el stack final lo recomienda la IA).
+            try:
+                facts = ra.gather_facts(p)
+                fw = facts.get("framework") or facts.get("preview_profile") or ""
+            except Exception:
+                fw = ""
+            return json.dumps({"stack": "", "framework": fw})
+        except Exception as e:
+            return json.dumps({"stack": "", "error": str(e)})
+
     @pyqtSlot(result=str)
     def pick_folder(self) -> str:
         """Selector de carpeta nativo (para New→recreate/adopt). Devuelve la ruta."""
