@@ -319,24 +319,31 @@ function Compare() {
 }
 
 /* ---- Operator ---- */
-const MISSIONS = [
-  { id: 'o1', name: 'Aurora · hero + pricing', agent: 'claude', st: 'corriendo', pct: 68, eta: '2m 10s' },
-  { id: 'o2', name: 'Nordic · case studies', agent: 'codex', st: 'corriendo', pct: 34, eta: '5m 40s' },
-  { id: 'o3', name: 'Meridian · checkout', agent: 'gemini', st: 'en cola', pct: 0, eta: '—' },
-  { id: 'o4', name: 'Zen · booking widget', agent: 'claude', st: 'listo', pct: 100, eta: '✓' },
-];
 function Operator() {
+  const op = (window.__TF_DATA__ && window.__TF_DATA__.operator) || {};
+  const real = !!(window.tfBridge && window.tfBridge.launch_mission);
+  const [missions, setMissions] = useState([]);  // misiones reales (vacío al inicio)
+  const launch = () => {
+    if (!real) return;
+    if (!op.available) { alert('Instala Hermes Agent para usar el Operator.'); return; }
+    const brief = prompt('Describe la misión (ej: «2 variantes Envato de landing dental, stack Astro»):');
+    if (!brief) return;
+    window.tfBridge.launch_mission(brief);
+    setMissions(ms => [{ id: 'm' + ms.length, name: brief.slice(0, 60), agent: 'claude', st: 'corriendo', pct: 0, eta: 'Hermes…' }, ...ms]);
+  };
+  const running = missions.filter(m => m.pct < 100).length;
   return (
     <div className="page fade">
-      <h2 className="sec">⌬ Mission Control <span style={{ fontFamily: 'var(--term)', fontSize: 13, color: 'var(--tx-dim)' }}>司令室</span></h2>
+      <h2 className="sec">⌬ Mission Control <span style={{ fontFamily: 'var(--term)', fontSize: 13, color: 'var(--tx-dim)' }}>司令室</span>
+        <button className="btn pri" style={{ float: 'right' }} onClick={launch}>▶ Lanzar misión</button></h2>
       <div className="stats" style={{ marginBottom: 22 }}>
-        {[['▶', '2', 'activas'], ['◴', '1', 'en cola'], ['●', '12', 'hoy'], ['$', '8.40', 'coste hoy']].map(([e, n, l]) => (
-          <div className="stat" key={l}><div className="em">{e}</div><div className="n">{l === 'coste hoy' ? '$' : ''}{n}</div><div className="l">{l}</div></div>
+        {[['▶', String(running), 'activas'], ['◫', String(missions.length), 'total'], ['◈', op.available ? (op.version || 'on') : 'off', 'hermes']].map(([e, n, l]) => (
+          <div className="stat" key={l}><div className="em">{e}</div><div className="n">{n}</div><div className="l">{l}</div></div>
         ))}
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 11 }}>
-        {MISSIONS.map(m => {
-          const a = AGENTS[m.agent];
+        {missions.length ? missions.map(m => {
+          const a = AGENTS[m.agent] || { color: 'var(--accent)', em: '◆' };
           return (
             <div className="panelc" key={m.id} style={{ padding: '15px 20px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontFamily: 'var(--term)' }}>
@@ -348,7 +355,7 @@ function Operator() {
               <div className="bar2" style={{ marginTop: 11 }}><i style={{ width: m.pct + '%' }} /></div>
             </div>
           );
-        })}
+        }) : <div className="panelc" style={{ padding: 30, textAlign: 'center', color: 'var(--tx-dim)', fontFamily: 'var(--term)' }}>// sin misiones — pulsa «Lanzar misión» {op.available ? '' : '(requiere Hermes)'}</div>}
       </div>
     </div>
   );
@@ -517,76 +524,78 @@ function Market() {
   const [q, setQ] = useState('');
   const [done, setDone] = useState(false);
   const [load, setLoad] = useState(false);
-  const go = () => { setLoad(true); setDone(false); setTimeout(() => { setLoad(false); setDone(true); }, 1200); };
-  const rows = [['Dental clinic landing', '$39', '4.8', '1,240', 'alta'], ['Booking + calendar', '$49', '4.9', '2,100', 'alta'], ['Multipurpose business', '$29', '4.4', '8,400', 'saturada']];
+  const [md, setMd] = useState('');
+  const real = !!(window.tfBridge && window.tfBridge.analyze_market);
+  useEffect(() => {
+    if (!real || !window.tfBridge.market_result || !window.tfBridge.market_result.connect) return;
+    const onRes = (j) => { let r = {}; try { r = JSON.parse(j); } catch (e) {} setLoad(false); setMd(r.error ? ('⚠ ' + r.error) : (r.markdown || '')); setDone(true); };
+    window.tfBridge.market_result.connect(onRes);
+    return () => { try { window.tfBridge.market_result.disconnect(onRes); } catch (e) {} };
+  }, []);
+  const go = (kind) => { if (!real) return; setLoad(true); setDone(false); setMd(''); window.tfBridge.analyze_market(kind || q); };
   return (
     <div className="page fade">
       <h2 className="sec">⊞ Market Analyzer <span style={{ fontFamily: 'var(--term)', fontSize: 13, color: 'var(--tx-dim)' }}>市場分析</span></h2>
-      <div className="panelc" style={{ display: 'flex', gap: 10, marginBottom: 18 }}>
+      <div className="panelc" style={{ display: 'flex', gap: 10, marginBottom: 14 }}>
         <input className="ta" style={{ minHeight: 0, padding: '11px 16px' }} value={q} onChange={e => setQ(e.target.value)} placeholder='Nicho a investigar — ej: "clínica dental"' />
-        <button className="btn pri" onClick={go}>{load ? '> escaneando…' : '> Analizar'}</button>
+        <button className="btn pri" onClick={() => go()}>{load ? '> analizando…' : '> Analizar'}</button>
       </div>
-      {load && <div className="panelc" style={{ textAlign: 'center', color: 'var(--accent)', fontFamily: 'var(--term)' }}>{'>'} consultando ThemeForest · Creative Market · Gumroad…</div>}
-      {done && (
-        <div className="fade" style={{ display: 'grid', gridTemplateColumns: '1fr 280px', gap: 16 }}>
-          <div className="panelc" style={{ padding: 0, overflow: 'hidden' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, fontFamily: 'var(--term)' }}>
-              <thead><tr style={{ background: 'var(--bg)' }}>{['Template', 'Precio', 'Rating', 'Ventas', 'Competencia'].map((h, i) => <th key={h} style={{ textAlign: i === 0 ? 'left' : 'right', padding: '12px 16px', color: 'var(--tx-dim)', fontWeight: 600, borderBottom: '1px solid var(--line)' }}>{h}</th>)}</tr></thead>
-              <tbody>{rows.map((r, i) => <tr key={i} style={{ borderTop: '1px solid var(--line)' }}>
-                <td style={{ padding: '12px 16px', color: 'var(--tx)' }}>{r[0]}</td>
-                <td style={{ textAlign: 'right', padding: '12px 16px', color: 'var(--accent)' }}>{r[1]}</td>
-                <td style={{ textAlign: 'right', padding: '12px 16px', color: 'var(--p3)' }}>★ {r[2]}</td>
-                <td style={{ textAlign: 'right', padding: '12px 16px', color: 'var(--tx-dim)' }}>{r[3]}</td>
-                <td style={{ textAlign: 'right', padding: '12px 16px' }}><span className="tag" style={{ color: r[4] === 'alta' ? 'var(--accent)' : 'var(--p3)', borderColor: 'currentColor' }}>{r[4]}</span></td>
-              </tr>)}</tbody>
-            </table>
-          </div>
-          <div className="panelc" style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: 12, color: 'var(--tx-dim)', fontFamily: 'var(--term)', letterSpacing: '.1em' }}>VEREDICTO</div>
-            <div style={{ fontFamily: 'var(--display)', fontSize: 34, color: 'var(--accent)', margin: '8px 0', textShadow: 'var(--glow)' }}>FORJAR ▶</div>
-            <div style={{ fontSize: 13, color: 'var(--tx-dim)', fontFamily: 'var(--term)', lineHeight: 1.6 }}>Demanda alta, sweet-spot <b style={{ color: 'var(--accent)' }}>$45–55</b>. Diferénciate con booking integrado.</div>
-          </div>
-        </div>
-      )}
+      {real && <div style={{ display: 'flex', gap: 8, marginBottom: 18, flexWrap: 'wrap', fontFamily: 'var(--term)' }}>
+        {[['@general', 'Mercado 2026'], ['@stacks', 'Stacks'], ['@prediction', 'Predicción 2027']].map(([k, l]) => <button key={k} className="tag" style={{ cursor: 'pointer' }} onClick={() => go(k)}>{l}</button>)}
+        {done && md && <button className="tag" style={{ cursor: 'pointer', marginLeft: 'auto', color: 'var(--accent)' }} onClick={() => window.tfNav && window.tfNav('new')}>▶ Crear proyecto desde análisis</button>}
+      </div>}
+      {load && <div className="panelc" style={{ textAlign: 'center', color: 'var(--accent)', fontFamily: 'var(--term)' }}>{'>'} analizando mercado con IA (OpenRouter) — puede tardar…</div>}
+      {done && md && <div className="panelc fade"><pre style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word', fontFamily: 'var(--term)', fontSize: 13, lineHeight: 1.7, color: 'var(--tx)', margin: 0 }}>{md}</pre></div>}
       {!done && !load && <div className="panelc" style={{ textAlign: 'center', color: 'var(--tx-dim)', fontFamily: 'var(--term)' }}>introduce un nicho para empezar</div>}
     </div>
   );
 }
 
-/* ---- Licensing ---- */
+/* ---- Licensing (sistema real anti-nulled pcreative) ---- */
 function Licensing() {
-  const [pr, setPr] = useState('lemon');
-  const provs = [['lemon', 'Lemon Squeezy', '◆'], ['polar', 'Polar', '◉'], ['paddle', 'Paddle', '▲'], ['custom', 'Custom', '⬡']];
+  const real = !!(window.tfBridge && window.tfBridge.licensing_status);
+  const [st, setSt] = useState(null);
+  const [sub, setSub] = useState('lic');
+  const [np, setNp] = useState(''); const [ne, setNe] = useState(''); const [nt, setNt] = useState('regular');
+  const [prods, setProds] = useState(null); const [gum, setGum] = useState(null); const [tools, setTools] = useState('');
+  const api = (p, m, b) => window.tfBridge.licensing_api(p, m || 'GET', b ? JSON.stringify(b) : '').then(j => { try { return JSON.parse(j); } catch (e) { return {}; } });
+  const refresh = () => { if (real) window.tfBridge.licensing_status().then(j => { try { setSt(JSON.parse(j)); } catch (e) {} }); };
+  useEffect(() => { refresh(); }, []);
+  const create = () => { if (!np.trim()) return; window.tfBridge.licensing_create(np, ne, nt).then(j => { let r = {}; try { r = JSON.parse(j); } catch (e) {} alert(r.ok ? ('✓ Licencia: ' + (r.key || '')) : ('Error: ' + (r.error || r.code))); refresh(); }); };
+  if (!real) return <div className="page fade"><div className="panelc">Licensing no disponible (sin puente).</div></div>;
   return (
-    <div className="page fade" style={{ maxWidth: 900 }}>
+    <div className="page fade" style={{ maxWidth: 980 }}>
       <h2 className="sec">⚿ Licencias <span style={{ fontFamily: 'var(--term)', fontSize: 13, color: 'var(--tx-dim)' }}>認可</span></h2>
-      <div className="panelc" style={{ marginBottom: 18 }}>
-        <div style={{ fontWeight: 600, marginBottom: 12, fontFamily: 'var(--term)' }}>proveedor</div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 10 }}>
-          {provs.map(([k, l, e]) => <button key={k} className={'tile' + (pr === k ? ' on' : '')} onClick={() => setPr(k)} style={{ textAlign: 'center' }}><div style={{ fontSize: 22, color: 'var(--accent)' }}>{e}</div><div style={{ fontWeight: 600, fontSize: 13, marginTop: 6, fontFamily: 'var(--term)' }}>{l}</div></button>)}
-        </div>
+      <div className="panelc" style={{ marginBottom: 14, display: 'flex', alignItems: 'center', gap: 12, fontFamily: 'var(--term)', fontSize: 13 }}>
+        <span style={{ width: 9, height: 9, borderRadius: 99, background: st ? (st.reachable ? 'var(--accent)' : (st.configured ? '#ffb000' : 'var(--tx-dim)')) : 'var(--tx-dim)' }} />
+        <span>{!st ? 'consultando…' : !st.configured ? 'Sin backend (config en licensing.json)' : st.reachable ? ('Backend OK · ' + (st.licenses || []).length + ' licencias · ' + (st.products || []).length + ' productos') : 'Configurado pero no responde'}</span>
+        <button className="btn" style={{ marginLeft: 'auto' }} onClick={refresh}>↻</button>
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-        <div className="panelc">
-          <div style={{ fontWeight: 600, marginBottom: 12, fontFamily: 'var(--term)' }}>config</div>
-          {[['Store ID', 'store_8f2a9c'], ['Product ID', 'prod_matrix_01'], ['API key', '••••••••3f7a']].map(([l, v]) => (
-            <div key={l} style={{ marginBottom: 11 }}>
-              <div style={{ fontSize: 11.5, fontFamily: 'var(--term)', color: 'var(--tx-dim)', marginBottom: 4, letterSpacing: '.05em' }}>{l}</div>
-              <div style={{ background: 'var(--bg)', border: '1px solid var(--line)', borderRadius: 4, padding: '9px 13px', fontFamily: 'var(--term)', fontSize: 13, color: 'var(--tx)' }}>{v}</div>
-            </div>
-          ))}
-          <button className="btn pri" style={{ marginTop: 6 }}>⚿ Cablear en proyecto</button>
-        </div>
-        <div className="panelc">
-          <div style={{ fontWeight: 600, marginBottom: 12, fontFamily: 'var(--term)' }}>validador · license.ts</div>
-          <div style={{ background: 'var(--bg)', border: '1px solid var(--line)', borderRadius: 4, padding: 14, fontSize: 12.5, lineHeight: 1.8, fontFamily: 'var(--term)', color: 'var(--tx-dim)' }}>
-            <div><b style={{ color: 'var(--p4)' }}>export async function</b> <b style={{ color: 'var(--accent)' }}>validate</b>(key) {'{'}</div>
-            <div>&nbsp;&nbsp;<b style={{ color: 'var(--p4)' }}>const</b> r = await fetch(API);</div>
-            <div>&nbsp;&nbsp;<b style={{ color: 'var(--p4)' }}>return</b> r.valid; {'}'}</div>
+      <div style={{ display: 'flex', gap: 8, marginBottom: 14, flexWrap: 'wrap' }}>
+        {[['lic', 'Licencias'], ['prod', 'Productos'], ['gum', 'Gumroad'], ['tools', 'Tools']].map(([k, l]) => (
+          <button key={k} className={'tag' + (sub === k ? ' on' : '')} style={{ cursor: 'pointer', color: sub === k ? 'var(--accent)' : 'var(--tx-dim)' }} onClick={() => { setSub(k); if (k === 'prod' && !prods) api('/api/products/versions').then(r => setProds(r.data)); if (k === 'gum' && !gum) api('/api/gumroad').then(r => setGum(r.data)); }}>{l}</button>
+        ))}
+      </div>
+      {sub === 'lic' && (
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: 16 }}>
+          <div className="panelc" style={{ padding: 0, overflow: 'hidden' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12.5, fontFamily: 'var(--term)' }}>
+              <thead><tr style={{ background: 'var(--bg)' }}>{['Key', 'Producto', 'Tipo', 'Estado'].map(h => <th key={h} style={{ textAlign: 'left', padding: '10px 14px', color: 'var(--tx-dim)', borderBottom: '1px solid var(--line)' }}>{h}</th>)}</tr></thead>
+              <tbody>{(st && st.licenses && st.licenses.length) ? st.licenses.map((l, i) => <tr key={i} style={{ borderTop: '1px solid var(--line)' }}><td style={{ padding: '9px 14px', color: 'var(--accent)' }}>{l.key}</td><td style={{ padding: '9px 14px' }}>{l.product}</td><td style={{ padding: '9px 14px', color: 'var(--tx-dim)' }}>{l.type}</td><td style={{ padding: '9px 14px' }}>{l.status}</td></tr>) : <tr><td colSpan={4} style={{ padding: 22, textAlign: 'center', color: 'var(--tx-dim)' }}>// sin licencias</td></tr>}</tbody>
+            </table>
           </div>
-          <div style={{ marginTop: 12, color: 'var(--accent)', fontFamily: 'var(--term)', fontSize: 13 }}>[OK] Validación activa · 256-bit</div>
+          <div className="panelc">
+            <div style={{ fontWeight: 600, marginBottom: 12, fontFamily: 'var(--term)' }}>crear licencia 発行</div>
+            <input className="ta" style={{ minHeight: 0, height: 38, marginBottom: 8 }} value={np} onChange={e => setNp(e.target.value)} placeholder="producto (slug)" />
+            <input className="ta" style={{ minHeight: 0, height: 38, marginBottom: 8 }} value={ne} onChange={e => setNe(e.target.value)} placeholder="email comprador" />
+            <select className="ta" style={{ minHeight: 0, height: 38, marginBottom: 10 }} value={nt} onChange={e => setNt(e.target.value)}><option value="regular">regular</option><option value="extended">extended</option></select>
+            <button className="btn pri" onClick={create}>⚿ Crear licencia</button>
+          </div>
         </div>
-      </div>
+      )}
+      {sub === 'prod' && <div className="panelc"><div style={{ display: 'flex', marginBottom: 10 }}><b style={{ flex: 1, fontFamily: 'var(--term)' }}>Productos / Versiones</b><button className="btn" onClick={() => api('/api/products/versions').then(r => setProds(r.data))}>↻</button></div><pre style={{ whiteSpace: 'pre-wrap', fontFamily: 'var(--term)', fontSize: 12, color: 'var(--tx-dim)', margin: 0 }}>{prods ? ((prods.products || []).map(p => '• ' + p.id + ' · ' + (p.currentVersion || '—') + ' · ' + p.repo).join('\n') || '(sin productos)') : '// cargando…'}</pre></div>}
+      {sub === 'gum' && <div className="panelc"><div style={{ display: 'flex', marginBottom: 10 }}><b style={{ flex: 1, fontFamily: 'var(--term)' }}>Ventas Gumroad</b><button className="btn" onClick={() => api('/api/gumroad').then(r => setGum(r.data))}>↻</button></div><pre style={{ whiteSpace: 'pre-wrap', fontFamily: 'var(--term)', fontSize: 12, color: 'var(--tx-dim)', margin: 0 }}>{gum ? JSON.stringify(gum, null, 2) : '// cargando…'}</pre></div>}
+      {sub === 'tools' && <div className="panelc"><div style={{ display: 'flex', gap: 8, marginBottom: 10 }}><button className="btn" onClick={() => api('/api/integrations/status').then(r => setTools(JSON.stringify(r.data, null, 2)))}>Estado integraciones</button></div><pre style={{ whiteSpace: 'pre-wrap', fontFamily: 'var(--term)', fontSize: 12, color: 'var(--tx-dim)', margin: 0, minHeight: 50 }}>{tools || '// resultado'}</pre></div>}
     </div>
   );
 }
@@ -756,6 +765,7 @@ function App() {
   }, []);
 
   const nav = (id) => { setProject(null); setRoute(id); };
+  window.tfNav = nav;
   const openProject = (p) => { setProject(p); setRoute('project'); };
   const titles = { gallery: '▤ Galería', new: '+ Nuevo proyecto', cost: '$ Coste de IA', compare: '⇄ Comparar agentes', operator: '⌬ Mission Control', market: '⊞ Market Analyzer', licensing: '⚿ Licencias', settings: '⚙ Ajustes', project: '▸ ' + (project ? project.name : '') };
 
