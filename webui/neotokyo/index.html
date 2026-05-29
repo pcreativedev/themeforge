@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ThemeForge // Neo-Tokyo</title>
+  <link rel="stylesheet" href="styles/neo-tokyo.css" />
+  <template id="__bundler_thumbnail">
+    <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+      <rect width="100" height="100" fill="#04060c" />
+      <text x="50" y="62" font-size="44" text-anchor="middle" fill="#00f0ff" font-family="sans-serif" font-weight="700" style="filter: drop-shadow(0 0 6px #00f0ff)">鍛</text>
+    </svg>
+  </template>
+</head>
+<body>
+  <div id="root"></div>
+
+  <!-- ThemeForge native bridge (QWebChannel ↔ Python). Vendored qwebchannel.js
+       so it works over the local http origin. window.tfBridge resolves to the
+       Python object once connected; window.tfBridgeReady is a Promise. -->
+  <script src="qwebchannel.js"></script>
+  <script>
+    window.tfBridge = null;
+    window.tfBridgeReady = new Promise((resolve) => {
+      function connect() {
+        if (typeof qt === 'undefined' || !qt.webChannelTransport) {
+          // Fuera del shell nativo (navegador normal): no hay puente.
+          console.log('[tfBridge] sin transporte Qt — modo prototipo standalone');
+          return resolve(null);
+        }
+        new QWebChannel(qt.webChannelTransport, (channel) => {
+          window.tfBridge = channel.objects.bridge;
+          console.log('[tfBridge] conectado al backend de ThemeForge');
+          resolve(window.tfBridge);
+        });
+      }
+      if (document.readyState === 'complete') connect();
+      else window.addEventListener('load', connect);
+    });
+
+    // DEMO del POC: prueba que la acción real Python responde y muéstralo.
+    window.tfBridgeReady.then(async (bridge) => {
+      if (!bridge) return;
+      try {
+        const json = await bridge.list_stacks();
+        const stacks = JSON.parse(json);
+        const b = document.createElement('div');
+        b.textContent = '✓ Bridge nativo OK — ' + stacks.length +
+          ' stacks reales desde Python (' + (stacks[0] && stacks[0].key) + '…)';
+        b.style.cssText = 'position:fixed;left:50%;bottom:18px;transform:translateX(-50%);' +
+          'z-index:99999;background:#0b1020;color:#9dff3c;border:1px solid #00f0ff;' +
+          'border-radius:10px;padding:10px 18px;font:13px JetBrains Mono,monospace;' +
+          'box-shadow:0 0 18px rgba(0,240,255,.45)';
+        document.body.appendChild(b);
+        setTimeout(() => b.style.transition = 'opacity .6s', 4000);
+        setTimeout(() => b.style.opacity = '0', 4200);
+        setTimeout(() => b.remove(), 5000);
+      } catch (e) { console.error('[tfBridge] list_stacks falló', e); }
+    });
+  </script>
+
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+  <script type="text/babel" src="app/components.jsx"></script>
+  <script type="text/babel" src="app/atmosphere.jsx"></script>
+  <script type="text/babel" src="app/data.jsx"></script>
+  <script type="text/babel" src="app/tweaks-panel.jsx"></script>
+  <script type="text/babel" src="app/screen-gallery.jsx"></script>
+  <script type="text/babel" src="app/screen-newproject.jsx"></script>
+  <script type="text/babel" src="app/screen-project.jsx"></script>
+  <script type="text/babel" src="app/screen-cost.jsx"></script>
+  <script type="text/babel" src="app/screen-misc.jsx"></script>
+  <script type="text/babel" src="app/screen-operator.jsx"></script>
+  <script type="text/babel" src="app/modals.jsx"></script>
+  <script type="text/babel" src="app/palette.jsx"></script>
+  <script type="text/babel" src="app/app.jsx"></script>
+</body>
+</html>
