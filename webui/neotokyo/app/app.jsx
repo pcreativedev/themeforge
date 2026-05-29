@@ -150,7 +150,31 @@ function App() {
     if (window.tfBridge && p && p.path) { window.tfBridge.open_project(p.path); return; }
     setProject(p); setRoute('project');
   };
-  const launch = (cfg) => { setProject({ ...cfg, status: 'building', jp: '制作', accent: 'var(--accent)' }); setRoute('project'); };
+  const launch = (cfg) => {
+    // Crear proyecto REAL vía el shell nativo: scaffold + autoskills + UI/UX
+    // Pro, y al terminar abre la ProjectWindow nativa (terminal real).
+    if (window.tfBridge && window.tfBridge.create_project) {
+      try {
+        if (window.tfBridge.progress && window.tfBridge.progress.connect && !window.__tfProgWired) {
+          window.__tfProgWired = true;
+          window.tfBridge.progress.connect((line) => console.log('[forge]', line));
+          window.tfBridge.build_done && window.tfBridge.build_done.connect &&
+            window.tfBridge.build_done.connect((j) => console.log('[forge] done', j));
+        }
+        window.tfBridge.create_project(JSON.stringify(cfg));
+      } catch (e) { console.error('create_project', e); }
+      // Aviso visible: el scaffold corre en segundo plano y abrirá su ventana.
+      const b = document.createElement('div');
+      b.textContent = '⚙ Creando «' + (cfg.name || 'proyecto') + '» — se abrirá su ventana al terminar…';
+      b.style.cssText = 'position:fixed;left:50%;bottom:18px;transform:translateX(-50%);z-index:99999;' +
+        'background:#0b1020;color:#00f0ff;border:1px solid #00f0ff;border-radius:10px;padding:10px 18px;' +
+        'font:13px JetBrains Mono,monospace;box-shadow:0 0 18px rgba(0,240,255,.45)';
+      document.body.appendChild(b);
+      setTimeout(() => b.remove(), 6000);
+      return;
+    }
+    setProject({ ...cfg, status: 'building', jp: '制作', accent: 'var(--accent)' }); setRoute('project');
+  };
 
   const pad = t.density === 'compact' ? 0.85 : t.density === 'comfy' ? 1.15 : 1;
 

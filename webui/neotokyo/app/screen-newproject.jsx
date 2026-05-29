@@ -76,9 +76,22 @@ function NewProjectScreen({ onLaunch, onAnalyze }) {
   const tog = (k) => setOpts(o => ({ ...o, [k]: !o[k] }));
 
   const runVibe = (preset) => {
-    const v = preset || VIBE_PRESETS[1];
+    const desc = preset ? preset.vibe : vibe;
     if (preset) setVibe(preset.vibe);
     setThinking(true); setFilled(false);
+    // Pre-fill REAL con IA vía el motor de ThemeForge (suggest_stack).
+    if (window.tfBridge && window.tfBridge.suggest_stack && (desc || '').trim()) {
+      window.tfBridge.suggest_stack(desc).then((jsonStr) => {
+        let r = {}; try { r = JSON.parse(jsonStr); } catch (e) {}
+        if (r && r.stack && (STACKS.find(s => s.key === r.stack))) setStack(r.stack);
+        if (r && r.template_type) setType(r.template_type);
+        setGenPrompt(r.prompt || r.dev_prompt || ('Build: ' + desc));
+        setThinking(false); setFilled(true);
+      }).catch(() => { setThinking(false); setFilled(true); });
+      return;
+    }
+    // Fallback (prototipo suelto sin puente).
+    const v = preset || VIBE_PRESETS[1];
     setTimeout(() => {
       setStack(v.stack); setAgent(v.agent); setType(v.type);
       setGenPrompt(`Build a production-ready ${v.type} using ${(STACKS.find(s => s.key === v.stack)||{label:v.stack}).label}. ${(preset || { vibe }).vibe || vibe}. Cohesive design system, WCAG AA, real copy (no lorem), Unsplash imagery del nicho, deploy-ready. Anti-copy: layout original.`);
@@ -259,7 +272,7 @@ function NewProjectScreen({ onLaunch, onAnalyze }) {
         <div className="mono" style={{ fontSize: 12.5, color: 'var(--tx-dim)' }}>
           <span style={{ color: 'var(--accent)' }}>{(STACKS.find(s => s.key === stack)||{label:stack}).label}</span>{' · '}{(MODES.find(m => m.k === mode)||{label:mode}).label}{' · '}<span style={{ color: AGENTS[agent].color }}>{AGENTS[agent].label}</span>{' · ~$0.40'}
         </div>
-        <Btn variant="primary" icon="rocket" onClick={() => onLaunch({ stack, agent, type, name: 'Untitled Forge' })}>Forjar proyecto</Btn>
+        <Btn variant="primary" icon="rocket" onClick={() => onLaunch({ stack, agent, type, mode, opts, niche: vibe, name: ((vibe || '').trim().slice(0, 42) || type || 'Untitled Forge') })}>Forjar proyecto</Btn>
       </div>
     </div>
   );

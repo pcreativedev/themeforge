@@ -29,7 +29,7 @@ from functools import partial
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-from PyQt6.QtCore import QObject, QUrl, pyqtSlot
+from PyQt6.QtCore import QObject, QUrl, QProcess, pyqtSlot, pyqtSignal
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QLabel
 
 WEBUI_DIR = Path(__file__).resolve().parent / "webui" / "neotokyo"
@@ -182,7 +182,105 @@ def bootstrap_data() -> dict:
 class ThemeForgeBridge(QObject):
     """Objeto puente expuesto a la página como `window.tfBridge`. Cada
     @pyqtSlot es invocable desde JavaScript. Aquí va la lógica REAL de
-    ThemeForge (de momento, solo la acción del POC)."""
+    ThemeForge. Las señales se reciben en JS con `bridge.<signal>.connect(cb)`."""
+
+    # Progreso de un build/scaffold en curso (texto de log).
+    progress = pyqtSignal(str)
+    # Build terminado: JSON {ok, slug, path, exit}.
+    build_done = pyqtSignal(str)
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._procs = []  # mantener vivas las QProcess en vuelo
+
+    @pyqtSlot(str, result=str)
+    def create_project(self, payload_json: str) -> str:
+        """Crea un proyecto REAL: escribe el setup script (scaffold + autoskills
+        + UI/UX Pro) y lo ejecuta async; emite `progress`; al terminar abre la
+        ProjectWindow nativa real y emite `build_done`."""
+        try:
+            cfg = json.loads(payload_json or "{}")
+        except Exception:
+            cfg = {}
+        name = (cfg.get("name") or "").strip() or "Untitled Forge"
+        stack = cfg.get("stack") or ""
+        ttype = cfg.get("type") or "(Sin tipo específico)"
+        provider = cfg.get("agent") or "codex"
+        niche = cfg.get("niche") or ""
+        opts = cfg.get("opts") or {}
+        try:
+            from stacks import STACKS
+            import ai_providers as aip
+            from themeforge import (write_setup_script, PROJECTS_DIR, slugify,
+                                    load_projects_meta, save_projects_meta)
+        except Exception as e:
+            return json.dumps({"ok": False, "error": f"import: {e}"})
+        if stack not in STACKS:
+            return json.dumps({"ok": False, "error": f"stack desconocido: {stack}"})
+        if provider not in aip.PROVIDERS:
+            provider = "codex" if "codex" in aip.PROVIDERS else next(iter(aip.PROVIDERS))
+        from pathlib import Path
+        slug = slugify(name)
+        project_dir = PROJECTS_DIR / slug
+        n = 2
+        while project_dir.exists() and any(project_dir.iterdir()):
+            slug = f"{slugify(name)}-{n}"; project_dir = PROJECTS_DIR / slug; n += 1
+        try:
+            script = write_setup_script(
+                project_dir=project_dir, stack_key=stack, template_type=ttype,
+                project_name=name, agent_key=provider,
+                run_autoskills=bool(opts.get("uipro", True)),
+                mode="scratch", reference_kind=None, reference_value=None,
+                existing_repo=None, create_github_repo=False, github_user=None,
+                embedded=True, run_uipro=bool(opts.get("uipro", True)),
+                niche=(niche or None), launch_agent=False,
+            )
+        except Exception as e:
+            return json.dumps({"ok": False, "error": f"write_setup_script: {e}"})
+        try:
+            meta = load_projects_meta()
+            if slug not in meta:
+                meta[slug] = {"name": name, "stack": stack}
+                save_projects_meta(meta)
+        except Exception:
+            pass
+
+        PROJECTS_DIR.mkdir(parents=True, exist_ok=True)
+        proc = QProcess(self)
+        proc.setWorkingDirectory(str(PROJECTS_DIR))
+        proc.setProcessChannelMode(QProcess.ProcessChannelMode.MergedChannels)
+        proc.readyReadStandardOutput.connect(
+            lambda: self.progress.emit(
+                bytes(proc.readAllStandardOutput()).decode(errors="replace")))
+
+        def _done(code, _status):
+            self.progress.emit(f"\n■ Scaffold terminado (exit {code}).\n")
+            self.build_done.emit(json.dumps(
+                {"ok": code == 0, "slug": slug, "path": str(project_dir), "exit": code}))
+            try:
+                from themeforge import open_project_window
+                open_project_window(project_dir)
+            except Exception as e:
+                self.progress.emit(f"[error abriendo ventana] {e}\n")
+            if proc in self._procs:
+                self._procs.remove(proc)
+
+        proc.finished.connect(_done)
+        self._procs.append(proc)
+        self.progress.emit(f"▶ Creando '{name}' ({stack}, {provider})…\n")
+        proc.start("bash", [str(script)])
+        return json.dumps({"ok": True, "slug": slug, "path": str(project_dir),
+                           "started": True})
+
+    @pyqtSlot(str, result=str)
+    def suggest_stack(self, description: str) -> str:
+        """Pre-fill Vibe real: usa el motor de sugerencia de ThemeForge
+        (mismo que la GUI) para recomendar stack/tipo/prompt desde texto."""
+        try:
+            from mcp_server import suggest_stack as _ss
+            return json.dumps(_ss(description))
+        except Exception as e:
+            return json.dumps({"error": str(e)})
 
     @pyqtSlot(result=str)
     def list_stacks(self) -> str:
