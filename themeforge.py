@@ -2814,6 +2814,51 @@ tienda de desarrollo (Partners → Stores → Add development store).
 - `prefers-reduced-motion` respetado.
 - Assets libres de derechos (ver sección §C abajo)."""
 
+    # --- Entregable MULTIPÁGINA (obligatorio en CUALQUIER stack web) ---------
+    # Aplica a nativo y WebUI por igual (ambos usan este mismo contexto).
+    if product_format == "mobile":
+        pages_block = ""  # app móvil: navegación por pantallas, no "páginas web"
+    elif product_format == "script-app":
+        pages_block = """## 📄 Entregable MULTI-VISTA / multipágina (OBLIGATORIO)
+
+Aunque sea una app/script con backend, **no entregues una sola pantalla**.
+Implementa **varias vistas/páginas reales y navegables** (no un único dashboard
+vacío): landing pública + auth (login/registro) + varias secciones del panel
+(dashboard, listado, detalle, ajustes/perfil) + páginas de error (404/500).
+Cada vista con demo data realista y distinta, responsive 360→1920 y WCAG AA."""
+    else:
+        # site-template / wordpress / shopify / unknown → tema/sitio multipágina
+        pages_block = """## 📄 Entregable MULTIPÁGINA (OBLIGATORIO en stacks web)
+
+Este template **NO es una landing de una sola página**. Salvo que el usuario lo
+pida explícitamente, entrega un sitio **multipágina**: varias páginas/rutas
+**reales y navegables**, no secciones ancladas (`#anchor`) en un único scroll.
+
+**Mínimo de páginas reales** (adáptalas al tipo/nicho del §D — renombra/añade
+según el sector, p. ej. *Menú* en restaurante, *Portfolio* en agencia,
+*Habitaciones* en hotel, *Tienda/Producto* en e-commerce):
+
+- **Home / Inicio**
+- **About / Nosotros**
+- **Services / Features** (o el catálogo equivalente del nicho)
+- **Pricing / Planes** (si encaja con el modelo de negocio)
+- **Blog** (índice) + **Blog post / artículo** (detalle)
+- **Contact / Contacto** (formulario validado, aunque sea maqueta)
+- **404** personalizada
+
+Reglas:
+- Cada página es una **ruta real** del stack, no un ancla. Next/Astro/Remix →
+  archivos en el router; Vite/SPA → rutas del router (React Router, Vue Router…);
+  WordPress → *page templates* + `single`/`archive`/`404`; Shopify → templates
+  `page.*`/`blog`/`article` + secciones. El **header/footer enlaza a todas**.
+- **Demo data realista y distinta por página** (no clones la misma sección).
+  Cada página se ve 100% terminada al primer `npm run dev`.
+- Todas las páginas: responsive 360→1920, WCAG AA, SEO por página
+  (title/meta/OG propios) y `prefers-reduced-motion`.
+- Si el tipo elegido es intrínsecamente *one-page* (porque se pidió así o es un
+  widget), respétalo — pero entonces entrega **demos/variantes** adicionales en
+  su lugar para que el paquete no sea una única pantalla."""
+
     if mode == "scratch":
         mode_block = (
             "## Modo: desde cero\n\n"
@@ -3002,6 +3047,8 @@ Los commits que hagas se añaden encima del historial existente.
 {('- **Nicho / industria objetivo**: ' + niche_clean + ' (ver §D abajo para tono, paleta y demo data específica)') if not niche_unspecified else (
     '- **Nicho / industria**: genérico — adapta el demo data al tipo elegido arriba'
 )}
+
+{pages_block}
 
 {mode_block}
 
