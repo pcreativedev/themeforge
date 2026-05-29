@@ -627,20 +627,32 @@ class ThemeForgeBridge(QObject):
         """Auto-lanza la IA (provider activo + contexto del proyecto) en un
         terminal real (xterm + node-pty) con cwd en el proyecto, igual que la
         app normal. Emite `terminal_ready` con la URL para embeber."""
-        return self._start_terminal(path, agent=True)
+        cmd, args = self._agent_launch_for(path)
+        return self._start_terminal(path, cmd, args, "agent")
 
     @pyqtSlot(str, result=str)
     def start_shell(self, path: str) -> str:
-        """Igual que start_terminal pero shell pelado (sin IA)."""
-        return self._start_terminal(path, agent=False)
+        """Shell bash pelado (sin IA). Pestaña «Shell»."""
+        return self._start_terminal(path, "bash", [], "shell")
 
-    def _start_terminal(self, path: str, agent: bool) -> str:
+    @pyqtSlot(str, result=str)
+    def start_hermes(self, path: str) -> str:
+        """Pestaña «Hermes»: corre `hermes -s themeforge-operator` interactivo en
+        el cwd del proyecto (si Hermes está instalado), igual que el tab nativo."""
+        import shutil
+        from pathlib import Path
+        hermes = shutil.which("hermes") or str(Path.home() / ".local" / "bin" / "hermes")
+        if not Path(hermes).is_file():
+            self.terminal_ready.emit(json.dumps({"path": path, "kind": "hermes", "error": "Hermes no instalado"}))
+            return json.dumps({"ok": False, "error": "Hermes no instalado"})
+        return self._start_terminal(path, hermes, ["-s", "themeforge-operator"], "hermes")
+
+    def _start_terminal(self, path: str, cmd: str, args, kind: str) -> str:
         import shutil
         node = shutil.which("node")
         if not node:
-            self.terminal_ready.emit(json.dumps({"path": path, "error": "node no encontrado"}))
+            self.terminal_ready.emit(json.dumps({"path": path, "kind": kind, "error": "node no encontrado"}))
             return json.dumps({"ok": False, "error": "node no encontrado"})
-        cmd, args = self._agent_launch_for(path) if agent else ("bash", [])
         proc = QProcess(self)
         proc.setWorkingDirectory(str(TERMINAL_DIR))
         proc.setProcessChannelMode(QProcess.ProcessChannelMode.MergedChannels)
@@ -656,12 +668,12 @@ class ThemeForgeBridge(QObject):
                     if args:
                         q += "&args=" + urllib.parse.quote("\x1f".join(args))
                     url = f"http://127.0.0.1:{port}/?{q}"
-                    self.terminal_ready.emit(json.dumps({"path": path, "url": url}))
+                    self.terminal_ready.emit(json.dumps({"path": path, "kind": kind, "url": url}))
 
         proc.readyReadStandardOutput.connect(_on_out)
         proc.start(node, [str(TERMINAL_DIR / "server.js"), "0"])
         self._procs.append(proc)
-        return json.dumps({"ok": True, "starting": True, "agent": agent})
+        return json.dumps({"ok": True, "starting": True, "kind": kind})
 
     @pyqtSlot(str, result=str)
     def start_preview(self, path: str) -> str:
@@ -1242,6 +1254,24 @@ class ThemeForgeBridge(QObject):
             return json.dumps({"ok": True})
         except Exception as e:
             return json.dumps({"ok": False, "error": str(e)})
+
+    @pyqtSlot(result=str)
+    def pixel_office_url(self) -> str:
+        """URL del dashboard Pixel Office para la pestaña «Office» (lo arranca si
+        está instalado pero apagado). Devuelve {installed, up, url}."""
+        try:
+            import pixel_office
+            url = getattr(pixel_office, "DASHBOARD_URL", "")
+            up = pixel_office.is_dashboard_up()
+            installed = up or bool(pixel_office.find_install_dir())
+            if installed and not up:
+                try:
+                    pixel_office.launch_background()
+                except Exception:
+                    pass
+            return json.dumps({"installed": installed, "up": up, "url": url})
+        except Exception as e:
+            return json.dumps({"installed": False, "up": False, "url": "", "error": str(e)})
 
     @pyqtSlot(str, result=str)
     def git_push(self, path: str) -> str:

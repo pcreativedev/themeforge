@@ -88,6 +88,61 @@ function RealTerminal({ path, running }) {
   return <iframe src={url} style={{ flex: 1, width: '100%', height: '100%', border: 'none', background: '#0c0c0d' }} />;
 }
 
+// Una terminal real por «kind» (agent/shell/hermes), filtrada por path+kind.
+function TermFrame({ path, kind, running }) {
+  const [url, setUrl] = useState(null);
+  const [err, setErr] = useState(null);
+  useEffect(() => {
+    const B = window.tfBridge;
+    if (!B || !path) return;
+    const onReady = (j) => { let r = {}; try { r = JSON.parse(j); } catch (e) {} if (r.path === path && r.kind === kind) { if (r.url) setUrl(r.url); else if (r.error) setErr(r.error); } };
+    if (B.terminal_ready && B.terminal_ready.connect) B.terminal_ready.connect(onReady);
+    const fn = kind === 'agent' ? B.start_terminal : kind === 'shell' ? B.start_shell : kind === 'hermes' ? B.start_hermes : null;
+    if (fn) fn.call(B, path);
+    return () => { try { B.terminal_ready.disconnect(onReady); } catch (e) {} };
+  }, [path, kind]);
+  if (!window.tfBridge || !path) return <Terminal running={running} />;
+  if (err) return <div className="mono faint" style={{ flex: 1, padding: 16, color: 'var(--gemini)' }}>// {kind}: {err}</div>;
+  if (!url) return <div className="mono faint" style={{ flex: 1, padding: 16 }}>// iniciando {kind} (xterm · node-pty)…</div>;
+  return <iframe src={url} style={{ flex: 1, width: '100%', height: '100%', border: 'none', background: '#0c0c0d' }} />;
+}
+// Pestaña «Office» — dashboard pixel-art (visualizador de sesiones).
+function OfficeFrame() {
+  const [url, setUrl] = useState(null);
+  const [msg, setMsg] = useState('// cargando Office…');
+  useEffect(() => {
+    const B = window.tfBridge;
+    if (!B || !B.pixel_office_url) { setMsg('// Office no disponible'); return; }
+    B.pixel_office_url().then(j => { let r = {}; try { r = JSON.parse(j); } catch (e) {} if (r.installed && r.url) setUrl(r.url); else setMsg('// Pixel Office no instalado — Settings → Pixel Office'); });
+  }, []);
+  if (!url) return <div className="mono faint" style={{ flex: 1, padding: 16 }}>{msg}</div>;
+  return <iframe src={url} style={{ flex: 1, width: '100%', height: '100%', border: 'none', background: '#0c0c0d' }} />;
+}
+// Pestañas encima del terminal (como en la app normal): Agent · Shell · Hermes · Office.
+function TermTabs({ path, running }) {
+  const op = (window.__TF_DATA__ && window.__TF_DATA__.operator) || {};
+  const tabs = [['agent', '◈ Agent'], ['shell', '▮ Shell']];
+  if (op.available) tabs.push(['hermes', '🚀 Hermes']);
+  tabs.push(['office', '🎮 Office']);
+  const [active, setActive] = useState('agent');
+  const [seen, setSeen] = useState({ agent: true });
+  const open = (k) => { setActive(k); setSeen(s => ({ ...s, [k]: true })); };
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
+      <div style={{ display: 'flex', gap: 5, padding: '8px 12px', borderBottom: '1px solid var(--line)', flexWrap: 'wrap' }}>
+        {tabs.map(([k, l]) => (
+          <button key={k} onClick={() => open(k)} style={{ cursor: 'pointer', padding: '5px 11px', borderRadius: 7, fontSize: 11.5, fontFamily: 'var(--font-display)', background: active === k ? 'rgba(var(--accent-rgb),0.12)' : 'transparent', border: '1px solid ' + (active === k ? 'rgba(var(--accent-rgb),0.45)' : 'var(--line)'), color: active === k ? 'var(--accent)' : 'var(--tx-dim)' }}>{l}</button>
+        ))}
+      </div>
+      {tabs.map(([k]) => seen[k] ? (
+        <div key={k} style={{ display: active === k ? 'flex' : 'none', flex: active === k ? 1 : 0, flexDirection: 'column', minHeight: 0 }}>
+          {k === 'office' ? <OfficeFrame /> : <TermFrame path={path} kind={k} running={running} />}
+        </div>
+      ) : null)}
+    </div>
+  );
+}
+
 // Preview REAL con controles (Start/Stop/Reload/Navegador/Re-detectar), igual
 // que la barra de preview de la ProjectWindow nativa.
 function RealPreview({ path, accent, narrow }) {
@@ -266,9 +321,7 @@ function ProjectWindow({ project, onBack, onDeploy, onBuild, buildLog }) {
               </button>
             ))}
             <div style={{ flex: 1 }} />
-            <span className="mono faint" style={{ fontSize: 10.5 }}>localhost:5173</span>
-            <button className="btn btn-ghost" style={{ padding: '5px 8px' }}><Icon name="refresh" size={13} /></button>
-            <button className="btn btn-ghost" style={{ padding: '5px 8px' }}><Icon name="external" size={13} /></button>
+            <span className="mono faint" style={{ fontSize: 10.5 }}>preview real · controles abajo</span>
           </div>
           <div style={{ flex: 1, overflow: 'hidden', background: 'radial-gradient(circle at 50% 0%, #0a1020, #04060c)', display: 'grid', placeItems: 'stretch', minHeight: 0 }}>
             {building
@@ -283,19 +336,11 @@ function ProjectWindow({ project, onBack, onDeploy, onBuild, buildLog }) {
         <div style={{ display: 'flex', flexDirection: 'column', minHeight: 0 }}>
           <div style={{ padding: '10px 16px', borderBottom: '1px solid var(--line)', display: 'flex', alignItems: 'center', gap: 8 }}>
             <Icon name="terminal" size={15} style={{ color: 'var(--accent)' }} />
-            <span style={{ fontSize: 12.5, fontWeight: 600 }}>{building ? 'Setup inicial' : 'Agent Terminal'}</span>
+            <span style={{ fontSize: 12.5, fontWeight: 600 }}>{building ? 'Setup inicial' : 'Terminales'}</span>
             <span className="chip" style={{ marginLeft: 'auto', fontSize: 9.5 }}>{building ? 'scaffold · skills · UI Pro' : 'xterm · node-pty'}</span>
             {(running || building) && <span style={{ width: 7, height: 7, borderRadius: 99, background: 'var(--codex)', boxShadow: '0 0 8px var(--codex)', animation: 'blink 1.1s infinite' }} />}
           </div>
-          {building ? <BuildLog lines={buildLog} /> : <RealTerminal path={p.path} running={running} />}
-          {/* reply box */}
-          {!building && <div style={{ borderTop: '1px solid var(--line)', padding: 12, display: 'flex', gap: 8 }}>
-            <input value={reply} onChange={e => setReply(e.target.value)}
-              onKeyDown={e => { if (e.key === 'Enter' && reply.trim()) { setReply(''); setRunning(false); setTimeout(() => setRunning(true), 60); } }}
-              placeholder="Responder al agente…  (⏎ envía)"
-              style={{ flex: 1, background: 'var(--bg-void)', border: '1px solid var(--line-bright)', borderRadius: 8, padding: '9px 12px', color: 'var(--tx)', fontFamily: 'var(--font-mono)', fontSize: 12, outline: 'none' }} />
-            <Btn variant="primary" icon="play" onClick={() => { setRunning(false); setTimeout(() => setRunning(true), 60); }}>Run</Btn>
-          </div>}
+          {building ? <BuildLog lines={buildLog} /> : <TermTabs path={p.path} running={running} />}
         </div>
       </div>
     </div>

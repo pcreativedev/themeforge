@@ -569,19 +569,55 @@ function KawaiiTerminal({ run }) {
     </div>
   );
 }
-// Terminal REAL embebida (xterm+node-pty vía el puente) con auto-agente+contexto.
-function RealTerm({ path }) {
-  const [url, setUrl] = useState(null);
+// Una terminal real por «kind» (agent/shell/hermes), filtrada por path+kind.
+function TermFrame({ path, kind }) {
+  const [url, setUrl] = useState(null); const [err, setErr] = useState(null);
   useEffect(() => {
-    if (!window.tfBridge || !window.tfBridge.start_terminal || !path) return;
-    const onReady = (j) => { let r = {}; try { r = JSON.parse(j); } catch (e) {} if (r.path === path && r.url) setUrl(r.url); };
-    if (window.tfBridge.terminal_ready && window.tfBridge.terminal_ready.connect) window.tfBridge.terminal_ready.connect(onReady);
-    window.tfBridge.start_terminal(path);
-    return () => { try { window.tfBridge.terminal_ready.disconnect(onReady); } catch (e) {} };
-  }, [path]);
+    const B = window.tfBridge;
+    if (!B || !path) return;
+    const onReady = (j) => { let r = {}; try { r = JSON.parse(j); } catch (e) {} if (r.path === path && r.kind === kind) { if (r.url) setUrl(r.url); else if (r.error) setErr(r.error); } };
+    if (B.terminal_ready && B.terminal_ready.connect) B.terminal_ready.connect(onReady);
+    const fn = kind === 'agent' ? B.start_terminal : kind === 'shell' ? B.start_shell : kind === 'hermes' ? B.start_hermes : null;
+    if (fn) fn.call(B, path);
+    return () => { try { B.terminal_ready.disconnect(onReady); } catch (e) {} };
+  }, [path, kind]);
   if (!window.tfBridge || !path) return <KawaiiTerminal run={true} />;
-  if (!url) return <div style={{ flex: 1, padding: 14, color: 'var(--tx-dim)', fontWeight: 600 }}>🖥️ iniciando terminal real (xterm · node-pty)… ♡</div>;
+  if (err) return <div style={{ flex: 1, padding: 14, color: 'var(--p3)', fontWeight: 600 }}>{kind}: {err} 🥺</div>;
+  if (!url) return <div style={{ flex: 1, padding: 14, color: 'var(--tx-dim)', fontWeight: 600 }}>🖥️ iniciando {kind} (xterm · node-pty)… ♡</div>;
   return <iframe src={url} style={{ flex: 1, width: '100%', border: 'none', borderRadius: 16, background: '#1b1020', minHeight: 0 }} />;
+}
+// Pestaña «Office» — dashboard pixel-art ♡.
+function OfficeFrame() {
+  const [url, setUrl] = useState(null); const [msg, setMsg] = useState('✨ cargando Office… ♡');
+  useEffect(() => {
+    const B = window.tfBridge;
+    if (!B || !B.pixel_office_url) { setMsg('Office no disponible 🥺'); return; }
+    B.pixel_office_url().then(j => { let r = {}; try { r = JSON.parse(j); } catch (e) {} if (r.installed && r.url) setUrl(r.url); else setMsg('Pixel Office no instalado — Ajustes → Pixel Office ♡'); });
+  }, []);
+  if (!url) return <div style={{ flex: 1, padding: 14, color: 'var(--tx-dim)', fontWeight: 600 }}>{msg}</div>;
+  return <iframe src={url} style={{ flex: 1, width: '100%', border: 'none', borderRadius: 16, background: '#1b1020', minHeight: 0 }} />;
+}
+// Pestañas encima del terminal (como en la app normal): Agente · Shell · Hermes · Office.
+function RealTerm({ path }) {
+  const op = (window.__TF_DATA__ && window.__TF_DATA__.operator) || {};
+  const tabs = [['agent', '🩵 Agente'], ['shell', '🐚 Shell']];
+  if (op.available) tabs.push(['hermes', '🚀 Hermes']);
+  tabs.push(['office', '🎮 Office']);
+  const [active, setActive] = useState('agent');
+  const [seen, setSeen] = useState({ agent: true });
+  const open = (k) => { setActive(k); setSeen(s => ({ ...s, [k]: true })); };
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
+      <div style={{ display: 'flex', gap: 5, marginBottom: 8, flexWrap: 'wrap' }}>
+        {tabs.map(([k, l]) => <button key={k} className={'fchip' + (active === k ? ' on' : '')} onClick={() => open(k)}>{l}</button>)}
+      </div>
+      {tabs.map(([k]) => seen[k] ? (
+        <div key={k} style={{ display: active === k ? 'flex' : 'none', flex: active === k ? 1 : 0, flexDirection: 'column', minHeight: 0 }}>
+          {k === 'office' ? <OfficeFrame /> : <TermFrame path={path} kind={k} />}
+        </div>
+      ) : null)}
+    </div>
+  );
 }
 // Preview REAL con controles (Start / Stop / Reload / abrir en navegador) ♡.
 function RealPreview({ path, narrow }) {
