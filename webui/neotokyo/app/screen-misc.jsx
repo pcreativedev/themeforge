@@ -163,10 +163,56 @@ const _MOCK_APP_THEMES = [];
 const _TFD = (typeof window !== 'undefined' && window.__TF_DATA__) || {};
 const APP_THEMES = (_TFD.themes && _TFD.themes.length) ? _TFD.themes : _MOCK_APP_THEMES;
 
+// Sistema + Setup + Skills + Atajos (datos/diálogos reales del bridge).
+function SysAndSetup() {
+  const B = window.tfBridge;
+  const [sys, setSys] = useState(null);
+  const [skills, setSkills] = useState([]);
+  const loadSys = () => { if (B && B.system_status) B.system_status().then(j => { let r = {}; try { r = JSON.parse(j); } catch (e) {} setSys(r.sections || []); }); };
+  useEffect(() => { loadSys(); if (B && B.list_stack_skills) B.list_stack_skills().then(j => { let r = {}; try { r = JSON.parse(j); } catch (e) {} setSkills(r.stacks || []); }); }, []);
+  const call = (m, arg) => { if (B && B[m]) (arg !== undefined ? B[m](arg) : B[m]()); };
+  const setupBtns = [['open_credentials', 'key', 'Credenciales'], ['open_dependency_wizard', 'box', 'Dependencias'], ['open_onboarding', 'sparkles', 'Onboarding'], ['open_theme_editor', 'penTool', 'Theme editor'], ['open_figma_import', 'download', 'Import Figma']];
+  return (
+    <div className="fade-in">
+      <div className="panel" style={{ padding: 20, marginBottom: 18 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between' }}><div className="eyebrow" style={{ marginBottom: 12 }}>ESTADO DEL SISTEMA · 状態</div><button className="btn btn-ghost" style={{ padding: '4px 10px' }} onClick={loadSys}><Icon name="refresh" size={13} /></button></div>
+        {!sys ? <div className="faint mono" style={{ fontSize: 12 }}>detectando…</div> : sys.map(sec => (
+          <div key={sec.title} style={{ marginBottom: 12 }}>
+            <div className="eyebrow" style={{ fontSize: 9, marginBottom: 5 }}>{sec.title}</div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 9 }} className="mono">
+              {sec.items.map(it => <span key={it.name} title={it.detail} style={{ fontSize: 11.5, color: it.ok ? 'var(--codex)' : 'var(--tx-faint)' }}>{it.ok ? '●' : '○'} {it.name}</span>)}
+            </div>
+          </div>
+        ))}
+      </div>
+      <div className="panel" style={{ padding: 20, marginBottom: 18 }}>
+        <div className="eyebrow" style={{ marginBottom: 12 }}>SETUP & HERRAMIENTAS · 道具</div>
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+          {setupBtns.map(([m, ic, l]) => <Btn key={m} icon={ic} variant="ghost" onClick={() => call(m)}>{l}</Btn>)}
+        </div>
+      </div>
+      {skills.length > 0 && (
+        <div className="panel" style={{ padding: 20, marginBottom: 18 }}>
+          <div className="eyebrow" style={{ marginBottom: 12 }}>SKILLS POR STACK · 技能</div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(260px,1fr))', gap: 12 }}>
+            {skills.map(s => <div key={s.key} style={{ border: '1px solid var(--line)', borderRadius: 8, padding: 12 }}><div style={{ fontSize: 13, fontWeight: 600 }}>{s.label}</div><div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>{s.skills.map(k => <Chip key={k}>{k}</Chip>)}</div></div>)}
+          </div>
+        </div>
+      )}
+      <div className="panel" style={{ padding: 20 }}>
+        <div className="eyebrow" style={{ marginBottom: 12 }}>ATAJOS · 近道</div>
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+          {[['themeforge', 'folderOpen', 'Carpeta ThemeForge'], ['context', 'folderOpen', 'context/'], ['stacks', 'penTool', 'Editar stacks.py']].map(([k, ic, l]) => <Btn key={k} icon={ic} variant="ghost" onClick={() => call('open_shortcut', k)}>{l}</Btn>)}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function SettingsScreen() {
   const [theme, setTheme] = useState(_TFD.current_theme || 'neotokyo');
   const [sub, setSub] = useState('themes');
-  const subs = [['themes', 'Temas', '🎨'], ['creds', 'Credenciales', '🔑'], ['mcp', 'MCP servers', '📡'], ['office', 'Pixel Office', '🎮']];
+  const subs = [['themes', 'Temas', '🎨'], ['sys', 'Sistema', '⌬'], ['creds', 'Credenciales', '🔑'], ['mcp', 'MCP servers', '📡'], ['office', 'Pixel Office', '🎮']];
   const cur = APP_THEMES.find(t => t.k === theme);
 
   const SubPill = ({ k, label, ic }) => (
@@ -184,6 +230,8 @@ function SettingsScreen() {
       <div style={{ display: 'flex', gap: 8, marginBottom: 24, flexWrap: 'wrap' }}>
         {subs.map(([k, l, ic]) => <SubPill key={k} k={k} label={l} ic={ic} />)}
       </div>
+
+      {sub === 'sys' && <SysAndSetup />}
 
       {/* ---- THEMES ---- */}
       {sub === 'themes' && (

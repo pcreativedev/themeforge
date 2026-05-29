@@ -498,6 +498,45 @@ function Operator() {
 const THEMES = ((typeof window !== 'undefined' && window.__TF_DATA__ && window.__TF_DATA__.themes) || [
   { k: 'kawaii', label: 'Kawaii 🌸', acc: '#ff8fc7', acc2: '#b9a3ff', bg: '#fff5fa', proto: true, web: true },
 ]);
+// Sistema + Setup + Skills + Atajos (datos/diálogos reales del bridge) ♡.
+function SysAndSetup() {
+  const B = window.tfBridge;
+  const [sys, setSys] = useState(null);
+  const [skills, setSkills] = useState([]);
+  const loadSys = () => { if (B && B.system_status) B.system_status().then(j => { let r = {}; try { r = JSON.parse(j); } catch (e) {} setSys(r.sections || []); }); };
+  useEffect(() => { loadSys(); if (B && B.list_stack_skills) B.list_stack_skills().then(j => { let r = {}; try { r = JSON.parse(j); } catch (e) {} setSkills(r.stacks || []); }); }, []);
+  const call = (m, arg) => { if (B && B[m]) (arg !== undefined ? B[m](arg) : B[m]()); };
+  const setupBtns = [['open_credentials', '🔑 Credenciales'], ['open_dependency_wizard', '🔧 Dependencias'], ['open_onboarding', '🧙 Onboarding'], ['open_theme_editor', '🎨 Theme editor'], ['open_figma_import', '📥 Import Figma']];
+  return (
+    <div>
+      <h2 className="sec" style={{ margin: '8px 0 14px' }}>🩺 Estado del sistema <span style={{ fontFamily: 'var(--jp)', fontSize: 14, color: 'var(--tx-dim)' }}>状態</span><button className="btn" style={{ float: 'right', padding: '4px 12px' }} onClick={loadSys}>↻</button></h2>
+      <div className="panelc" style={{ fontSize: 12.5, fontWeight: 600 }}>
+        {!sys ? <span style={{ color: 'var(--tx-dim)' }}>detectando… ♡</span> : sys.map(sec => (
+          <div key={sec.title} style={{ marginBottom: 10 }}>
+            <div style={{ color: 'var(--accent)', fontSize: 11.5, letterSpacing: '.04em', marginBottom: 4 }}>{sec.title}</div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+              {sec.items.map(it => <span key={it.name} title={it.detail} style={{ color: it.ok ? 'var(--p3)' : 'var(--tx-dim)' }}>{it.ok ? '💚' : '🤍'} {it.name}</span>)}
+            </div>
+          </div>
+        ))}
+      </div>
+      <h2 className="sec" style={{ margin: '26px 0 14px' }}>⚙️ Setup & herramientas <span style={{ fontFamily: 'var(--jp)', fontSize: 14, color: 'var(--tx-dim)' }}>道具</span></h2>
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        {setupBtns.map(([m, l]) => <button key={m} className="btn" onClick={() => call(m)}>{l}</button>)}
+      </div>
+      {skills.length > 0 && <>
+        <h2 className="sec" style={{ margin: '26px 0 14px' }}>✨ Skills por stack <span style={{ fontFamily: 'var(--jp)', fontSize: 14, color: 'var(--tx-dim)' }}>技能</span></h2>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(260px,1fr))', gap: 12 }}>
+          {skills.map(s => <div className="panelc" key={s.key} style={{ padding: 14 }}><b style={{ fontSize: 13.5 }}>{s.label}</b><div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>{s.skills.map(k => <span key={k} className="tag">{k}</span>)}</div></div>)}
+        </div>
+      </>}
+      <h2 className="sec" style={{ margin: '26px 0 14px' }}>↗️ Atajos <span style={{ fontFamily: 'var(--jp)', fontSize: 14, color: 'var(--tx-dim)' }}>近道</span></h2>
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        {[['themeforge', '📁 Carpeta ThemeForge'], ['context', '📚 context/'], ['stacks', '📝 Editar stacks.py']].map(([k, l]) => <button key={k} className="btn" onClick={() => call('open_shortcut', k)}>{l}</button>)}
+      </div>
+    </div>
+  );
+}
 function Settings() {
   const [th, setTh] = useState((window.__TF_DATA__ && window.__TF_DATA__.current_theme) || 'kawaii');
   const applyTheme = (t) => {
@@ -529,6 +568,8 @@ function Settings() {
           <span style={{ color: 'var(--tx-dim)', fontWeight: 600, fontSize: 13.5 }}>Arrastra una imagen para tu mascota — te saludará en cada arranque. (◕ᴗ◕✿)</span>
         </div>
       </div>
+
+      <SysAndSetup />
 
       <h2 className="sec" style={{ margin: '26px 0 14px' }}>🔑 Credenciales <span style={{ fontFamily: 'var(--jp)', fontSize: 14, color: 'var(--tx-dim)' }}>鍵</span></h2>
       <div className="panelc" style={{ padding: '6px 18px 14px' }}>

@@ -638,6 +638,7 @@ class ThemeForgeBridge(QObject):
         self._preview_procs = {}  # path -> (QProcess, url) del dev server de preview
         self._preview_states = {}  # path -> dict de estado del sondeo de preview
         self._setup_scripts = {}  # path -> ruta del setup script pendiente (pestaña Setup)
+        self._dialogs = []  # refs a diálogos nativos abiertos (evitar GC)
         self._last_reference_analysis = None  # (value, texto) del último análisis IA
 
     def _agent_launch_for(self, path: str):
@@ -1753,6 +1754,182 @@ class ThemeForgeBridge(QObject):
             f.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
             return json.dumps({"ok": True, "active": list(servers.keys()),
                                "on": key in servers})
+        except Exception as e:
+            return json.dumps({"ok": False, "error": str(e)})
+
+    # ───────────────────────── Settings (Tanda 2) ──────────────────────────
+    @pyqtSlot(result=str)
+    def system_status(self) -> str:
+        """Estado del sistema: GitHub, agentes IA, runtimes y tools detectados
+        (igual que el panel «System status» nativo). Presencia por `which`."""
+        import shutil
+        import subprocess
+        def _ver(args):
+            try:
+                out = subprocess.run(args, capture_output=True, text=True, timeout=2.5)
+                return (out.stdout or out.stderr).splitlines()[0].strip()[:60]
+            except Exception:
+                return ""
+        sections = []
+        # GitHub
+        gh = shutil.which("gh")
+        gh_detail = ""
+        if gh:
+            try:
+                r = subprocess.run(["gh", "api", "user", "-q", ".login"], capture_output=True, text=True, timeout=3)
+                gh_detail = ("@" + r.stdout.strip()) if r.returncode == 0 and r.stdout.strip() else "sin login (gh auth login)"
+            except Exception:
+                gh_detail = "instalado"
+        sections.append({"title": "GitHub", "items": [
+            {"name": "gh", "ok": bool(gh), "detail": gh_detail or "no instalado"}]})
+        # Agentes IA
+        agents = []
+        for t in ("claude", "codex", "gemini", "opencode", "sgpt"):
+            p = shutil.which(t)
+            agents.append({"name": t, "ok": bool(p), "detail": p or "✗ no en PATH"})
+        sections.append({"title": "Agentes IA", "items": agents})
+        # Runtimes
+        rt = []
+        for t, args in (("node", ["node", "--version"]), ("npm", ["npm", "--version"]),
+                        ("bun", ["bun", "--version"]), ("pnpm", ["pnpm", "--version"]),
+                        ("python3", ["python3", "--version"]), ("php", ["php", "--version"]),
+                        ("composer", ["composer", "--version"]), ("flutter", ["flutter", "--version"]),
+                        ("go", ["go", "version"]), ("cargo", ["cargo", "--version"]),
+                        ("deno", ["deno", "--version"]), ("ruby", ["ruby", "--version"])):
+            p = shutil.which(t)
+            rt.append({"name": t, "ok": bool(p), "detail": (_ver(args) or p) if p else "✗ no en PATH"})
+        sections.append({"title": "Runtimes", "items": rt})
+        # Tools
+        tools = []
+        for t in ("docker", "git", "wget", "unzip", "sshpass", "shopify", "wp", "netlify", "vercel", "surge"):
+            p = shutil.which(t)
+            tools.append({"name": t, "ok": bool(p), "detail": p or "✗ no en PATH"})
+        sections.append({"title": "Tools", "items": tools})
+        return json.dumps({"ok": True, "sections": sections})
+
+    def _open_native_dialog(self, factory):
+        """Crea y muestra un diálogo nativo (no modal), guardando ref para que no
+        lo recoja el GC. `factory` devuelve el QWidget/QDialog."""
+        try:
+            w = factory()
+            self._dialogs = [d for d in self._dialogs if d is not None]
+            self._dialogs.append(w)
+            w.show()
+            w.raise_()
+            w.activateWindow()
+            return json.dumps({"ok": True})
+        except Exception as e:
+            return json.dumps({"ok": False, "error": str(e)})
+
+    @pyqtSlot(result=str)
+    def open_credentials(self) -> str:
+        """Abre el gestor de credenciales NATIVO (instalar CLI / login OAuth /
+        add-edit-remove API key + token Figma) en una ventana."""
+        def _f():
+            from PyQt6.QtWidgets import QDialog, QVBoxLayout
+            from credentials_panel import CredentialsWidget
+            dlg = QDialog()
+            dlg.setWindowTitle("ThemeForge — Credenciales IA")
+            dlg.resize(560, 480)
+            lay = QVBoxLayout(dlg)
+            lay.addWidget(CredentialsWidget(dlg))
+            return dlg
+        return self._open_native_dialog(_f)
+
+    @pyqtSlot(result=str)
+    def open_dependency_wizard(self) -> str:
+        """Abre el asistente NATIVO de instalación de dependencias."""
+        def _f():
+            from dependency_wizard import DependencyWizard
+            return DependencyWizard(None, only_missing=False)
+        return self._open_native_dialog(_f)
+
+    @pyqtSlot(result=str)
+    def open_onboarding(self) -> str:
+        """Abre el asistente de onboarding NATIVO (deps · credenciales · defaults)."""
+        def _f():
+            from onboarding_wizard import OnboardingWizard
+            return OnboardingWizard(None)
+        return self._open_native_dialog(_f)
+
+    @pyqtSlot(result=str)
+    def open_theme_editor(self) -> str:
+        """Abre el editor de tema NATIVO (colores/shape/components en vivo)."""
+        def _f():
+            from theme_editor import ThemeEditorDialog
+            return ThemeEditorDialog(None)
+        return self._open_native_dialog(_f)
+
+    @pyqtSlot(result=str)
+    def open_figma_import(self) -> str:
+        """Abre el importador de tema desde Figma NATIVO (DTCG / REST API)."""
+        def _f():
+            from figma_import_dialog import FigmaImportDialog
+            return FigmaImportDialog(None)
+        return self._open_native_dialog(_f)
+
+    @pyqtSlot(str, result=str)
+    def provider_login(self, provider_id: str) -> str:
+        """Lanza el login OAuth del provider en una terminal externa real."""
+        try:
+            import ai_providers as aip
+            import shutil
+            import subprocess
+            argv = aip.login_argv(provider_id)
+            if not argv:
+                return json.dumps({"ok": False, "error": "este provider no usa login (usa API key)"})
+            inner = " ".join(argv)
+            for term, mk in (("konsole", lambda: ["konsole", "-e", "bash", "-lc", inner + "; exec bash"]),
+                             ("gnome-terminal", lambda: ["gnome-terminal", "--", "bash", "-lc", inner + "; exec bash"]),
+                             ("kitty", lambda: ["kitty", "bash", "-lc", inner + "; exec bash"]),
+                             ("xterm", lambda: ["xterm", "-e", "bash", "-lc", inner + "; exec bash"])):
+                if shutil.which(term):
+                    subprocess.Popen(mk())
+                    return json.dumps({"ok": True, "terminal": term})
+            return json.dumps({"ok": False, "error": "no se encontró terminal"})
+        except Exception as e:
+            return json.dumps({"ok": False, "error": str(e)})
+
+    @pyqtSlot(result=str)
+    def list_stack_skills(self) -> str:
+        """Skills predeclaradas por stack (read-only), igual que la sección nativa."""
+        try:
+            from stacks import STACKS
+            out = []
+            for k, s in STACKS.items():
+                skills = s.get("skills") or []
+                if skills:
+                    out.append({"key": k, "label": s.get("name", k), "skills": list(skills)})
+            return json.dumps({"ok": True, "stacks": out})
+        except Exception as e:
+            return json.dumps({"ok": False, "error": str(e)})
+
+    @pyqtSlot(str, result=str)
+    def open_shortcut(self, kind: str) -> str:
+        """Atajos: abrir carpeta de ThemeForge / context/ / editar stacks.py."""
+        try:
+            from pathlib import Path
+            import subprocess
+            import shutil
+            base = Path(__file__).resolve().parent
+            if kind == "themeforge":
+                target, edit = base, False
+            elif kind == "context":
+                target, edit = base / "context", False
+            elif kind == "stacks":
+                target, edit = base / "stacks.py", True
+            else:
+                return json.dumps({"ok": False, "error": "atajo desconocido"})
+            if edit:
+                for ed in ("code", "codium", "kate", "gedit"):
+                    if shutil.which(ed):
+                        subprocess.Popen([ed, str(target)]); return json.dumps({"ok": True, "editor": ed})
+            try:
+                import platform_compat as pc
+                pc.open_path(str(target))
+            except Exception:
+                subprocess.Popen(["xdg-open", str(target)])
+            return json.dumps({"ok": True})
         except Exception as e:
             return json.dumps({"ok": False, "error": str(e)})
 
