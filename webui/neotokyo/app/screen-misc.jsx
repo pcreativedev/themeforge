@@ -364,21 +364,54 @@ function LicensingScreen() {
           ))}
         </div>
 
-        {/* ---- PRODUCTOS / VERSIONES ---- */}
-        {lsub === 'prod' && (
-          <div className="panel" style={{ padding: 18 }}>
-            <div style={{ display: 'flex', marginBottom: 12 }}><div className="eyebrow" style={{ flex: 1 }}>VERSIONES · 版</div><Btn icon="refresh" variant="ghost" onClick={loadProds}>Cargar versiones</Btn></div>
-            <pre className="mono" style={{ whiteSpace: 'pre-wrap', fontSize: 12, color: 'var(--tx-dim)', margin: 0 }}>{prods ? JSON.stringify(prods, null, 2) : '// pulsa «Cargar versiones»'}</pre>
+        {/* ---- PRODUCTOS / VERSIONES (tabla como el normal) ---- */}
+        {lsub === 'prod' && (() => {
+          const list = (prods && prods.products) || [];
+          return (
+          <div className="panel" style={{ padding: 0, overflow: 'hidden' }}>
+            <div style={{ display: 'flex', padding: '12px 16px', borderBottom: '1px solid var(--line)' }}><div className="eyebrow" style={{ flex: 1, alignSelf: 'center' }}>PRODUCTOS · VERSIONES · 版</div><Btn icon="refresh" variant="ghost" onClick={loadProds}>Cargar</Btn></div>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+              <thead><tr style={{ background: 'rgba(255,255,255,0.03)' }}>{['ID', 'Nombre', 'Versión actual', 'Build', '#Tags', 'Repo'].map(h => <th key={h} style={{ textAlign: 'left', padding: '9px 14px', fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--tx-faint)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{h}</th>)}</tr></thead>
+              <tbody>
+                {list.length ? list.map((p, i) => (
+                  <tr key={i} style={{ borderTop: '1px solid var(--line)' }}>
+                    <td className="mono" style={{ padding: '9px 14px', color: 'var(--accent)' }}>{p.id}</td>
+                    <td style={{ padding: '9px 14px' }}>{p.name}</td>
+                    <td className="mono dim" style={{ padding: '9px 14px' }}>{p.currentVersion || '—'}</td>
+                    <td className="mono faint" style={{ padding: '9px 14px' }}>{(p.build && p.build.version) ? ('v' + p.build.version) : '—'}</td>
+                    <td className="mono dim" style={{ padding: '9px 14px', textAlign: 'center' }}>{(p.tags || []).length}</td>
+                    <td className="mono faint" style={{ padding: '9px 14px' }}>{p.repo}</td>
+                  </tr>
+                )) : <tr><td colSpan={6} className="faint mono" style={{ padding: 24, textAlign: 'center' }}>{prods ? '// sin productos' : '// pulsa «Cargar»'}</td></tr>}
+              </tbody>
+            </table>
           </div>
-        )}
+          );
+        })()}
 
-        {/* ---- VENTAS GUMROAD ---- */}
-        {lsub === 'gum' && (
-          <div className="panel" style={{ padding: 18 }}>
-            <div style={{ display: 'flex', marginBottom: 12 }}><div className="eyebrow" style={{ flex: 1 }}>ÚLTIMAS VENTAS · 販売</div><Btn icon="refresh" variant="ghost" onClick={loadGum}>Cargar ventas</Btn></div>
-            <pre className="mono" style={{ whiteSpace: 'pre-wrap', fontSize: 12, color: 'var(--tx-dim)', margin: 0 }}>{gum ? JSON.stringify(gum, null, 2) : '// pulsa «Cargar ventas»'}</pre>
+        {/* ---- VENTAS GUMROAD (tabla como el normal) ---- */}
+        {lsub === 'gum' && (() => {
+          const sales = (gum && (gum.sales || gum.data)) || (Array.isArray(gum) ? gum : []);
+          return (
+          <div className="panel" style={{ padding: 0, overflow: 'hidden' }}>
+            <div style={{ display: 'flex', padding: '12px 16px', borderBottom: '1px solid var(--line)' }}><div className="eyebrow" style={{ flex: 1, alignSelf: 'center' }}>ÚLTIMAS VENTAS · 販売</div><Btn icon="refresh" variant="ghost" onClick={loadGum}>Cargar</Btn></div>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+              <thead><tr style={{ background: 'rgba(255,255,255,0.03)' }}>{['Fecha', 'Producto', 'Comprador', 'Precio', 'License'].map(h => <th key={h} style={{ textAlign: 'left', padding: '9px 14px', fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--tx-faint)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{h}</th>)}</tr></thead>
+              <tbody>
+                {(sales && sales.length) ? sales.map((s, i) => (
+                  <tr key={i} style={{ borderTop: '1px solid var(--line)' }}>
+                    <td className="mono dim" style={{ padding: '9px 14px' }}>{(s.created_at || s.date || '?').slice(0, 10)}</td>
+                    <td style={{ padding: '9px 14px' }}>{s.product_name || s.product || '?'}</td>
+                    <td className="mono faint" style={{ padding: '9px 14px' }}>{s.email || s.buyer || '?'}</td>
+                    <td className="mono" style={{ padding: '9px 14px', color: 'var(--codex)' }}>{s.formatted_display_price || s.price || '?'}</td>
+                    <td className="mono faint" style={{ padding: '9px 14px' }}>{s.license_key || ''}</td>
+                  </tr>
+                )) : <tr><td colSpan={5} className="faint mono" style={{ padding: 24, textAlign: 'center' }}>{gum ? '// sin ventas' : '// pulsa «Cargar»'}</td></tr>}
+              </tbody>
+            </table>
           </div>
-        )}
+          );
+        })()}
 
         {/* ---- TOOLS (integraciones + ping) ---- */}
         {lsub === 'tools' && (
