@@ -70,6 +70,7 @@ function NewProjectScreen({ onLaunch, onAnalyze }) {
   const [mode, setMode] = useState('scratch');
   const [refKind, setRefKind] = useState('folder');
   const [refVal, setRefVal] = useState('');
+  const [openCats, setOpenCats] = useState({});  // categoría → abierta? (acordeón)
   const [thinking, setThinking] = useState(false);
   const [filled, setFilled] = useState(false);
   const [genPrompt, setGenPrompt] = useState('');
@@ -189,14 +190,30 @@ function NewProjectScreen({ onLaunch, onAnalyze }) {
             {(() => {
               const groups = {};
               STACKS.forEach(s => { const c = s.cat || 'Otros'; (groups[c] = groups[c] || []).push(s); });
-              return Object.keys(groups).map(cat => (
-                <div key={cat} style={{ marginBottom: 16 }}>
-                  <div className="mono faint" style={{ fontSize: 10.5, letterSpacing: '0.08em', textTransform: 'uppercase', margin: '4px 0 8px' }}>{cat} · {groups[cat].length}</div>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: 10 }}>
-                    {groups[cat].map(s => <StackTile key={s.key} s={s} active={stack === s.key} onClick={() => setStack(s.key)} />)}
-                  </div>
+              const selCat = (STACKS.find(s => s.key === stack) || {}).cat;  // categoría del stack activo
+              return Object.keys(groups).map(cat => {
+                // Abierta por defecto solo la categoría del stack seleccionado;
+                // el resto plegadas. El usuario puede toggle cada cabecera.
+                const open = openCats[cat] !== undefined ? openCats[cat] : (cat === selCat);
+                return (
+                <div key={cat} style={{ marginBottom: 10 }}>
+                  <button onClick={() => setOpenCats(o => ({ ...o, [cat]: !open }))}
+                    style={{ width: '100%', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8,
+                      background: 'rgba(255,255,255,0.02)', border: '1px solid var(--line)', borderRadius: 8,
+                      padding: '9px 12px', color: 'var(--tx-dim)', textAlign: 'left', transition: 'all 0.12s' }}>
+                    <span style={{ color: 'var(--accent)', transform: open ? 'rotate(90deg)' : 'none', transition: 'transform 0.15s', display: 'inline-block', width: 12 }}>▸</span>
+                    <span className="mono" style={{ fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase', flex: 1 }}>{cat}</span>
+                    <span className="chip" style={{ fontSize: 9.5 }}>{groups[cat].length}</span>
+                    {groups[cat].some(s => s.key === stack) && <span style={{ width: 6, height: 6, borderRadius: 99, background: 'var(--accent)', boxShadow: '0 0 6px var(--accent)' }} />}
+                  </button>
+                  {open && (
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: 10, padding: '10px 2px 4px' }}>
+                      {groups[cat].map(s => <StackTile key={s.key} s={s} active={stack === s.key} onClick={() => setStack(s.key)} />)}
+                    </div>
+                  )}
                 </div>
-              ));
+                );
+              });
             })()}
           </div>
           <div className="panel" style={{ padding: '6px 20px 14px' }}>
