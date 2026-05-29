@@ -7089,9 +7089,28 @@ class ThemeForgeApp(QWidget):
         # We attach `_apply_tab_icons` as an instance method via setattr
         # right after __init__ to keep the diff minimal.
 
+        # Atmósfera Neo-Tokyo: contenedor que pinta grid + glows detrás de
+        # las pestañas cuando el tema activo es `neotokyo` (coste cero con
+        # cualquier otro tema). Fallback seguro si el módulo no carga.
         root = QVBoxLayout()
-        root.addWidget(self.tabs)
+        self._atmos = None
+        try:
+            from neotokyo_fx import AtmosphereContainer
+            self._atmos = AtmosphereContainer()
+            self._atmos.layout().addWidget(self.tabs)
+            root.addWidget(self._atmos)
+        except Exception as e:
+            print(f"[neotokyo] atmósfera no disponible: {e}", file=sys.stderr)
+            root.addWidget(self.tabs)
         self.setLayout(root)
+        # Aplica el estado de la atmósfera + transparencia según el tema
+        # actual, y re-aplícalo en cada cambio de tema.
+        self._apply_neotokyo_fx()
+        try:
+            import themes as _t
+            _t.theme_signals.theme_changed.connect(lambda _n: self._apply_neotokyo_fx())
+        except Exception:
+            pass
 
         # Atajo global Ctrl+K → command palette
         from PyQt6.QtGui import QShortcut, QKeySequence
@@ -7208,20 +7227,64 @@ class ThemeForgeApp(QWidget):
                 break
         b._update_preview()
 
+    # Kanji eyebrows del tema Neo-Tokyo (detalle JP del design pack). Solo
+    # se añaden cuando el tema activo es `neotokyo`; con cualquier otro tema
+    # las pestañas muestran su etiqueta limpia.
+    _NEOTOKYO_KANJI = {
+        "New project": "新規",
+        "Gallery":     "制作庫",
+        "AI cost":     "費用",
+        "Compare":     "比較",
+        "Hermes":      "司令室",
+        "Market":      "市場",
+        "Licensing":   "認可",
+        "Settings":    "設定",
+    }
+
+    def _apply_neotokyo_fx(self):
+        """Activa/desactiva la atmósfera Neo-Tokyo y la transparencia del
+        pane según el tema activo. Se llama al iniciar y en cada cambio de
+        tema (el QSS base ya está aplicado cuando llega la señal, así que
+        añadir la transparencia aquí no la pisa nada)."""
+        try:
+            import themes as _t
+            neotokyo = _t.current_theme_name() == "neotokyo"
+        except Exception:
+            neotokyo = False
+        if self._atmos is not None:
+            self._atmos.set_active(neotokyo)
+        try:
+            from neotokyo_fx import NEOTOKYO_TRANSPARENCY_QSS
+            app = QApplication.instance()
+            if app is not None:
+                base = app.styleSheet()
+                if neotokyo and NEOTOKYO_TRANSPARENCY_QSS not in base:
+                    app.setStyleSheet(base + NEOTOKYO_TRANSPARENCY_QSS)
+                # Al cambiar a otro tema, apply_theme ya reescribió el QSS
+                # base (sin la transparencia), así que no hay que quitarla.
+        except Exception:
+            pass
+
     def _apply_tab_icons(self):
         """Renders tab icons in the current theme's accent color and
         applies them to the QTabWidget. Called once at startup and
-        every time the user switches theme via Settings."""
+        every time the user switches theme via Settings. For the
+        Neo-Tokyo theme it also appends the kanji eyebrow to each tab."""
+        theme_name = "themeforge-dark"
         try:
             import themes as _t
-            pack = _t.load_theme(_t.current_theme_name())
+            theme_name = _t.current_theme_name()
+            pack = _t.load_theme(theme_name)
             color = pack.color.accent
         except Exception:
             color = "#62b4ff"  # fallback
+        neotokyo = theme_name == "neotokyo"
         try:
-            for i, (_w, icon_name, _label) in enumerate(self._tab_specs):
+            for i, (_w, icon_name, label) in enumerate(self._tab_specs):
                 icon = _t.tf_icon(icon_name, color=color, size=18)
                 self.tabs.setTabIcon(i, icon)
+                kanji = self._NEOTOKYO_KANJI.get(label) if neotokyo else None
+                self.tabs.setTabText(i, f"{label}  {kanji}" if kanji else label)
         except Exception as e:
             print(f"[tabs] could not apply icons: {e}")
 
