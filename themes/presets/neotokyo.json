@@ -1,0 +1,48 @@
+{
+  "name": "Neo-Tokyo",
+  "author": "pcreativedev",
+  "is_dark": true,
+  "description": "ネオ東京 — cyberpunk neon over black: electric cyan + hot magenta, glow, Blade Runner atmosphere. Original direction for ThemeForge.",
+  "color": {
+    "bg_primary":      "#04060c",
+    "bg_secondary":    "#0b1020",
+    "bg_tertiary":     "#10172b",
+    "bg_elevated":     "#141d36",
+    "fg_primary":      "#e9f0ff",
+    "fg_secondary":    "#9fb0d8",
+    "fg_disabled":     "#5c6e9c",
+    "accent":          "#00f0ff",
+    "accent_hover":    "#5cf6ff",
+    "accent_active":   "#00c2d6",
+    "accent_fg":       "#04060c",
+    "success":         "#9dff3c",
+    "warning":         "#ffb000",
+    "danger":          "#ff2e88",
+    "info":            "#b14dff",
+    "border":          "#1b2746",
+    "border_strong":   "#2b4a6b",
+    "selection_bg":    "#06465a",
+    "selection_fg":    "#ffffff",
+    "scrollbar_bg":    "#0b1020",
+    "scrollbar_thumb": "#00f0ff"
+  },
+  "typography": {
+    "font_family":      "Chakra Petch, system-ui, -apple-system, Segoe UI, sans-serif",
+    "font_family_mono": "JetBrains Mono, DejaVu Sans Mono, Fira Code, monospace"
+  },
+  "shape": {
+    "radius_sm":    9,
+    "radius_md":    14,
+    "radius_lg":    20,
+    "radius_pill":  999,
+    "border_width": 1
+  },
+  "components": {
+    "button_variant":    "flat",
+    "tab_variant":       "underline",
+    "input_variant":     "outlined",
+    "scrollbar_variant": "thin",
+    "checkbox_variant":  "rounded",
+    "density":           "comfortable"
+  }
+}
