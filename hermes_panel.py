@@ -826,8 +826,10 @@ class ProviderTab(QWidget):
         self.cb_model.addItems(sp["models"])
         self.note.setText("ℹ️ " + sp["note"] if sp.get("note") else "")
         # Muestra login OAuth o campo de API key según el provider.
+        # La configuración de proveedor/auth está SIEMPRE disponible (no depende
+        # del interruptor maestro: configuras antes de encender).
         is_oauth = sp.get("auth") == "oauth"
-        has = bool(self._hermes) and getattr(self, "_powered_on", True)
+        has = bool(self._hermes)
         self.btn_login.setVisible(is_oauth)
         self.btn_login.setEnabled(has and is_oauth)
         self.in_key.setVisible(not is_oauth)
@@ -917,10 +919,12 @@ class ProviderTab(QWidget):
         _spawn_hermes(self, ["-z", "ping: responde solo 'OK'"], line, done)
 
     def set_powered(self, on: bool):
+        # La pestaña Proveedor se usa para CONFIGURAR (login/key/modelo): siempre
+        # disponible si Hermes está instalado, independientemente del encendido.
         self._powered_on = on
         for b in (self.btn_apply, self.btn_test):
-            b.setEnabled(bool(self._hermes) and on)
-        self._provider_changed()  # recalcula login/key según provider y estado
+            b.setEnabled(bool(self._hermes))
+        self._provider_changed()
         if on:
             self.refresh()
 
