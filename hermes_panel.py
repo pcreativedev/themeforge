@@ -23,7 +23,7 @@ import socket
 import subprocess
 from pathlib import Path
 
-from PyQt6.QtCore import Qt, QProcess, QProcessEnvironment, QTimer
+from PyQt6.QtCore import Qt, QProcess, QProcessEnvironment, QTimer, pyqtSignal
 from PyQt6.QtGui import QFont
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QPlainTextEdit,
@@ -707,10 +707,44 @@ def _no_hermes_banner(text: str) -> QLabel:
 # El modelo "cerebro" de Hermes se configura aparte de los agentes de build
 # (codex/claude-OAuth/…). OJO: Claude para Hermes va SIEMPRE por API key
 # (no usa el OAuth de Claude Code que sí usan los agentes de build).
+_MODELS_CACHE = HERMES_HOME / "models_dev_cache.json"
+
+
+_MODEL_BAD = ("embed", "image", "imagine", "video", "tts", "whisper", "audio",
+              "rerank", "deep-research", "-ocr", "guard", "-oss")
+
+
+def _cached_models(keywords: list[str], limit: int = 25) -> list[str]:
+    """Lee el catálogo de modelos en vivo de Hermes (~/.hermes/models_dev_cache.json)
+    y devuelve ids LIMPIOS de chat de esa familia (gemini/grok/qwen…). Así el combo
+    muestra los modelos ACTUALES (p.ej. gemini-3.1-pro) sin hardcodear versiones."""
+    try:
+        d = json.loads(_MODELS_CACHE.read_text(encoding="utf-8"))
+    except Exception:
+        return []
+    out: set[str] = set()
+    for prov in (d.values() if isinstance(d, dict) else []):
+        models = prov.get("models") if isinstance(prov, dict) else None
+        if isinstance(models, dict):
+            for mid in models:
+                s = str(mid); low = s.lower()
+                if any(c in s for c in ("/", "~", "@", ":")):
+                    continue  # descarta ids con prefijo de agregador
+                if low.split(".")[0] in ("us", "jp", "eu", "global", "apac"):
+                    continue  # descarta prefijos de región (us.anthropic.claude…)
+                if any(b in low for b in _MODEL_BAD):
+                    continue  # solo modelos de texto/chat
+                if any(k in low for k in keywords):
+                    out.add(s)
+    # Orden inverso: tiende a poner las versiones nuevas (3.x) antes que 2.x.
+    return sorted(out, reverse=True)[:limit]
+
+
 # auth: "api" (API key) u "oauth" (login en el navegador). `key` = provider id de
 # Hermes — VERIFICADO contra PROVIDER_REGISTRY y _OAUTH_CAPABLE_PROVIDERS del
 # Hermes instalado (2026-05-30): oauth-capables = anthropic, nous, openai-codex,
 # xai-oauth, qwen-oauth, google-gemini-cli, minimax-oauth.
+# model_keywords: familias para poblar el combo desde el caché de modelos en vivo.
 HERMES_PROVIDERS = [
     {"key": "anthropic", "auth": "api", "label": "Anthropic (Claude) · API key",
      "models": ["claude-opus-4-8", "claude-sonnet-4-6", "claude-haiku-4-5-20251001"],
@@ -746,6 +780,8 @@ HERMES_PROVIDERS = [
 class ProviderTab(QWidget):
     """Auth y selección del modelo CEREBRO de Hermes — independiente de los
     agentes de build. Envuelve `hermes config set` + `hermes auth add`."""
+
+    model_changed = pyqtSignal()  # emitido al aplicar provider/modelo
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -827,10 +863,23 @@ class ProviderTab(QWidget):
     def _spec(self) -> dict:
         return HERMES_PROVIDERS[max(0, self.cb_provider.currentIndex())]
 
+    # Solo familias cuyos ids en el caché salen limpios. Claude/OpenAI/Nous usan
+    # la lista estática (el caché trae variantes regionales/oss confusas).
+    _MODEL_KW = {
+        "google-gemini-cli": ["gemini"],
+        "gemini": ["gemini"],
+        "xai-oauth": ["grok"],
+        "qwen-oauth": ["qwen"],
+    }
+
     def _provider_changed(self):
         sp = self._spec()
         self.cb_model.clear()
-        self.cb_model.addItems(sp["models"])
+        # Modelos en vivo del caché de Hermes (siempre actuales); fallback a la
+        # lista estática. El combo es editable: puedes escribir cualquier id.
+        kws = self._MODEL_KW.get(sp["key"])
+        live = _cached_models(kws) if kws else []
+        self.cb_model.addItems(live or sp["models"])
         self.note.setText("ℹ️ " + sp["note"] if sp.get("note") else "")
         # Muestra login OAuth o campo de API key según el provider.
         # La configuración de proveedor/auth está SIEMPRE disponible (no depende
@@ -901,14 +950,21 @@ class ProviderTab(QWidget):
         if not model:
             QMessageBox.information(self, "Proveedor", "Elige/escribe un modelo.")
             return
+        # base_url: OpenRouter usa el suyo; el resto (OAuth/nativos) debe quedar
+        # VACÍO — si se hereda el de OpenRouter, el nuevo provider no funciona.
+        base = "https://openrouter.ai/api/v1" if prov == "openrouter" else ""
         c1, o1 = run_hermes(["config", "set", "model.provider", prov], timeout=15)
         c2, o2 = run_hermes(["config", "set", "model.default", model], timeout=15)
+        c3, o3 = run_hermes(["config", "set", "model.base_url", base], timeout=15)
         self.log.appendPlainText(
             f"$ hermes config set model.provider {prov}\n{o1}\n"
-            f"$ hermes config set model.default {model}\n{o2}")
-        self.log.appendPlainText("✓ modelo aplicado" if c1 == 0 and c2 == 0
-                                 else "✗ revisa la salida")
+            f"$ hermes config set model.default {model}\n{o2}\n"
+            f"$ hermes config set model.base_url {base or '(vacío)'}\n{o3}")
+        ok = c1 == 0 and c2 == 0 and c3 == 0
+        self.log.appendPlainText("✓ modelo aplicado" if ok else "✗ revisa la salida")
         self.refresh()
+        if ok:
+            self.model_changed.emit()  # refresca el chip de arriba
 
     def _test(self):
         if not self._hermes:
@@ -2110,6 +2166,8 @@ class HermesPanel(QWidget):
 
         self.mission = MissionTab()
         self.provider = ProviderTab()
+        # Al aplicar un modelo en Proveedor, refresca el chip de estado de arriba.
+        self.provider.model_changed.connect(self.strip.refresh)
         self.agents = AgentsTab()
         self.create = CreateAgentTab()
         self.memory = MemoryTab()
