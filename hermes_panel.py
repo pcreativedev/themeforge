@@ -155,6 +155,27 @@ def _hermes_model_info() -> tuple[str | None, str | None]:
     return provider, model
 
 
+def _provider_has_auth(provider: str) -> bool:
+    """True si el provider tiene credenciales en Hermes (login OAuth o API key).
+    Se basa en los encabezados de `hermes auth list` ('<provider> (N credentials):')."""
+    if not provider:
+        return False
+    exe = find_hermes()
+    if not exe:
+        return False
+    try:
+        r = subprocess.run([exe, "auth", "list"], capture_output=True, text=True,
+                           timeout=12, env=_hermes_env())
+        out = (r.stdout or "") + (r.stderr or "")
+    except Exception:
+        return False
+    for ln in out.splitlines():
+        s = ln.strip()
+        if s.startswith(provider + " ") or s.startswith(provider + "("):
+            return True
+    return False
+
+
 def _mcp_themeforge_registered() -> bool:
     """True si el server MCP `themeforge` está en la config de Hermes."""
     cfg = HERMES_HOME / "config.yaml"
@@ -241,10 +262,14 @@ class HermesStatusStrip(QFrame):
             mcp, "MCP themeforge" if mcp else "MCP themeforge sin registrar"))
         prov, model = _hermes_model_info()
         if prov or model:
-            # Dot NEUTRAL (gris): es el modelo CONFIGURADO del cerebro, no implica
-            # que la API key esté presente/validada (eso se ve en 🔌 Proveedor).
-            self.lbl_model.setText(self._chip(
-                None, f"modelo: {prov or '?'} · {model or '?'}"))
+            # Verde si el provider configurado tiene credenciales (login/API key);
+            # ámbar si está configurado pero sin auth todavía.
+            authed = _provider_has_auth(prov) if prov else False
+            label = f"modelo: {prov or '?'} · {model or '?'}"
+            if authed:
+                self.lbl_model.setText(self._chip(True, label + "  ✓ activo"))
+            else:
+                self.lbl_model.setText(self._chip(False, label + "  (sin login/key)"))
         else:
             self.lbl_model.setText(self._chip(None, "modelo sin configurar"))
 
