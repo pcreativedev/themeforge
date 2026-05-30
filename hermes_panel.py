@@ -30,7 +30,7 @@ from PyQt6.QtWidgets import (
     QSpinBox, QComboBox, QMessageBox, QSplitter, QTabWidget, QFrame,
     QLineEdit, QListWidget, QListWidgetItem, QTableWidget, QTableWidgetItem,
     QHeaderView, QAbstractItemView, QFormLayout, QDialog, QDialogButtonBox,
-    QCheckBox,
+    QCheckBox, QScrollArea, QGridLayout, QToolButton,
 )
 
 # Reuse the existing, battle-tested widgets + helpers.
@@ -286,6 +286,153 @@ _PHASE_MARKERS = [
 ]
 
 
+class StackPickerDialog(QDialog):
+    """Modal para elegir stack: agrupado por categoría, con cards clicables +
+    buscador. Devuelve `selected_key` y `selected_label`."""
+
+    def __init__(self, current: str = "", parent=None, multi: bool = False,
+                 current_keys: list[str] | None = None):
+        super().__init__(parent)
+        self.multi = multi
+        self.setWindowTitle("Elegir stacks" if multi else "Elegir stack")
+        self.resize(880, 640)
+        self.selected_key = current or ""
+        self.selected_label = "Auto — que Hermes elija el stack"
+        self.selected_keys: set[str] = set(current_keys or [])
+        self._names: dict[str, str] = {}
+
+        root = QVBoxLayout(self)
+        head = QHBoxLayout()
+        t = QLabel("🧱 Elige el stack")
+        f = QFont(); f.setPointSize(13); f.setBold(True); t.setFont(f)
+        head.addWidget(t)
+        head.addStretch()
+        self.search = QLineEdit()
+        self.search.setPlaceholderText("Filtrar (ej: astro, shopify, laravel)…")
+        self.search.setFixedWidth(280)
+        self.search.textChanged.connect(self._filter)
+        head.addWidget(self.search)
+        root.addLayout(head)
+
+        scroll = QScrollArea(); scroll.setWidgetResizable(True)
+        self._wrap = QWidget(); self._vbox = QVBoxLayout(self._wrap)
+        self._vbox.setContentsMargins(4, 4, 4, 4)
+        scroll.setWidget(self._wrap)
+        root.addWidget(scroll, 1)
+
+        self._cards: list[tuple[str, str, QToolButton]] = []  # (key, search_text, btn)
+        self._sections: list[tuple[QLabel, list[QToolButton]]] = []
+        self._build()
+
+        if self.multi:
+            bb = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok |
+                                  QDialogButtonBox.StandardButton.Cancel)
+            bb.accepted.connect(self._accept_multi)
+            bb.rejected.connect(self.reject)
+            root.addWidget(bb)
+
+    def _make_card(self, key: str, title: str, subtitle: str, tip: str) -> QToolButton:
+        b = QToolButton()
+        b.setText(f"{title}\n{subtitle}")
+        b.setToolTip(tip)
+        b.setCheckable(True)
+        b.setChecked(key == self.selected_key)
+        b.setMinimumSize(250, 64)
+        b.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextOnly)
+        b.setCursor(Qt.CursorShape.PointingHandCursor)
+        b.setChecked((key in self.selected_keys) if self.multi
+                     else (key == self.selected_key))
+        b.setStyleSheet(
+            "QToolButton { text-align:left; padding:8px 12px; border:1px solid "
+            "#2a2a33; border-radius:8px; background:#15151c; color:#cdd; }"
+            "QToolButton:hover { border-color:#7aa2f7; background:#1a1a25; }"
+            "QToolButton:checked { border-color:#3fb950; background:#16241a; }")
+        self._names[key] = title
+        b.clicked.connect(lambda _c=False, k=key, lbl=title, bb=b:
+                          self._choose(k, lbl, bb))
+        return b
+
+    def _add_section(self, title: str, cards: list[tuple]):
+        hdr = QLabel(title)
+        hf = QFont(); hf.setBold(True); hdr.setFont(hf)
+        hdr.setStyleSheet("color:#7aa2f7; padding-top:10px;")
+        self._vbox.addWidget(hdr)
+        grid_host = QWidget(); grid = QGridLayout(grid_host)
+        grid.setContentsMargins(0, 0, 0, 0); grid.setSpacing(8)
+        btns = []
+        for i, (key, title2, subtitle, tip, search) in enumerate(cards):
+            b = self._make_card(key, title2, subtitle, tip)
+            grid.addWidget(b, i // 3, i % 3)
+            self._cards.append((key, search, b))
+            btns.append(b)
+        self._vbox.addWidget(grid_host)
+        self._sections.append((hdr, btns))
+
+    def _build(self):
+        # Card "Auto" arriba del todo (solo en modo single).
+        if not self.multi:
+            self._add_section("Recomendado", [(
+                "", "Auto", "Que Hermes sugiera/elija el stack",
+                "Hermes analiza el brief/referencia y elige el mejor stack web.",
+                "auto recomendado sugerir")])
+        try:
+            from stacks import STACKS
+        except Exception:
+            STACKS = {}
+        by_cat: dict[str, list] = {}
+        for key, v in STACKS.items():
+            cat = v.get("category", "Otros")
+            if cat == "Sin definir":
+                continue
+            by_cat.setdefault(cat, []).append((key, v))
+        for cat in sorted(by_cat):
+            cards = []
+            for key, v in sorted(by_cat[cat], key=lambda x: x[1].get("name", x[0])):
+                name = v.get("name", key)
+                lang = v.get("language", "")
+                notes = v.get("notes", "")
+                cards.append((key, name, lang or cat,
+                              notes or name, f"{name} {key} {lang} {cat}".lower()))
+            self._add_section(cat, cards)
+        self._vbox.addStretch()
+
+    def _choose(self, key: str, label: str, btn=None):
+        if self.multi:
+            # Toggle: mantiene el diálogo abierto, confirma con OK.
+            if key in self.selected_keys:
+                self.selected_keys.discard(key)
+            else:
+                self.selected_keys.add(key)
+            if btn is not None:
+                btn.setChecked(key in self.selected_keys)
+            return
+        self.selected_key = key
+        self.selected_label = ("Auto — que Hermes elija el stack" if not key
+                               else label)
+        self.accept()
+
+    def _accept_multi(self):
+        self.selected_label = ", ".join(
+            self._names.get(k, k) for k in sorted(self.selected_keys))
+        self.accept()
+
+    def selected_csv(self) -> str:
+        """Claves seleccionadas separadas por coma (modo multi)."""
+        return ", ".join(sorted(self.selected_keys))
+
+    def _filter(self, text: str):
+        q = text.strip().lower()
+        for hdr, btns in self._sections:
+            any_visible = False
+            for b in btns:
+                # localizar el search_text de este botón
+                st = next((s for k, s, bb in self._cards if bb is b), "")
+                vis = (q in st) if q else True
+                b.setVisible(vis)
+                any_visible = any_visible or vis
+            hdr.setVisible(any_visible)
+
+
 class MissionTab(QWidget):
     """Lanzar una misión one-shot: brief → Hermes planifica y construye →
     preview en vivo. Versión independiente (el Chat es ahora un tab aparte)."""
@@ -344,9 +491,13 @@ class MissionTab(QWidget):
         # el usuario puede fijar uno o dejar que Hermes elija).
         row_stack = QHBoxLayout()
         row_stack.addWidget(QLabel("Stack:"))
-        self.stack = QComboBox(); self.stack.setMinimumWidth(280)
-        self._populate_stacks()
-        row_stack.addWidget(self.stack, 1)
+        self._stack_key = ""
+        self._stack_label = "Auto — que Hermes elija el stack"
+        self.btn_stack = QPushButton("🧱  " + self._stack_label)
+        self.btn_stack.setMinimumWidth(280)
+        self.btn_stack.setStyleSheet("text-align:left; padding:5px 10px;")
+        self.btn_stack.clicked.connect(self._pick_stack)
+        row_stack.addWidget(self.btn_stack, 1)
         self.cb_research = QCheckBox("🌐 Investigación web")
         self.cb_research.setChecked(True)
         self.cb_research.setToolTip("Hermes estudia tendencias/competencia con "
@@ -433,28 +584,19 @@ class MissionTab(QWidget):
         sb = self.log.verticalScrollBar()
         sb.setValue(sb.maximum())
 
-    def _populate_stacks(self):
-        """Carga TODOS los stacks de ThemeForge agrupados por categoría."""
-        self.stack.addItem("Auto — que Hermes sugiera/elija el stack", "")
-        try:
-            from stacks import STACKS
-        except Exception:
-            return
-        by_cat: dict[str, list] = {}
-        for key, v in STACKS.items():
-            cat = v.get("category", "Otros")
-            if cat == "Sin definir":
-                continue  # el sentinel "(Sin stack)" ya lo cubre "Auto"
-            by_cat.setdefault(cat, []).append((key, v.get("name", key)))
-        for cat in sorted(by_cat):
-            for key, name in sorted(by_cat[cat], key=lambda x: x[1]):
-                self.stack.addItem(f"{name}  ·  {cat}", key)
+    def _pick_stack(self):
+        """Abre el modal de selección de stack (categorías + cards)."""
+        dlg = StackPickerDialog(self._stack_key, self)
+        if dlg.exec() == QDialog.DialogCode.Accepted:
+            self._stack_key = dlg.selected_key
+            self._stack_label = dlg.selected_label
+            self.btn_stack.setText("🧱  " + self._stack_label)
 
     def _build_prompt(self) -> str:
         brief = self.brief.toPlainText().strip()
         n = self.variants.value()
         prov = self.provider.currentText()
-        stack_key = self.stack.currentData() or ""
+        stack_key = self._stack_key or ""
         stack_line = (f"Target stack: {stack_key} (use it for create_project). "
                       if stack_key else
                       "Stack: not fixed — call suggest_stack/list_stacks and pick the "
@@ -1277,12 +1419,19 @@ class CreateAgentTab(QWidget):
 
         form = QFormLayout()
         self.in_name = QLineEdit(); self.in_name.setPlaceholderText("shopify-pro")
+        # Stacks base: línea editable + botón que abre el modal multi (cards).
+        stacks_row = QHBoxLayout(); stacks_row.setContentsMargins(0, 0, 0, 0)
         self.in_stacks = QLineEdit()
         self.in_stacks.setPlaceholderText("shopify-liquid, hydrogen, …")
+        stacks_row.addWidget(self.in_stacks, 1)
+        self.btn_pick_stacks = QPushButton("📚 Elegir…")
+        self.btn_pick_stacks.clicked.connect(self._pick_stacks)
+        stacks_row.addWidget(self.btn_pick_stacks)
+        stacks_host = QWidget(); stacks_host.setLayout(stacks_row)
         self.in_desc = QLineEdit()
         self.in_desc.setPlaceholderText("Especialidad: qué hace este agente y cuándo usarlo.")
         form.addRow("Nombre:", self.in_name)
-        form.addRow("Stacks base:", self.in_stacks)
+        form.addRow("Stacks base:", stacks_host)
         form.addRow("Especialidad:", self.in_desc)
         root.addLayout(form)
 
@@ -1309,6 +1458,13 @@ class CreateAgentTab(QWidget):
 
         self.status = QLabel(); self.status.setStyleSheet("color:#888;")
         root.addWidget(self.status)
+
+    def _pick_stacks(self):
+        """Modal multi-selección de stacks (categorías + cards) → llena el campo."""
+        cur = [s.strip() for s in self.in_stacks.text().split(",") if s.strip()]
+        dlg = StackPickerDialog(parent=self, multi=True, current_keys=cur)
+        if dlg.exec() == QDialog.DialogCode.Accepted:
+            self.in_stacks.setText(dlg.selected_csv())
 
     def _fill_template(self):
         name = (self.in_name.text().strip() or "mi-agente").lower().replace(" ", "-")
