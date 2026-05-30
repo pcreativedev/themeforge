@@ -241,8 +241,10 @@ class HermesStatusStrip(QFrame):
             mcp, "MCP themeforge" if mcp else "MCP themeforge sin registrar"))
         prov, model = _hermes_model_info()
         if prov or model:
+            # Dot NEUTRAL (gris): es el modelo CONFIGURADO del cerebro, no implica
+            # que la API key esté presente/validada (eso se ve en 🔌 Proveedor).
             self.lbl_model.setText(self._chip(
-                True, f"{prov or '?'} · {model or '?'}"))
+                None, f"modelo: {prov or '?'} · {model or '?'}"))
         else:
             self.lbl_model.setText(self._chip(None, "modelo sin configurar"))
 
@@ -811,13 +813,14 @@ class ProviderTab(QWidget):
 
     def refresh(self):
         prov, model = _hermes_model_info()
-        txt = (f"<b>Activo:</b> {prov or '—'} · {model or '—'}"
-               if (prov or model) else "<b>Activo:</b> sin configurar")
+        txt = (f"<b>Configurado:</b> {prov or '—'} · {model or '—'} "
+               "<span style='color:#888'>(no verifica que la key sea válida)</span>"
+               if (prov or model) else "<b>Sin configurar.</b>")
         if self._hermes:
             code, out = run_hermes(["auth", "list"], timeout=12)
             if code == 0 and out:
                 first = out.strip().splitlines()[0][:80]
-                txt += f"<br><span style='color:#888'>auth: {first}</span>"
+                txt += f"<br><span style='color:#888'>auth pool: {first}</span>"
         self.current.setText(txt)
         # Preselecciona el provider activo si coincide.
         if prov:
