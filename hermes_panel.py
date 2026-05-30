@@ -1198,6 +1198,54 @@ class ProviderTab(QWidget):
             self.refresh()
 
 
+class SkillPackDialog(QDialog):
+    """Selección del pack curado de skills del registro (por dominio, checkboxes)."""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Pack de skills web (registro)")
+        self.resize(720, 620)
+        self._checks: list[tuple[str, QCheckBox]] = []
+        root = QVBoxLayout(self)
+        root.addWidget(QLabel("<b>📦 Skills recomendadas para nuestros stacks</b> "
+                              "(verificadas en el registro; fuentes oficiales primero)."))
+        bar = QHBoxLayout()
+        b_all = QPushButton("Todas"); b_all.clicked.connect(lambda: self._set_all(True))
+        b_none = QPushButton("Ninguna"); b_none.clicked.connect(lambda: self._set_all(False))
+        bar.addWidget(b_all); bar.addWidget(b_none); bar.addStretch()
+        root.addLayout(bar)
+        scroll = QScrollArea(); scroll.setWidgetResizable(True)
+        wrap = QWidget(); v = QVBoxLayout(wrap)
+        try:
+            from hermes_skill_pack import pack_by_domain
+            groups = pack_by_domain()
+        except Exception:
+            groups = {}
+        for domain, items in groups.items():
+            hdr = QLabel(domain); hf = QFont(); hf.setBold(True); hdr.setFont(hf)
+            hdr.setStyleSheet("color:#7aa2f7; padding-top:8px;")
+            v.addWidget(hdr)
+            for sid, label in items:
+                cb = QCheckBox(f"{label}")
+                cb.setChecked(True); cb.setToolTip(sid)
+                v.addWidget(cb)
+                self._checks.append((sid, cb))
+        v.addStretch()
+        scroll.setWidget(wrap); root.addWidget(scroll, 1)
+        bb = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok |
+                              QDialogButtonBox.StandardButton.Cancel)
+        bb.button(QDialogButtonBox.StandardButton.Ok).setText("📥 Instalar seleccionadas")
+        bb.accepted.connect(self.accept); bb.rejected.connect(self.reject)
+        root.addWidget(bb)
+
+    def _set_all(self, on: bool):
+        for _sid, cb in self._checks:
+            cb.setChecked(on)
+
+    def selected_ids(self) -> list[str]:
+        return [sid for sid, cb in self._checks if cb.isChecked()]
+
+
 # ───────────────────────── 🤖 Agentes (skills) ──────────────────────────
 class AgentsTab(QWidget):
     """Galería de skills/agentes de Hermes. Lista las instaladas en
@@ -1233,6 +1281,11 @@ class AgentsTab(QWidget):
         self.btn_seed.setToolTip("(Re)instala el pack de agentes web/UX-UI de ThemeForge.")
         self.btn_seed.clicked.connect(self._seed)
         bar.addWidget(self.btn_seed)
+        self.btn_pack = QPushButton("📦 Pack web")
+        self.btn_pack.setToolTip("Instala skills del registro recomendadas para "
+                                 "nuestros stacks (Shopify/WordPress/Next/Astro/…).")
+        self.btn_pack.clicked.connect(self._install_pack)
+        bar.addWidget(self.btn_pack)
         self.btn_refresh = QPushButton("↻")
         self.btn_refresh.setFixedWidth(32)
         self.btn_refresh.clicked.connect(self.refresh)
@@ -1342,6 +1395,42 @@ class AgentsTab(QWidget):
             self.status.setText(f"Error sembrando: {e}")
         self.refresh()
 
+    def _install_pack(self):
+        if not self._hermes:
+            return
+        dlg = SkillPackDialog(self)
+        if dlg.exec() != QDialog.DialogCode.Accepted:
+            return
+        ids = dlg.selected_ids()
+        if not ids:
+            return
+        self._pack_queue = list(ids)
+        self._pack_total = len(ids)
+        self._pack_ok = 0
+        self.detail.setPlainText(f"Instalando {len(ids)} skill(s) del registro…\n")
+        self._busy(True, "Instalando pack web…")
+        self._install_next()
+
+    def _install_next(self):
+        if not getattr(self, "_pack_queue", None):
+            self._busy(False, f"Pack instalado: {self._pack_ok}/"
+                       f"{getattr(self, '_pack_total', 0)} ✓")
+            self.refresh()
+            return
+        sid = self._pack_queue.pop(0)
+        n = self._pack_total - len(self._pack_queue)
+        self.detail.appendPlainText(f"\n[{n}/{self._pack_total}] {sid}")
+
+        def done(code):
+            if code == 0:
+                self._pack_ok += 1
+            self.detail.appendPlainText("  ✓ instalada" if code == 0
+                                        else f"  ✗ (exit {code})")
+            self._install_next()
+        self._proc = _spawn_hermes(
+            self, ["skills", "install", sid, "--force"],
+            lambda t: self.detail.appendPlainText("  " + t.rstrip()), done)
+
     def _show_selected(self, cur, _prev=None):
         if not cur:
             self.detail.setPlainText("")
@@ -1363,7 +1452,7 @@ class AgentsTab(QWidget):
 
     # ── registro (async) ──
     def _busy(self, on: bool, msg: str = ""):
-        for b in (self.btn_search, self.btn_install):
+        for b in (self.btn_search, self.btn_install, self.btn_pack, self.btn_seed):
             b.setEnabled(not on and bool(self._hermes))
         if msg:
             self.status.setText(msg)
