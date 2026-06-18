@@ -29,6 +29,34 @@ HOME = Path.home()
 CONFIG_DIR = pc.app_config_dir()
 KEYS_PATH = CONFIG_DIR / "keys.json"
 
+# Modelos disponibles para el CLI de Claude Code. El elegido (desplegable
+# en Credenciales, guardado en app_prefs) se pasa con --model en todos los
+# modos: vibe one-shot, terminal interactiva y multi-agente. El valor ""
+# significa "no pasar --model" (usa el default de la cuenta del CLI).
+CLAUDE_MODEL_DEFAULT = "claude-fable-5"
+CLAUDE_MODELS: list[tuple[str, str]] = [
+    ("claude-fable-5",   "Fable 5 — el más capaz ($10/$50)"),
+    ("claude-opus-4-8",  "Opus 4.8 ($5/$25)"),
+    ("claude-opus-4-6",  "Opus 4.6"),
+    ("claude-sonnet-4-6", "Sonnet 4.6 — rápido ($3/$15)"),
+    ("claude-haiku-4-5", "Haiku 4.5 — barato ($1/$5)"),
+    ("",                 "Auto (default del CLI)"),
+]
+
+
+def claude_model() -> str:
+    """Modelo activo para `claude` ("" = sin flag --model)."""
+    try:
+        import app_prefs
+        return app_prefs.claude_model(CLAUDE_MODEL_DEFAULT)
+    except Exception:
+        return CLAUDE_MODEL_DEFAULT
+
+
+def _claude_model_args() -> list[str]:
+    m = claude_model()
+    return ["--model", m] if m else []
+
 # ─── Registro de providers ─────────────────────────────────────────────
 # `command` es el binario CLI. `context_file` se usa al generar el MD de
 # contexto del proyecto. `autoskills_flag` se pasa a npx autoskills (None
@@ -170,6 +198,8 @@ def _env_for_key_id(key_id: str) -> str:
         "openrouter": "OPENROUTER_API_KEY",
         # Integraciones (no son providers de IA, pero se guardan/inyectan igual):
         "figma": "FIGMA_API_KEY",  # PAT de Figma para el MCP figma-context
+        "twentyfirst": "TWENTYFIRST_API_KEY",  # 21st.dev Magic MCP (componentes UI)
+        "firecrawl": "FIRECRAWL_API_KEY",  # Firecrawl (búsqueda+scrape de locales)
     }.get(key_id, "")
 
 
@@ -275,6 +305,7 @@ def oneshot_argv(provider_key: str, allow_web: bool = True) -> list[str]:
     if cmd == "claude":
         argv = [
             "claude", "--print",
+            *_claude_model_args(),
             "--output-format=stream-json",
             "--include-partial-messages",
             "--verbose",
@@ -315,7 +346,7 @@ def interactive_cmd_args(provider_key: str) -> tuple[str, list[str]]:
     cmd = p["command"]
     args: list[str] = []
     if cmd == "claude":
-        args = ["--dangerously-skip-permissions"]
+        args = ["--dangerously-skip-permissions", *_claude_model_args()]
     if cmd == "opencode" and p.get("default_model"):
         args = ["-m", p["default_model"]]
     return cmd, args
@@ -328,7 +359,7 @@ def interactive_argv_for_binary(binary: str) -> list[str]:
     in PROVIDERS).
     """
     if binary == "claude":
-        return ["claude", "--dangerously-skip-permissions"]
+        return ["claude", "--dangerously-skip-permissions", *_claude_model_args()]
     return [binary]
 
 

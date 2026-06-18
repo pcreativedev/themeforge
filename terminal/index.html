@@ -25,6 +25,22 @@
 
   <script src="/xterm.js"></script>
   <script src="/addon-fit.js"></script>
+  <script src="/qwebchannel.js"></script>
+  <script>
+    // Puente de portapapeles Qt (copiar/pegar fiable, sin depender del clipboard
+    // de Chromium). window.tfClip queda disponible cuando el canal conecta.
+    window.__clipState = "QWebChannel=" + (!!window.QWebChannel)
+                       + " transport=" + !!(window.qt && window.qt.webChannelTransport);
+    try {
+      if (window.QWebChannel && window.qt && qt.webChannelTransport) {
+        new QWebChannel(qt.webChannelTransport, function (ch) {
+          window.tfClip = ch.objects.tfClip;
+          window.__clipState = "puente Qt ✓";
+          var s = document.getElementById('status'); if (s) s.textContent = 'clip: puente Qt ✓';
+        });
+      }
+    } catch (e) { window.__clipState = "err:" + e; }
+  </script>
   <script>
     const params = new URLSearchParams(location.search);
     const status = document.getElementById('status');
@@ -86,6 +102,71 @@
 
     // Foco al iniciar
     term.focus();
+
+    // ─── Copiar / pegar (estilo terminal) ───────────────────────────────
+    // execCommand('copy') con un textarea es lo MÁS fiable en QWebEngine
+    // (navigator.clipboard suele bloquearse). Probamos ese primero.
+    function _copy(text) {
+      if (!text) return;
+      // 1) Puente Qt (lo más fiable). 2) execCommand. 3) navigator.clipboard.
+      if (window.tfClip && window.tfClip.copy) {
+        try { window.tfClip.copy(text); _flash('copiado (qt) ✓'); term.focus(); return; } catch (e) {}
+      }
+      let ok = false;
+      try {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.position = 'fixed'; ta.style.left = '-9999px'; ta.style.top = '0';
+        document.body.appendChild(ta); ta.focus(); ta.select();
+        ta.setSelectionRange(0, text.length);
+        ok = document.execCommand('copy');
+        document.body.removeChild(ta);
+      } catch (e) { ok = false; }
+      if (ok) { _flash('copiado (exec) ✓'); term.focus(); return; }
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        try { navigator.clipboard.writeText(text); _flash('copiado (api) ✓'); }
+        catch (e) { _flash('NO copia [' + (window.__clipState || '?') + ']'); }
+      } else { _flash('NO copia [' + (window.__clipState || '?') + ']'); }
+      term.focus();
+    }
+    function _paste() {
+      const send = t => { if (t && ws.readyState === WebSocket.OPEN)
+        ws.send(JSON.stringify({ type: 'input', data: t })); };
+      if (window.tfClip && window.tfClip.paste) {
+        try { window.tfClip.paste(send); return; } catch (e) {}
+      }
+      if (navigator.clipboard && navigator.clipboard.readText) {
+        navigator.clipboard.readText().then(send).catch(() => {});
+      }
+    }
+    function _flash(msg) {
+      const prev = status.textContent; status.textContent = msg;
+      setTimeout(() => { status.textContent = prev; }, 900);
+    }
+    // Copiar AL SELECCIONAR y AL SOLTAR el ratón (doble red por si uno no dispara).
+    term.onSelectionChange(() => {
+      const sel = term.getSelection();
+      if (sel && sel.trim()) _copy(sel);
+    });
+    document.getElementById('term').addEventListener('mouseup', () => {
+      const sel = term.getSelection();
+      if (sel && sel.trim()) _copy(sel);
+    });
+    // Clic derecho: con selección → copia; sin selección → pega.
+    document.getElementById('term').addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+      const sel = term.getSelection();
+      if (sel && sel.trim()) { _copy(sel); }
+      else { _paste(); }
+    });
+    // Atajos: Ctrl+Shift+C copiar · Ctrl+Shift+V pegar
+    term.attachCustomKeyEventHandler((ev) => {
+      if (ev.type !== 'keydown' || !ev.ctrlKey || !ev.shiftKey) return true;
+      const k = (ev.key || '').toLowerCase();
+      if (k === 'c') { const s = term.getSelection(); if (s) { _copy(s); _flash('copiado ✓'); } return false; }
+      if (k === 'v') { _paste(); return false; }
+      return true;
+    });
   </script>
 </body>
 </html>

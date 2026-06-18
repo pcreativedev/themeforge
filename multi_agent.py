@@ -72,4 +72,11 @@ def available_agents() -> list[str]:
 def build_argv(key: str, prompt: str) -> list[str]:
     """Returns the argv for invoking the agent in one-shot mode."""
     spec = AGENTS[key]
-    return [a.replace("{prompt}", prompt) for a in spec.argv_template]
+    argv = [a.replace("{prompt}", prompt) for a in spec.argv_template]
+    if key == "claude":
+        try:
+            import ai_providers as aip
+            argv[1:1] = aip._claude_model_args()
+        except Exception:
+            pass
+    return argv

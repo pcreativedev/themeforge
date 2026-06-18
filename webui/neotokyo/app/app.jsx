@@ -33,6 +33,14 @@ const NAV = [
   { id: 'settings', icon: 'settings', label: 'Settings', jp: '設定' },
 ];
 
+// Pantallas opcionales (plugins): los ficheros privados, si están presentes,
+// se auto-registran en window.TF_PRIVATE_SCREENS ({id,icon,label,jp,render}).
+// En el repo OSS no existen → el array está vacío → no aparece nada.
+function privateScreens() { return (typeof window !== 'undefined' && window.TF_PRIVATE_SCREENS) || []; }
+function navItems() {
+  return NAV.concat(privateScreens().map(s => ({ id: s.id, icon: s.icon, label: s.label, jp: s.jp })));
+}
+
 function NavRail({ route, onNav }) {
   return (
     <div style={{
@@ -45,7 +53,7 @@ function NavRail({ route, onNav }) {
         <div className="neon-text" style={{ fontFamily: 'var(--font-mega)', fontSize: 22, lineHeight: 1 }}>鍛</div>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6, flex: 1 }}>
-        {NAV.map(n => {
+        {navItems().map(n => {
           const active = route === n.id;
           return (
             <button key={n.id} onClick={() => onNav(n.id)} title={n.label}
@@ -202,6 +210,7 @@ function App() {
           {route === 'cost' && <CostScreen />}
           {route === 'compare' && <CompareScreen />}
           {route === 'operator' && <OperatorScreen />}
+          {privateScreens().map(s => route === s.id ? <React.Fragment key={s.id}>{s.render()}</React.Fragment> : null)}
           {route === 'market' && <MarketScreen />}
           {route === 'licensing' && <LicensingScreen />}
           {route === 'settings' && <SettingsScreen />}

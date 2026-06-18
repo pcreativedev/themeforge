@@ -58,6 +58,18 @@ def mark_onboarding_done() -> None:
     set("onboarding_done", True)
 
 
+# ── Modelo del CLI de Claude Code ───────────────────────────────────────
+def claude_model(fallback: str = "claude-fable-5") -> str:
+    """Modelo que se pasa con --model al lanzar `claude` en cualquier modo.
+    Cadena vacía = no pasar --model (usar el default de la cuenta)."""
+    v = get("claude_model", fallback)
+    return fallback if v is None else v
+
+
+def set_claude_model(model: str) -> None:
+    set("claude_model", model or "")
+
+
 # ── Defaults del formulario Nuevo proyecto ──────────────────────────────
 def default_stack(fallback: str = "nextjs-tailwind") -> str:
     return get("default_stack", fallback) or fallback

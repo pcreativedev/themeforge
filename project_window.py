@@ -27,9 +27,12 @@ from pathlib import Path
 
 from datetime import datetime
 
-from PyQt6.QtCore import Qt, QProcess, QProcessEnvironment, QTimer, QUrl, QUrlQuery
+from PyQt6.QtCore import (
+    Qt, QObject, QProcess, QProcessEnvironment, QTimer, QUrl, QUrlQuery, pyqtSlot,
+)
 from PyQt6.QtGui import QFont, QPixmap
-from PyQt6.QtWebEngineCore import QWebEnginePage
+from PyQt6.QtWebChannel import QWebChannel
+from PyQt6.QtWebEngineCore import QWebEnginePage, QWebEngineSettings
 from PyQt6.QtWebEngineWidgets import QWebEngineView
 from PyQt6.QtWidgets import (
     QComboBox,
@@ -40,6 +43,7 @@ from PyQt6.QtWidgets import (
     QMessageBox,
     QPlainTextEdit,
     QPushButton,
+    QSizePolicy,
     QSplitter,
     QTabBar,
     QTabWidget,
@@ -78,6 +82,28 @@ BUILDER_DIR = Path(__file__).resolve().parent
 # apuntar a una copia con los binarios correctos (p.ej. al correr desde un
 # shared folder cuyo node_modules es de otro OS).
 TERMINAL_DIR = Path(os.environ.get("THEMEFORGE_TERMINAL_DIR") or (BUILDER_DIR / "terminal"))
+
+
+class _TermClipboard(QObject):
+    """Puente JS↔Qt para copiar/pegar en la terminal embebida usando el
+    portapapeles real del sistema (evita las restricciones del clipboard de
+    QWebEngine/Chromium, que son inconsistentes en Wayland)."""
+
+    @pyqtSlot(str)
+    def copy(self, text: str):
+        try:
+            from PyQt6.QtGui import QGuiApplication
+            QGuiApplication.clipboard().setText(text or "")
+        except Exception:
+            pass
+
+    @pyqtSlot(result=str)
+    def paste(self) -> str:
+        try:
+            from PyQt6.QtGui import QGuiApplication
+            return QGuiApplication.clipboard().text() or ""
+        except Exception:
+            return ""
 
 
 class ProjectWindow(QWidget):
@@ -163,6 +189,8 @@ class ProjectWindow(QWidget):
         # Lista de tabs (view, cmd, args) pendientes de cargar URL
         # hasta que el server esté listo
         self._pending_term_tabs: list[tuple[QWebEngineView, str, list[str]]] = []
+        # Puentes de portapapeles de cada terminal (evita que el GC los recoja)
+        self._term_clip_refs: list = []
 
         self._build_ui()
         self._update_status()
@@ -172,6 +200,10 @@ class ProjectWindow(QWidget):
 
         # WordPress (Docker) ya provisionado → cargar el preview de entrada.
         self._load_no_server_preview()
+
+        # UI pro al ABRIR un tema (Galería): guía UI-MOTION.md + MCP 21st.dev +
+        # framer-motion. En proyectos nuevos ya lo hace el setup script.
+        self._ensure_web_enhancements()
 
         # Auto-re-detect: si el perfil aún no se detectó (modo "existing"
         # o setup en curso), reintentamos cada 3 segundos durante 5 min.
@@ -184,6 +216,34 @@ class ProjectWindow(QWidget):
             self._auto_detect_timer.start()
         else:
             self._auto_detect_timer = None
+
+    def _ensure_web_enhancements(self):
+        """Al abrir un tema React desde la Galería: escribe UI-MOTION.md, asegura
+        el MCP `magic` (21st.dev) en .mcp.json y, si falta framer-motion, lo
+        instala en un tab. Solo proyectos frontend Node; en proyectos NUEVOS lo
+        hace ya el setup script (initial_cmd presente)."""
+        if self._initial_cmd:
+            return
+        try:
+            import web_enhancements as we
+        except Exception:
+            return
+        try:
+            if not we.is_node_frontend(self.project_path):
+                return
+            res = we.ensure_for_project(self.project_path, install_motion=True)
+            if res.get("needs_motion") and res.get("install_cmd"):
+                self._add_term_tab(
+                    "✨ Motion", "bash",
+                    ["-c", "echo '→ Instalando framer-motion (animaciones)…'; "
+                           f"{res['install_cmd']}; "
+                           "echo '✓ Listo. El agente debe leer UI-MOTION.md.'; "
+                           "exec bash -i"])
+        except Exception as e:
+            try:
+                self.logs.appendPlainText(f"[ui-enhance] {e}")
+            except Exception:
+                pass
 
     # ── Multi-stack helpers ─────────────────────────────────────────
     def _compute_active_profile(self) -> tuple[dict | None, Path]:
@@ -395,6 +455,12 @@ class ProjectWindow(QWidget):
         )
         self.btn_open_browser.setStyleSheet("font-weight:bold;")
         self.btn_open_browser.clicked.connect(self._open_external)
+        self.btn_21st = QPushButton("🎨 21st.dev")
+        self.btn_21st.setToolTip(
+            "Abre la galería de componentes/animaciones de 21st.dev en una "
+            "pestaña. El agente también los usa solo (con `/ui`) según el tipo "
+            "de web.")
+        self.btn_21st.clicked.connect(self._open_21st_gallery)
 
         prev_row = QHBoxLayout()
         prev_row.addWidget(QLabel("URL:"))
@@ -402,6 +468,7 @@ class ProjectWindow(QWidget):
         prev_row.addWidget(self.btn_start)
         prev_row.addWidget(self.btn_stop)
         prev_row.addWidget(self.btn_reload)
+        prev_row.addWidget(self.btn_21st)
         prev_row.addWidget(self.btn_open_browser)
 
         # Fila de viewports + screenshot + devtools
@@ -452,10 +519,28 @@ class ProjectWindow(QWidget):
         self.webview = QWebEngineView()
         self.webview.setUrl(QUrl("about:blank"))
         self.webview.titleChanged.connect(
-            lambda t: self._set_tab_title(self.webview, t or "Preview")
+            lambda t: self._set_tab_title(self._preview_wrap, t or "Preview")
         )
         self.webview.urlChanged.connect(self._on_tab_url_changed)
-        idx = self.preview_tabs.addTab(self.webview, "Preview")
+        # El webview va DENTRO de un contenedor con HBox (no directo como página
+        # del QTabWidget): el QStackedLayout del tab ignora setMaximumWidth, así
+        # que sin wrapper los botones de Viewport (📱/📋/💻) no hacían nada. Con
+        # el HBox + stretches, fijar maxWidth en el webview lo centra al ancho
+        # del dispositivo elegido.
+        self.webview.setSizePolicy(QSizePolicy.Policy.Expanding,
+                                   QSizePolicy.Policy.Expanding)
+        self.webview.setMinimumWidth(0)
+        self._preview_wrap = QWidget()
+        _pw = QHBoxLayout(self._preview_wrap)
+        _pw.setContentsMargins(0, 0, 0, 0)
+        _pw.setSpacing(0)
+        # Factores de stretch: el webview DOMINA (1000) frente a los spacers (1),
+        # así llena casi todo cuando no hay tope; al fijar un ancho de dispositivo
+        # (setFixedWidth) los spacers lo centran. Empieza en "Full".
+        _pw.addStretch(1)
+        _pw.addWidget(self.webview, 1000)
+        _pw.addStretch(1)
+        idx = self.preview_tabs.addTab(self._preview_wrap, "Preview")
         tabbar = self.preview_tabs.tabBar()
         tabbar.setTabButton(idx, QTabBar.ButtonPosition.RightSide, None)
         tabbar.setTabButton(idx, QTabBar.ButtonPosition.LeftSide, None)
@@ -510,7 +595,20 @@ class ProjectWindow(QWidget):
                 _cmd, _extra = _aip2.interactive_cmd_args(sel_key)
                 if self._auto_agent:
                     prompt = self._build_open_project_prompt(sel_key)
-                    self._add_term_tab(short, _cmd, (_extra or []) + [prompt])
+                    extra = list(_extra or [])
+                    # Reanudar la ÚLTIMA sesión: si es Claude y este proyecto ya
+                    # tuvo sesiones de IA, arranca con `--continue` (continúa la
+                    # conversación más reciente) además de mandar el prompt. En
+                    # proyectos nuevos (sin sesión previa) no se añade, para no
+                    # romper con "No conversation found".
+                    if _cmd == "claude":
+                        try:
+                            from themeforge import last_ai_activity
+                            if last_ai_activity(self.project_path) is not None:
+                                extra.append("--continue")
+                        except Exception:
+                            pass
+                    self._add_term_tab(short, _cmd, extra + [prompt])
                     self._auto_agent_tab_index = self.term_tabs.count() - 1
                 else:
                     self._add_term_tab(short, _cmd, _extra or None)
@@ -599,6 +697,13 @@ class ProjectWindow(QWidget):
 
     def _add_term_tab(self, label: str, cmd: str | None, args: list[str] | None = None):
         view = QWebEngineView()
+        # Permite copiar/pegar al portapapeles del sistema desde xterm.js.
+        try:
+            st = view.settings()
+            st.setAttribute(QWebEngineSettings.WebAttribute.JavascriptCanAccessClipboard, True)
+            st.setAttribute(QWebEngineSettings.WebAttribute.JavascriptCanPaste, True)
+        except Exception:
+            pass
         view.setHtml("<body style='background:#0c0c0d;color:#888;font:13px monospace;padding:1em'>"
                      "iniciando servidor de terminal…</body>")
         self.term_tabs.addTab(view, label)
@@ -649,15 +754,29 @@ class ProjectWindow(QWidget):
                 "Pro) en `.claude/skills/` (y en mono-repos `apps/*/.claude/skills/`): "
                 "lístalas, léelas y ÚSALAS durante el trabajo."
             )
+        # Directivo de UI pro SIEMPRE en contexto: si es un frontend con la guía
+        # UI-MOTION.md (la escribe web_enhancements al abrir), el agente debe
+        # seguirla para cualquier trabajo visual.
+        ui_line = ""
+        if (self.project_path / "UI-MOTION.md").is_file():
+            ui_line = (
+                " Este proyecto tiene **`UI-MOTION.md`** (LECTURA OBLIGATORIA): "
+                "léela. Para CUALQUIER trabajo de UI debes dejar la web a nivel "
+                "de **estudio de diseño** — usa **21st.dev** (`/ui`, comprueba "
+                "`/mcp` que `magic` está connected) + **framer-motion** "
+                "(reveal/stagger/hover/parallax, respeta reduced-motion). NUNCA "
+                "entregues UI básica."
+            )
         name = self.project_path.name
         return (
             f"Acabas de abrir el proyecto «{name}» desde ThemeForge. "
             f"Lee COMPLETAMENTE {ctx_file} y todo lo que haya en context/ para "
             f"entender el estado actual del proyecto (qué es, stack, qué se ha "
-            f"hecho ya).{skills_line}\n\n"
+            f"hecho ya).{skills_line}{ui_line}\n\n"
             f"Antes de tocar NADA del código:\n"
             f"1. Resume en 4-6 líneas el estado del proyecto y lo ya hecho.\n"
-            f"2. Lista los primeros 3-5 pasos que propones para continuar.\n"
+            f"2. Lista los primeros 3-5 pasos que propones para continuar "
+            f"(incluye, si aplica, mejoras de UI/animación a nivel estudio).\n"
             f"3. Espera mi OK antes de ejecutar nada."
         )
 
@@ -707,6 +826,16 @@ class ProjectWindow(QWidget):
         if self.term_port is None: return
         cwd = str(self.project_path)
         for view, cmd, args in self._pending_term_tabs:
+            # Puente de portapapeles (QWebChannel) ANTES de cargar la página,
+            # para que `qt.webChannelTransport` exista cuando xterm arranque.
+            try:
+                bridge = _TermClipboard()
+                channel = QWebChannel(view.page())
+                channel.registerObject("tfClip", bridge)
+                view.page().setWebChannel(channel)
+                self._term_clip_refs.append((bridge, channel))
+            except Exception:
+                pass
             url = QUrl(f"http://127.0.0.1:{self.term_port}/")
             qry = QUrlQuery()
             qry.addQueryItem("cwd", cwd)
@@ -743,9 +872,28 @@ class ProjectWindow(QWidget):
         self.preview_tabs.setCurrentIndex(idx)
         return view
 
+    def _open_21st_gallery(self):
+        """Abre (o enfoca) la galería de componentes 21st.dev en una pestaña."""
+        # Si ya está abierta, enfócala en vez de duplicar.
+        for i in range(self.preview_tabs.count()):
+            if self.preview_tabs.tabText(i).startswith("🎨"):
+                self.preview_tabs.setCurrentIndex(i)
+                return
+        self._new_preview_tab("https://21st.dev/community/components",
+                              label="🎨 21st.dev")
+
+    def _webview_of(self, w):
+        """Devuelve el QWebEngineView real de una pestaña: la principal va
+        envuelta en self._preview_wrap; las demás son el propio view."""
+        if isinstance(w, QWebEngineView):
+            return w
+        if w is getattr(self, "_preview_wrap", None):
+            return self.webview
+        return None
+
     def _close_preview_tab(self, index: int):
         widget = self.preview_tabs.widget(index)
-        if widget is self.webview:
+        if widget is self._preview_wrap:
             return  # nunca cerrar el tab principal de Preview
         self.preview_tabs.removeTab(index)
         try:
@@ -760,7 +908,7 @@ class ProjectWindow(QWidget):
             self.preview_tabs.setTabText(idx, t or "•")
 
     def _on_preview_tab_changed(self, _index: int):
-        w = self.preview_tabs.currentWidget()
+        w = self._webview_of(self.preview_tabs.currentWidget())
         if isinstance(w, QWebEngineView):
             s = w.url().toString()
             if s and s != "about:blank":
@@ -770,7 +918,7 @@ class ProjectWindow(QWidget):
         sender = self.sender()
         if (
             isinstance(sender, QWebEngineView)
-            and self.preview_tabs.currentWidget() is sender
+            and self._webview_of(self.preview_tabs.currentWidget()) is sender
         ):
             s = qurl.toString()
             if s and s != "about:blank":
@@ -782,12 +930,12 @@ class ProjectWindow(QWidget):
             return
         if not url.startswith(("http://", "https://", "about:", "file://")):
             url = "http://" + url
-        w = self.preview_tabs.currentWidget()
+        w = self._webview_of(self.preview_tabs.currentWidget())
         if isinstance(w, QWebEngineView):
             w.setUrl(QUrl(url))
 
     def _reload_current_tab(self):
-        w = self.preview_tabs.currentWidget()
+        w = self._webview_of(self.preview_tabs.currentWidget())
         if isinstance(w, QWebEngineView):
             w.reload()
 
@@ -1665,12 +1813,20 @@ class ProjectWindow(QWidget):
 
     # ── Viewport / Screenshot / DevTools ─────────────────────────────
     def _set_viewport(self, width: int):
-        """Limita el ancho del webview para simular un viewport."""
+        """Fija el ancho del webview para simular un viewport (centrado por los
+        spacers del contenedor). width<=0 = Full (sin tope, llena el panel)."""
         if width <= 0:
-            self.webview.setMaximumWidth(16777215)  # sin tope
+            # quita el ancho fijo → vuelve a expandir y llenar el panel
+            self.webview.setMinimumWidth(0)
+            self.webview.setMaximumWidth(16777215)
         else:
-            self.webview.setMaximumWidth(width)
+            self.webview.setFixedWidth(width)  # ancho exacto → spacers lo centran
+        wrap = getattr(self, "_preview_wrap", None)
+        if wrap is not None and wrap.layout() is not None:
+            wrap.layout().activate()
         self.webview.updateGeometry()
+        # Repintar el surface de Chromium tras el cambio de tamaño.
+        self.webview.show()
 
     def _capture_screenshot(self):
         try:
@@ -1756,6 +1912,46 @@ class ProjectWindow(QWidget):
         self.btn_start.setEnabled(not running)
         self.btn_stop.setEnabled(running)
 
+    def _kill_stale_dev_servers(self):
+        """Mata dev servers HUÉRFANOS cuyo cwd sea este proyecto (next-server,
+        vite, node…) y borra el lock por-carpeta de Next 16. Sin esto, un dev
+        server que quedó vivo de antes impide arrancar el preview. Solo Linux
+        (/proc); no-op en otros SO."""
+        import os
+        import signal
+        roots = {os.path.realpath(str(self._preview_root)),
+                 os.path.realpath(str(self.project_path))}
+        try:
+            mypid = os.getpid()
+            for pid in os.listdir("/proc"):
+                if not pid.isdigit() or int(pid) == mypid:
+                    continue
+                try:
+                    cwd = os.path.realpath(f"/proc/{pid}/cwd")
+                    if cwd not in roots:
+                        continue
+                    with open(f"/proc/{pid}/cmdline", "rb") as f:
+                        cmdl = f.read().replace(b"\x00", b" ").decode("utf-8", "ignore")
+                except Exception:
+                    continue
+                if any(k in cmdl for k in ("next", "vite", "node", "astro",
+                                           "remix", "nuxt", "expo")):
+                    try:
+                        os.kill(int(pid), signal.SIGKILL)
+                        self.logs.appendPlainText(
+                            f"[preview] dev server huérfano matado (pid {pid})")
+                    except Exception:
+                        pass
+        except Exception:
+            pass
+        # Lock de Next 16 (.next/dev) — si quedó tras matar el huérfano.
+        for r in roots:
+            try:
+                import shutil
+                shutil.rmtree(Path(r) / ".next" / "dev", ignore_errors=True)
+            except Exception:
+                pass
+
     def start_preview(self):
         if not self.profile: return
         # WordPress (Docker) y otros perfiles sin servidor: no se arranca
@@ -1764,17 +1960,33 @@ class ProjectWindow(QWidget):
         # botones para que Start/Stop dejen de ser "tontos".
         if self.profile.get("no_server"):
             slug = self.project_path.name
-            try:
-                from wp_provisioner import start_containers, is_running
-                if not is_running(slug):
-                    self.logs.appendPlainText(f"[preview] arrancando contenedor WordPress de «{slug}»…")
-                    start_containers(slug)
-            except Exception as e:
-                self.logs.appendPlainText(f"[preview] no pude arrancar contenedor: {e}")
+            cmd = self.profile.get("command")
+            if cmd:
+                # Docker genérico (PrestaShop, etc.): arranca el stack si está parado.
+                try:
+                    import subprocess
+                    self.logs.appendPlainText(f"[preview] $ {' '.join(cmd)}")
+                    subprocess.run(cmd, cwd=str(self._preview_root), timeout=180,
+                                   capture_output=True)
+                except Exception as e:
+                    self.logs.appendPlainText(f"[preview] no pude arrancar el stack: {e}")
+            else:
+                try:
+                    from wp_provisioner import start_containers, is_running
+                    if not is_running(slug):
+                        self.logs.appendPlainText(f"[preview] arrancando contenedor WordPress de «{slug}»…")
+                        start_containers(slug)
+                except Exception as e:
+                    self.logs.appendPlainText(f"[preview] no pude arrancar contenedor: {e}")
             self._load_no_server_preview()
             return
         if self.preview_proc and self.preview_proc.state() != QProcess.ProcessState.NotRunning:
             return
+        # Next.js 16 (y otros) dejan un dev server HUÉRFANO si el anterior no se
+        # cerró limpio, y su lock por-carpeta (.next/dev/lock) BLOQUEA un nuevo
+        # `next dev` → el preview da "connection refused". Limpiamos cualquier dev
+        # server viejo de ESTE proyecto + el lock antes de arrancar.
+        self._kill_stale_dev_servers()
         # Inyectar puerto único en command + env
         cmd, env_extra, url = apply_port(self.profile, self.preview_port)
         self.url_edit.setText(url)

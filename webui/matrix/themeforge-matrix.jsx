@@ -45,6 +45,12 @@ const NAV = [
   { id: 'settings', em: '⚙', label: 'Ajustes', jp: '設定' },
 ];
 
+// Pantallas privadas de agencia (Leads/Catálogo/Generador): viven en un sidecar
+// (themeforge-matrix-private.jsx, en .gitignore) que se auto-registra en
+// window.TF_PRIVATE_SCREENS. Si el fichero no existe (repo OSS), el array queda
+// vacío y no aparece ninguna de esas pantallas.
+function privateNav() { return (typeof window !== 'undefined' && window.TF_PRIVATE_SCREENS) || []; }
+
 const MCP_SERVERS = (typeof window !== 'undefined' && window.__TF_DATA__ && window.__TF_DATA__.mcp && window.__TF_DATA__.mcp.length) ? window.__TF_DATA__.mcp.map(m => ({ id: m.id, label: m.label, always: m.always, em: m.always ? '▮' : '◇', desc: m.desc, lic: m.lic })) : [
   { id: 'filesystem', label: 'filesystem', always: true, em: '▮', desc: 'Acceso al proyecto' },
   { id: 'fetch', label: 'fetch', always: true, em: '⇆', desc: 'HTTP / scraping' },
@@ -1577,7 +1583,7 @@ function BuildModal({ onClose }) {
 function Palette({ open, onClose, onNav, onOpenProject }) {
   const [q, setQ] = useState(''); const [sel, setSel] = useState(0); const inp = useRef(null);
   const actions = [
-    ...NAV.map(n => ({ id: n.id, label: 'Ir a ' + n.label, em: n.em, kind: 'nav' })),
+    ...NAV.concat(privateNav()).map(n => ({ id: n.id, label: 'Ir a ' + n.label, em: n.em, kind: 'nav' })),
     ...PROJECTS.map(p => ({ id: p.id, label: 'Abrir · ' + p.name, em: '▸', kind: 'proj', p })),
   ];
   const f = actions.filter(a => a.label.toLowerCase().includes(q.toLowerCase()));
@@ -1724,6 +1730,7 @@ function App() {
       } else if (r && r.ok === false) alert('Error al crear: ' + (r.error || '')); });
   };
   const titles = { gallery: '▤ Galería', new: '+ Nuevo proyecto', cost: '$ Coste de IA', compare: '⇄ Comparar agentes', operator: '⌬ Mission Control', market: '⊞ Market Analyzer', licensing: '⚿ Licencias', settings: '⚙ Ajustes', project: '▸ ' + (project ? project.name : '') };
+  privateNav().forEach(s => { titles[s.id] = s.em + ' ' + s.label; });
 
   return (
     <div className="app">
@@ -1731,7 +1738,7 @@ function App() {
       <div className="side">
         <div className="brand"><span className="gl">ThemeForge</span><small>// MATRIX BUILD</small></div>
         <div className="nav">
-          {NAV.map(n => (
+          {NAV.concat(privateNav()).map(n => (
             <button key={n.id} className={'navi' + (route === n.id ? ' on' : '')} onClick={() => nav(n.id)}>
               <span className="ico">{n.em}</span> {n.label} <span className="jp">{n.jp}</span>
             </button>
@@ -1756,6 +1763,7 @@ function App() {
         {route === 'cost' && <Cost />}
         {route === 'compare' && <Compare />}
         {route === 'operator' && <Operator />}
+        {privateNav().map(s => route === s.id ? <React.Fragment key={s.id}>{s.render()}</React.Fragment> : null)}
         {route === 'market' && <Market />}
         {route === 'licensing' && <Licensing />}
         {route === 'settings' && <Settings />}

@@ -29,6 +29,7 @@ const ASSETS = {
   '/xterm.css'     : path.join(NM, '@xterm', 'xterm', 'css', 'xterm.css'),
   '/xterm.js'      : path.join(NM, '@xterm', 'xterm', 'lib', 'xterm.js'),
   '/addon-fit.js'  : path.join(NM, '@xterm', 'addon-fit', 'lib', 'addon-fit.js'),
+  '/qwebchannel.js': path.join(ROOT, 'qwebchannel.js'),
   '/index.html'    : path.join(ROOT, 'index.html'),
   '/'              : path.join(ROOT, 'index.html'),
 };

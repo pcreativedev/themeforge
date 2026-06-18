@@ -97,3 +97,53 @@ tmp/
 
 # Node + git portables bundleados en el build de Windows (CI)
 vendor/
+
+# Sistema PRIVADO de búsqueda de locales/inmuebles (no se publica)
+inmo_scraper.py
+inmo_panel.py
+
+# Plantillas privadas del generador de webs (IP de la agencia — NO publicar)
+templates/booking-saas/
+templates/pro-landing/
+templates/restaurant-saas/
+templates/shop-lite/
+
+# Herramientas PRIVADAS de agencia (no se publican en el repo OSS).
+# Las pestañas se auto-ocultan en el cliente si su motor no está presente
+# (web_shell expone __TF_DATA__.features; ver guards en los temas WebUI).
+# --- Leads / Captación (Google Places) ---
+lead_gen.py
+leads_panel.py
+dossier_dialog.py
+spain_geo.py
+webui/neotokyo/app/screen-leads.jsx
+webui/kawaii/themeforge-kawaii-private.jsx
+webui/matrix/themeforge-matrix-private.jsx
+# --- Generador de webs "x100" (Fase 2 del lead-gen) ---
+web_generator.py
+generator_dialog.py
+webui/neotokyo/app/screen-generator.jsx
+# --- Gateway móvil: métodos privados (Leads/Generador) ---
+api_gateway_private.py
+# --- WebUI: slots privados del puente (Leads/Generador/Scraper) ---
+web_shell_private.py
+# --- App nativo: integraciones privadas (pestañas Leads/Catálogo + Galería) ---
+themeforge_private.py
+# --- Scraper de catálogo de productos ---
+product_scraper.py
+catalog_panel.py
+webui/neotokyo/app/screen-catalog.jsx
+webui/mobile/app-private.jsx
+
+# Móvil: dependencias y artefactos de build de Capacitor/Android (sí va el fuente)
+mobile/node_modules/
+mobile/android/.gradle/
+mobile/android/build/
+mobile/android/app/build/
+mobile/android/local.properties
+mobile/www/
+# Secretos FCM/firma de Android — NUNCA al repo público
+mobile/android/app/google-services.json
+google-services.json
+*.keystore
+*.jks

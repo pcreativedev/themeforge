@@ -427,14 +427,17 @@ def _creds_data() -> list:
             if any(_provider_ok(pk) for pk in auth_provider[kid]):
                 configured = True; via = "oauth"
         if not configured and kid == "github":
-            # gh CLI autenticado cuenta como configurado.
+            # gh CLI autenticado cuenta como configurado. Comprobación OFFLINE:
+            # leemos ~/.config/gh/hosts.yml en vez de `gh auth status` (que hace
+            # una llamada de RED a github.com y tardaba ~800 ms, bloqueando el
+            # arranque). Si hay una entrada github.com en hosts.yml, gh ya hizo
+            # login.
             try:
-                import shutil, subprocess
-                if shutil.which("gh"):
-                    r = subprocess.run(["gh", "auth", "status"],
-                                       capture_output=True, timeout=6)
-                    if r.returncode == 0:
-                        configured = True; via = "gh-cli"
+                from pathlib import Path as _P
+                hosts = _P.home() / ".config" / "gh" / "hosts.yml"
+                if hosts.is_file() and "github.com" in hosts.read_text(
+                        encoding="utf-8", errors="ignore"):
+                    configured = True; via = "gh-cli"
             except Exception:
                 pass
         out.append({"id": kid, "label": label, "color": color,
@@ -494,19 +497,76 @@ def _active_preview(proj):
 
 
 def bootstrap_data() -> dict:
-    """Todos los datos reales que el prototipo necesita, en su forma exacta."""
-    td = _themes_data()
-    return {
-        "stacks": _stacks_data(),
-        "projects": _projects_data(),
-        "providers": _providers_data(),
-        "themes": td["themes"],
-        "current_theme": td["current"],
-        "cost": _cost_data(),
-        "mcp": _mcp_data(),
-        "operator": _operator_data(),
-        "creds": _creds_data(),
+    """Todos los datos reales que el prototipo necesita, en su forma exacta.
+
+    Las secciones son independientes y algunas tocan disco / subprocess
+    (cost, operator, creds…), así que las calculamos EN PARALELO con un pool de
+    hilos: el tiempo total pasa de ser la SUMA a ser ~la sección más lenta.
+    Esto baja el arranque de ~1.3 s a ~0.2 s."""
+    from concurrent.futures import ThreadPoolExecutor
+    jobs = {
+        "stacks": _stacks_data,
+        "projects": _projects_data,
+        "providers": _providers_data,
+        "_themes": _themes_data,
+        "cost": _cost_data,
+        "mcp": _mcp_data,
+        "operator": _operator_data,
+        "creds": _creds_data,
+        "_private": _private_bootstrap,
     }
+    results: dict = {}
+    with ThreadPoolExecutor(max_workers=len(jobs)) as ex:
+        futs = {k: ex.submit(fn) for k, fn in jobs.items()}
+        for k, f in futs.items():
+            try:
+                results[k] = f.result()
+            except Exception:
+                results[k] = None
+    td = results.get("_themes") or {"themes": [], "current": ""}
+    return {
+        "stacks": results.get("stacks"),
+        "projects": results.get("projects"),
+        "providers": results.get("providers"),
+        "themes": td.get("themes", []),
+        "current_theme": td.get("current", ""),
+        "cost": results.get("cost") or {},
+        "mcp": results.get("mcp") or [],
+        "operator": results.get("operator") or {},
+        "creds": results.get("creds") or [],
+        # Secciones opcionales (plugin privado): leads/generator/scraper. Vacías
+        # si el plugin no está presente (repo OSS) → sus pestañas quedan ocultas
+        # vía __TF_DATA__.features.
+        "leads": (results.get("_private") or {}).get("leads") or {},
+        "generator": (results.get("_private") or {}).get("generator") or {},
+        "scraper": (results.get("_private") or {}).get("scraper") or {},
+        # Qué features opcionales están presentes en ESTE despliegue (sus motores
+        # van en .gitignore en el repo OSS → ausentes → pestañas ocultas).
+        "features": _features_data(),
+    }
+
+
+def _features_data() -> dict:
+    """Qué features opcionales están disponibles en este despliegue, para que el
+    front oculte las pestañas sin backend. Lo resuelve el plugin si está; si no,
+    todas off (repo OSS base)."""
+    base = {"leads": False, "generator": False, "catalog": False}
+    try:
+        import web_shell_private
+        base.update(web_shell_private.features())
+    except Exception:
+        pass
+    return base
+
+
+def _private_bootstrap() -> dict:
+    """Datos de las secciones opcionales (plugin privado) si su módulo está
+    presente; si no, vacío (esas pestañas quedan ocultas vía features)."""
+    try:
+        import web_shell_private
+        return web_shell_private.private_bootstrap()
+    except Exception:
+        return {}
 
 
 # Scripts de setup pendientes (path → script), GLOBAL para que la pestaña Setup
@@ -2674,6 +2734,17 @@ class ThemeForgeBridge(QObject):
         return json.dumps({"pong": msg})
 
 
+def _make_bridge() -> ThemeForgeBridge:
+    """Devuelve el puente con los slots opcionales (Leads/Generador/Scraper) si
+    el plugin privado está presente; si no, el puente base. Los @pyqtSlot de la
+    subclase QObject los expone QWebChannel igual que los del base."""
+    try:
+        from web_shell_private import PrivateBridge
+        return PrivateBridge()
+    except Exception:
+        return ThemeForgeBridge()
+
+
 class WebShell(QWidget):
     """Ventana/widget que sirve el prototipo y lo embebe en un WebEngineView
     con el puente nativo conectado."""
@@ -2698,7 +2769,7 @@ class WebShell(QWidget):
 
         self._child_windows = []  # ventanas de proyecto aparte (evitar GC)
         self._view = QWebEngineView()
-        self._bridge = ThemeForgeBridge()
+        self._bridge = _make_bridge()
         # Reload del shell cuando se cambia de prototipo web (Matrix/Kawaii/…).
         self._bridge.reload_requested.connect(self._reload_active)
         # Abrir proyecto en VENTANA NUEVA (como el nativo).
@@ -2725,7 +2796,7 @@ class WebShell(QWidget):
             lay = QVBoxLayout(win)
             lay.setContentsMargins(0, 0, 0, 0)
             view = QWebEngineView()
-            bridge = ThemeForgeBridge()
+            bridge = _make_bridge()
             bridge.reload_requested.connect(self._reload_active)
             bridge.open_window_requested.connect(self._spawn_project_window)
             ch = QWebChannel(view.page())

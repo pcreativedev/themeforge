@@ -256,6 +256,14 @@ THUMBNAILS_DIR = pc.app_cache_dir() / "thumbnails"
 CONTEXT_PRIVATE_DIR = CONFIG_DIR / "context-private"
 FAVORITES_FILE = CONFIG_DIR / "favorites.json"
 
+# Plugin opcional con integraciones privadas de agencia (pestañas Leads/Catálogo/
+# Locales + filtro de la Galería). Ausente en el repo OSS → esas piezas no
+# aparecen. Todo el naming privado vive en ese módulo (gitignored).
+try:
+    import themeforge_private as _np
+except Exception:
+    _np = None
+
 
 # Patrones de API keys conocidas — para redactar de stderr antes de
 # mostrarlos en el UI (defensa en profundidad, no debería pasar pero).
@@ -963,12 +971,26 @@ def gh_list_repos(limit: int = 200) -> list[dict]:
 
 
 def _read_context(name: str) -> str:
-    """Lee un MD de context/ del builder y lo devuelve como string."""
-    p = CONTEXT_DIR / name
-    try:
-        return p.read_text(encoding="utf-8")
-    except Exception:
-        return f"_(no se pudo leer {name})_"
+    """Lee un MD de context/ del builder. Prioridad (misma convención que el
+    discovery de context-private): versión PRIVADA del usuario
+    (`context-private/`) > nombre exacto en `context/` > stub `.template.md`
+    del repo (p. ej. LICENSING-SYSTEM.md → LICENSING-SYSTEM.template.md)."""
+    candidates: list[Path] = []
+    priv = globals().get("CONTEXT_PRIVATE_DIR")
+    tmpl = (name[:-3] + ".template.md") if name.endswith(".md") else None
+    if priv:
+        candidates.append(priv / name)
+        if tmpl:
+            candidates.append(priv / tmpl)
+    candidates.append(CONTEXT_DIR / name)
+    if tmpl:
+        candidates.append(CONTEXT_DIR / tmpl)
+    for p in candidates:
+        try:
+            return p.read_text(encoding="utf-8")
+        except Exception:
+            continue
+    return f"_(no se pudo leer {name})_"
 
 
 # Formato de producto Envato derivado del stack. Decide qué checklist (§B)
@@ -999,6 +1021,7 @@ _FORMAT_SCRIPT_APP = {
     "nextjs-tailwind", "nextjs-shadcn", "nextjs-mantine", "nextjs-heroui",
     "nuxt-tailwind", "sveltekit-tailwind", "remix-tailwind", "solidstart-tailwind",
     "qwik-tailwind", "tauri-react", "electron-react",
+    "restaurant-saas", "forge-commerce", "forge-commerce-growshop",
 }
 
 
@@ -2571,6 +2594,39 @@ def _render_analysis_block(ai_analysis: str | None, kind: str) -> str:
             "natural del usuario. Es el norte del producto — no la copia.\n\n"
             + text + "\n"
         )
+    if kind == "brief":
+        return (
+            "## 🚨🚨 WEB A MEDIDA PARA UN CLIENTE DIRECTO — NO es un template de marketplace\n\n"
+            "> **IGNORA por completo cualquier instrucción de ESTE documento sobre "
+            "vender en marketplaces (ThemeForest, Envato, CodeCanyon, Theme Store), "
+            "sobre escribir DOCUMENTACIÓN de producto, sobre 'demo data' genérica, "
+            "onboarding, o requisitos de Envato. NADA de eso aplica aquí.** Esto es "
+            "una web REAL para UN negocio concreto, que se le entrega a ESE cliente.\n>\n"
+            "> **Materia prima REAL del cliente** (extraída de su web y Google por "
+            "ThemeForge + revisada por el usuario): datos, carta/servicios/productos, "
+            "horarios, fotos, branding y **EL CONTENIDO COMPLETO de su web actual** "
+            "(todas sus páginas: inicio, nosotros/historia, servicios, blog/noticias, "
+            "galería, contacto…). Está más abajo en «Contenido REAL de su web».\n>\n"
+            "> **REGLAS OBLIGATORIAS (no negociables):**\n"
+            "> 1. 📸 **USA SUS FOTOS REALES** — las URLs de imágenes del brief. "
+            "Descárgalas a `public/`/`assets/` y úsalas en la web. "
+            "**PROHIBIDO Unsplash, Pexels, fotos de stock, placeholders o imágenes "
+            "inventadas.** Si falta alguna foto concreta, deja un hueco limpio o usa "
+            "otra suya — NUNCA stock.\n"
+            "> 2. 📝 **REPRODUCE TODO SU CONTENIDO** (sección «Contenido REAL»): cada "
+            "página, cada texto, su historia, su blog/noticias, sus servicios. "
+            "Reescríbelo MEJOR (copy más vendedor + SEO) pero **sin perder "
+            "información ni secciones**. La web nueva debe tener TODO lo que tiene su "
+            "web actual y más, nunca menos.\n"
+            "> 3. Usa nombre, dirección, teléfono, horarios y carta/precios **tal "
+            "cual** (no inventes nada).\n"
+            "> 4. ❌ **Cero documentación, cero Lorem Ipsum, cero demo genérica, cero "
+            "texto de onboarding.** La 'demo' ES su web real llevada x100 (mejor "
+            "diseño, UX, velocidad y SEO).\n"
+            "> 5. Si el stack trae boilerplate (restaurant-saas, etc.), rellénalo con "
+            "estos datos y personalízalo a su branding — no rehagas la fontanería.\n\n"
+            + text + "\n"
+        )
     # default: reference
     return (
         "## Análisis IA previo de la referencia\n\n"
@@ -2603,7 +2659,36 @@ def render_context(
     stack_unspecified = stack_key == "none"
     niche_clean = (niche or "").strip()
     niche_unspecified = (not niche_clean) or niche_clean.startswith("(Sin nicho")
-    sistema_licencias = _read_context("LICENSING-SYSTEM.md")
+    # Sistema de licencias: PRIORIZA el doc REAL del usuario en context-private
+    # (p. ej. SISTEMA-PCREATIVE.md, el sistema pcreative con endpoint + contrato
+    # + pubkey). Solo si no existe, cae a LICENSING-SYSTEM.md / al stub
+    # `.template.md`. Antes solo leía "LICENSING-SYSTEM.md" exacto y fallaba con
+    # "no se pudo leer" → el agente improvisaba endpoint/contrato (de ahí las
+    # decisiones a medias del DECISIONS-PENDING.md).
+    sistema_licencias = ""
+    for _name in ("SISTEMA-PCREATIVE.md", "PCREATIVE-LICENSING.md",
+                  "LICENSING.md", "LICENSING-SYSTEM.md"):
+        _try = _read_context(_name)
+        if "no se pudo leer" not in _try:
+            sistema_licencias = _try
+            break
+    if not sistema_licencias:
+        sistema_licencias = "_(no se pudo leer LICENSING-SYSTEM.md)_"
+
+    # Modo "web a medida para cliente directo" (Generador de webs desde un lead):
+    # NO es un producto de marketplace → banner que anula §A/§B y exige datos reales.
+    is_brief = (ai_analysis_kind == "brief")
+    brief_banner = ("" if not is_brief else (
+        "\n> 🚨🚨🚨 **MODO WEB-A-MEDIDA (CLIENTE DIRECTO) — LEE ESTO PRIMERO**\n>\n"
+        "> Este proyecto es una **web real para UN comercio concreto** que se le "
+        "entrega a ese cliente. **NO es un template para vender en marketplace.**\n>\n"
+        "> Por tanto: **IGNORA §A (Licensing) y §B (Requisitos Envato)** y cualquier "
+        "mención a ThemeForest/CodeCanyon/Theme Store/documentación de producto/demo "
+        "data genérica. **NO aplican.**\n>\n"
+        "> Tu trabajo: recrear su web actual llevándola **x100** usando **SUS datos, "
+        "SUS fotos y TODO su contenido reales** (ver «Brief del comercio» abajo). "
+        "**PROHIBIDO Unsplash / fotos de stock / Lorem Ipsum / placeholders.**\n>\n"
+        "---\n"))
 
     # ── Formato de producto Envato derivado del stack ────────────────────
     product_format = product_format_for(stack_key)
@@ -3007,8 +3092,56 @@ Este proyecto es un clone de `{existing_repo}` con su historial git intacto.
 Los commits que hagas se añaden encima del historial existente.
 """
 
-    return f"""# Contexto del proyecto: {project_name}
+    # Bloque de calidad de UI. framer-motion + 21st.dev (magic/shadcn) SOLO
+    # existen en frontends React/JS. En PHP/Smarty (PrestaShop, Magento…), Ruby,
+    # etc. se inyecta una versión de "calidad de diseño" con las herramientas
+    # nativas del stack, sin mandar usar libs que ahí no aplican.
+    _ui_lang = (stack.get("language", "") or "").lower()
+    _ui_is_react = any(k in _ui_lang for k in ("react", "next", "typescript", "javascript", "remix")) and not any(
+        k in _ui_lang for k in ("php", "smarty", "ruby", "java", "kotlin", "go", "golang",
+                                "rust", "elixir", "phoenix", "swift", "dart", "flutter", "c#", ".net", "blazor", "python"))
+    if _ui_is_react:
+        uipro_block = """## 🎨 UI PRO + ANIMACIONES — OBLIGATORIO (21st.dev + framer-motion)
 
+> 🎯 Esta web debe quedar a nivel de **ESTUDIO DE DISEÑO**: profesional,
+> animada y pulida — NUNCA una plantilla básica. Es un requisito, no un extra.
+
+Si es una web React (Next/Vite/Remix/…), ThemeForge ya ha instalado
+**framer-motion**, escrito **`UI-MOTION.md`** en la raíz y cableado (si hay key
+21st.dev) el MCP **`magic`** en `.mcp.json`.
+
+**LEE `UI-MOTION.md` AHORA y SÍGUELA AL PIE DE LA LETRA** (es la guía completa).
+En resumen, sin que te lo pida el usuario y como parte de la primera versión:
+1. Comprueba `/mcp` → el server **`magic`** debe estar *connected*. Para CADA
+   sección visual usa **`21st_magic_component_inspiration`** (trae componentes
+   pro del registro 21st.dev al chat, SIN abrir navegador), **elige TÚ la mejor**
+   para el nicho y rellénala con el **contenido REAL**. ❌ NO uses
+   `21st_magic_component_builder` (`/ui`) desatendido: abre el navegador y se
+   cuelga esperando que el usuario elija. Si `magic` falla, constrúyela tú al
+   mismo nivel.
+2. **Anima con framer-motion**: reveal al scroll (`whileInView` once), stagger en
+   grids, micro-interacciones hover/tap, hero cinematográfico, parallax
+   (`useScroll`), tilt 3D, count-up, marquee, `AnimatePresence`. Respeta SIEMPRE
+   `useReducedMotion` y anima solo `transform`/`opacity`.
+3. Calidad de estudio: tipografía con jerarquía, espaciado generoso, paleta
+   coherente + acento, estados hover/focus, `next/image`, responsive 360→1920,
+   WCAG AA. Aplica también las skills de `.claude/skills/` (UI/UX Pro)."""
+    else:
+        uipro_block = """## 🎨 CALIDAD DE DISEÑO — OBLIGATORIO
+
+> 🎯 Esta web/theme debe quedar a nivel de **ESTUDIO DE DISEÑO**: profesional y
+> pulida — NUNCA una plantilla básica. Es un requisito, no un extra.
+
+Sin que te lo pida el usuario, como parte de la primera versión:
+1. Tipografía con jerarquía clara, espaciado generoso, paleta coherente + acento.
+2. Estados hover/focus y micro-interacciones con las herramientas NATIVAS de este
+   stack (CSS/transitions/animations, motor de plantillas correspondiente). NO uses
+   framer-motion ni el MCP 21st.dev: no aplican a este stack.
+3. Responsive 360→1920, imágenes optimizadas, accesibilidad WCAG AA.
+4. Aplica las skills de `.claude/skills/` (UI/UX Pro) adaptadas a este stack."""
+
+    _md = f"""# Contexto del proyecto: {project_name}
+{brief_banner}
 > **LECTURA OBLIGATORIA**
 >
 > Antes de cualquier otra acción en este proyecto, asimila TODO el contenido
@@ -3053,6 +3186,8 @@ Los commits que hagas se añaden encima del historial existente.
 {mode_block}
 
 {_render_analysis_block(ai_analysis, ai_analysis_kind)}
+{uipro_block}
+
 ## 🛠️ Estás trabajando DENTRO de ThemeForge
 
 Este proyecto fue creado por **ThemeForge** (un builder GUI Python/PyQt6
@@ -3443,6 +3578,28 @@ es una molestia, es lo que evita el trabajo perdido.
 
 {requisitos_envato}
 """
+    # Web de CLIENTE (brief): reemplaza §C (que recomienda Unsplash) por una
+    # directiva tajante de usar SOLO las imágenes/contenido reales del comercio.
+    if is_brief:
+        _brief_assets = (
+            "## §C — IMÁGENES Y CONTENIDO (web de CLIENTE — OBLIGATORIO)\n\n"
+            "Esta web es para un comercio REAL: usa EXCLUSIVAMENTE sus imágenes y "
+            "contenido reales (ver «Fotos del negocio», «Vídeos» y «Contenido REAL» "
+            "del brief de arriba).\n\n"
+            "- ❌ **PROHIBIDO Unsplash, Pexels, Pixabay, Picsum, DiceBear, "
+            "Logoipsum, stock o placeholders. NI UNA SOLA imagen que no sea del "
+            "propio negocio.**\n"
+            "- ✅ Usa SOLO las URLs de fotos reales del brief (son del comercio). "
+            "Para fondos/hero usa también esas fotos reales.\n"
+            "- Si falta una foto para una sección concreta, **reutiliza otra foto "
+            "real del negocio** o deja un hueco con `{/* FOTO REAL DEL CLIENTE */}` "
+            "y un aviso al final — NUNCA rellenes con stock.\n"
+            "- Iconos: Lucide OK (no son fotos). Respeta nombres, textos, precios y "
+            "datos REALES del brief, sin inventar.\n"
+        )
+        _md = re.sub(r"## §C — Assets.*?(?=\n## §D —)", _brief_assets, _md,
+                     flags=re.S)
+    return _md
 
 
 def write_setup_script(
@@ -3561,16 +3718,51 @@ def write_setup_script(
                 org_id = _load_lic().get("org_id", "com.example")
             except Exception:
                 org_id = "com.example"
+            # Directorio de instalación de ThemeForge (para que un stack pueda
+            # copiar plantillas de `templates/<stack>/` con `cp -a __TFDIR__/…`).
+            tfdir = str(Path(__file__).resolve().parent)
+            # ThemeForge pre-escribe .mcp.json en la carpeta ANTES del setup, pero
+            # algunos scaffolders (create-next-app, create-vite…) abortan si el
+            # directorio no está vacío ("contains files that could conflict").
+            # Apartamos esos ficheros, scaffoldeamos en una carpeta limpia y los
+            # restauramos después (sin pisar lo que cree el scaffold).
+            parts.append('__TF_STASH="$(mktemp -d)"')
+            parts.append(
+                'for __f in .mcp.json README-MCP.md; do '
+                '[ -e "$__f" ] && mv "$__f" "$__TF_STASH/" 2>/dev/null || true; done')
             for cmd in stack["scaffold"]:
                 substituted = (
                     cmd.replace("__PROJECT__", project_name)
                        .replace("__SLUG__", project_dir.name)
                        .replace("__PASCAL__", pascal)
                        .replace("__ORG_ID__", org_id)
+                       .replace("__TFDIR__", tfdir)
                 )
                 parts.append(substituted)
+            # Restaura los ficheros apartados (sin sobrescribir los del scaffold).
+            parts.append(
+                'for __f in .mcp.json README-MCP.md; do '
+                '[ -e "$__TF_STASH/$__f" ] && [ ! -e "./$__f" ] && '
+                'mv "$__TF_STASH/$__f" "./" 2>/dev/null || true; done')
+            parts.append('rmdir "$__TF_STASH" 2>/dev/null || true')
         else:
             parts.append('echo "→ Sin scaffolding (stack: Sin stack)."')
+
+    # ── UI pro: framer-motion + guía 21st.dev ───────────────────────────
+    # Para CUALQUIER proyecto React (modo scratch/adopt/existing). Escribe la
+    # guía UI-MOTION.md (instrucciones al agente), asegura el MCP `magic` en
+    # .mcp.json e instala framer-motion. Todo NO-FATAL.
+    _tf_home_ui = Path(__file__).resolve().parent
+    parts.append('echo ""')
+    parts.append('echo "──── UI pro: framer-motion + 21st.dev ────"')
+    parts.append(f"cd {shell_quote(project_dir.as_posix())} 2>/dev/null || true")
+    parts.append(
+        f"python3 {shell_quote((_tf_home_ui / 'web_enhancements.py').as_posix())} "
+        f"{shell_quote(project_dir.as_posix())} >/dev/null 2>&1 "
+        '&& echo "  guía UI-MOTION.md + MCP 21st.dev ✓" || true')
+    # OJO: `npm install framer-motion` va al FINAL del setup (con timeout), no
+    # aquí: con wifi flojo puede tardar/colgarse y dejaría el proyecto SIN
+    # CLAUDE.md/context si abortara antes de escribirlos.
 
     # ── WordPress dev env (Docker) — SOLO stacks WordPress, ANTES de todo lo
     #    demás. Levanta WP + MariaDB, instala WP (admin/admin) y monta el
@@ -3844,6 +4036,18 @@ def write_setup_script(
     parts.append('else')
     parts.append('  echo "  Sin BD detectada — saltando aprovisionamiento."')
     parts.append('fi')
+
+    # framer-motion al FINAL: el CLAUDE.md/context/skills ya están escritos, así
+    # que aunque la instalación tarde o se omita (wifi flojo), el proyecto queda
+    # completo. `timeout` evita que se cuelgue indefinidamente.
+    parts.append('echo ""')
+    parts.append('echo "──── framer-motion (animaciones) ────"')
+    parts.append("if [ -f package.json ] && grep -qE '\"(react|next)\"' package.json; then")
+    parts.append('  echo "→ Instalando framer-motion…"')
+    parts.append('  timeout 240 npm install framer-motion >/dev/null 2>&1 '
+                 '&& echo "  framer-motion ✓" '
+                 "|| echo \"  [framer-motion omitido — instálalo luego con 'npm i framer-motion']\"")
+    parts.append("fi")
 
     if mode != "existing":
         parts.append('echo ""')
@@ -5638,6 +5842,8 @@ class GalleryPanel(QWidget):
         self.search_edit.textChanged.connect(self._apply_filter)
         self.fav_only = QCheckBox("Solo favoritos ★")
         self.fav_only.toggled.connect(self._apply_filter)
+        # Filtro opcional aportado por el plugin privado (ausente en OSS).
+        self.leads_only = _np.make_gallery_filter(self) if _np else None
         self.show_archived = QCheckBox("📦 Archivados")
         self.show_archived.setToolTip(
             f"Mostrar proyectos archivados (movidos a {ARCHIVE_DIR}). "
@@ -5672,6 +5878,8 @@ class GalleryPanel(QWidget):
         filter_row.addWidget(self.search_edit, 2)
         filter_row.addWidget(self.cat_filter, 1)
         filter_row.addWidget(self.fav_only)
+        if self.leads_only is not None:
+            filter_row.addWidget(self.leads_only)
         filter_row.addWidget(self.show_archived)
         filter_row.addWidget(self.view_toggle)
 
@@ -5760,6 +5968,8 @@ class GalleryPanel(QWidget):
     def refresh(self):
         self.favorites = load_favorites()
         self.projects_meta = load_projects_meta()
+        # Marcas opcionales del plugin privado (webs generadas desde el CRM).
+        self._lead_slugs = _np.gallery_marks() if _np else set()
         self.list_widget.clear()
         archived_view = (self.show_archived.isChecked()
                          if hasattr(self, "show_archived") else False)
@@ -5772,8 +5982,13 @@ class GalleryPanel(QWidget):
             git_mark = "git ✓" if it["has_git"] else "git —"
             ctx_mark = "claude.md" if it["has_claude"] else ("agents.md" if it["has_agents"] else "—")
             star = "★ " if it["name"] in self.favorites else "☆ "
-            tags = (self.projects_meta.get(it["name"]) or {}).get("tags") or []
+            pm_entry = self.projects_meta.get(it["name"]) or {}
+            tags = pm_entry.get("tags") or []
             tags_str = "  ·  " + " ".join(f"#{t}" for t in tags) if tags else ""
+            # Marca opcional (plugin privado); sin plugin siempre False.
+            slug = it["name"]
+            from_lead = _np.item_marked(pm_entry, slug, getattr(self, "_lead_slugs", set())) if _np else False
+            lead_mark = "🎯 " if from_lead else ""
             ai_ts = last_ai_activity(it["path"])
             ai_rel = format_relative_time(ai_ts)
             ai_mark = f"🤖 {ai_rel}" if ai_ts else "🤖 sin sesiones"
@@ -5787,9 +6002,9 @@ class GalleryPanel(QWidget):
                 meta_line = f"{ai_mark}"
                 if tags_line:
                     meta_line += f"  {tags_line}"
-                line = f"{star}{it['name']}\n{it['stack']}\n{meta_line}"
+                line = f"{star}{lead_mark}{it['name']}\n{it['stack']}\n{meta_line}"
             else:
-                line = (f"{star}{it['name']}\n"
+                line = (f"{star}{lead_mark}{it['name']}\n"
                         f"     Stack: {it['stack']:<22}  ·  Mod: {dt}  ·  "
                         f"{git_mark}  ·  {ctx_mark}  ·  {ai_mark}{tags_str}")
 
@@ -5797,6 +6012,7 @@ class GalleryPanel(QWidget):
             li.setData(Qt.ItemDataRole.UserRole, str(it["path"]))
             li.setData(Qt.ItemDataRole.UserRole + 1, it)   # meta para filtro
             li.setData(Qt.ItemDataRole.UserRole + 2, tags) # tags para filtro
+            li.setData(Qt.ItemDataRole.UserRole + 3, from_lead)  # marca del plugin
 
             if cards_mode:
                 stack_key = detected_stack_to_key(it["stack"])
@@ -5812,6 +6028,7 @@ class GalleryPanel(QWidget):
         text = (self.search_edit.text() if hasattr(self, 'search_edit') else "").strip().lower()
         cat = self.cat_filter.currentData() if hasattr(self, 'cat_filter') else "*"
         only_fav = self.fav_only.isChecked() if hasattr(self, 'fav_only') else False
+        only_leads = bool(getattr(self, 'leads_only', None) and self.leads_only.isChecked())
 
         # Si el search empieza con "tag:foo" → filtro por tag (igualdad
         # exacta del tag tras el prefijo, en lowercase). Se pueden
@@ -5827,6 +6044,7 @@ class GalleryPanel(QWidget):
         for li in getattr(self, '_all_items', []):
             meta = li.data(Qt.ItemDataRole.UserRole + 1) or {}
             tags = li.data(Qt.ItemDataRole.UserRole + 2) or []
+            from_lead = bool(li.data(Qt.ItemDataRole.UserRole + 3))
             name = (meta.get("name") or "").lower()
             stack = (meta.get("stack") or "").lower()
             stack_key = detected_stack_to_key(meta.get("stack") or "")
@@ -5838,6 +6056,8 @@ class GalleryPanel(QWidget):
                 show = False
             if only_fav and meta.get("name") not in self.favorites:
                 show = False
+            if only_leads and not from_lead:
+                show = False
             if tag_filters and not all(tf in tags for tf in tag_filters):
                 show = False
             li.setHidden(not show)
@@ -5846,7 +6066,9 @@ class GalleryPanel(QWidget):
             total = len(getattr(self, '_all_items', []))
             tag_note = f" · tag:{','.join(tag_filters)}" if tag_filters else ""
             fav_note = " · solo favoritos" if only_fav else ""
-            self.info.setText(f"{visible} / {total} visibles{tag_note}{fav_note}")
+            mark_note = " · 🎯 filtro activo" if only_leads else ""
+            self.info.setText(
+                f"{visible} / {total} visibles{tag_note}{fav_note}{mark_note}")
 
     def _selected_path(self) -> Path | None:
         item = self.list_widget.currentItem()
@@ -7101,6 +7323,10 @@ class ThemeForgeApp(QWidget):
             print(f"[market] tab no disponible: {e}")
             self.market = None
 
+        # Pestañas opcionales aportadas por el plugin privado (ausentes en OSS):
+        # se crean ahora y se añaden al final del orden de pestañas.
+        _extra_tabs = _np.native_tabs(self) if _np else []
+
         self.tabs = QTabWidget()
         # Tabs use Lucide SVG icons (theme-aware: re-colored on theme change).
         # `_tab_specs` is the source of truth; `_apply_tab_icons` paints icons
@@ -7120,6 +7346,7 @@ class ThemeForgeApp(QWidget):
         if getattr(self, "market", None) is not None:
             # Tras "Compare" (idx 3): New project · Gallery · AI cost · Compare · Market · …
             self._tab_specs.insert(4, (self.market, "globe", "Market"))
+        self._tab_specs.extend(_extra_tabs)
         for widget, icon_name, label in self._tab_specs:
             self.tabs.addTab(widget, label)
         self._apply_tab_icons()
@@ -7338,7 +7565,10 @@ class ThemeForgeApp(QWidget):
             for i, (_w, icon_name, label) in enumerate(self._tab_specs):
                 icon = _t.tf_icon(icon_name, color=color, size=18)
                 self.tabs.setTabIcon(i, icon)
-                kanji = self._NEOTOKYO_KANJI.get(label) if neotokyo else None
+                _kanji_map = dict(self._NEOTOKYO_KANJI)
+                if _np:
+                    _kanji_map.update(_np.kanji())
+                kanji = _kanji_map.get(label) if neotokyo else None
                 self.tabs.setTabText(i, f"{label}  {kanji}" if kanji else label)
         except Exception as e:
             print(f"[tabs] could not apply icons: {e}")
@@ -7512,6 +7742,17 @@ def main():
     # THEMEFORGE_NO_SPLASH=1 lo desactiva.
     _splash = None
     _no_splash = os.environ.get("THEMEFORGE_NO_SPLASH") == "1"
+    # El splash completo solo el PRIMER arranque (animación de marca). En
+    # arranques posteriores se entra directo a la app para abrir más rápido.
+    if not _no_splash:
+        try:
+            import app_prefs as _ap_splash
+            if _ap_splash.get("splash_seen", False):
+                _no_splash = True
+            else:
+                _ap_splash.set("splash_seen", True)
+        except Exception:
+            pass
     if not _no_splash:
         try:
             from boot_splash import BootSplash

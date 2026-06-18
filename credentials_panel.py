@@ -13,7 +13,7 @@ from __future__ import annotations
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QFrame,
-    QInputDialog, QLineEdit, QMessageBox,
+    QInputDialog, QLineEdit, QMessageBox, QComboBox,
 )
 
 import ai_providers as aip
@@ -53,8 +53,15 @@ class CredentialsWidget(QWidget):
             row = self._build_row(key)
             root.addWidget(row)
 
+        # Modelo del CLI de Claude (se pasa con --model en todos los modos).
+        root.addWidget(self._build_claude_model_row())
+
         # Integraciones (no-IA): token de Figma para el MCP figma-context.
         root.addWidget(self._build_figma_row())
+        # UI components: API key de 21st.dev (MCP Magic → componentes pro `/ui`).
+        root.addWidget(self._build_21st_row())
+        # Búsqueda web avanzada: API key de Firecrawl (Locales → todo internet).
+        root.addWidget(self._build_firecrawl_row())
         # Imágenes: API key de Runware (generación de imágenes de los templates).
         root.addWidget(self._build_runware_row())
 
@@ -140,6 +147,44 @@ class CredentialsWidget(QWidget):
             )
             self._figma_set.setText("✏️ Cambiar token" if has_figma else "🔑 Añadir token")
             self._figma_clear.setVisible(has_figma)
+
+        # Estado de la key de 21st.dev (MCP Magic — componentes UI pro).
+        if hasattr(self, "_t21_status"):
+            try:
+                has_21 = bool(aip.load_keys().get("twentyfirst"))
+            except Exception:
+                has_21 = False
+            self._t21_status.setText(
+                ("🟢" if has_21 else "⚪")
+                + " <b>21st.dev</b> <small>(MCP Magic — componentes UI pro con "
+                  "<code>/ui</code>)</small><br>"
+                + "<small style='color:#9aa'>"
+                + ("key guardada — el agente puede traer componentes profesionales "
+                   "de 21st.dev"
+                   if has_21 else
+                   "sin key — gratis en 21st.dev → Settings → API (100 créditos/mes)")
+                + "</small>")
+            self._t21_set.setText("✏️ Cambiar key" if has_21 else "🔑 Añadir key")
+            self._t21_clear.setVisible(has_21)
+
+        # Estado de la key de Firecrawl (búsqueda web avanzada).
+        if hasattr(self, "_fc_status"):
+            try:
+                has_fc = bool(aip.load_keys().get("firecrawl"))
+            except Exception:
+                has_fc = False
+            self._fc_status.setText(
+                ("🟢" if has_fc else "⚪")
+                + " <b>Firecrawl</b> <small>(Locales → buscar en TODO internet: "
+                  "scrape + extracción de anuncios)</small><br>"
+                + "<small style='color:#9aa'>"
+                + ("key guardada — «🌐 todo internet» usa Firecrawl"
+                   if has_fc else
+                   "sin key — gratis en firecrawl.dev → API Keys (500/mes); sin "
+                   "ella se usa Perplexity Sonar")
+                + "</small>")
+            self._fc_set.setText("✏️ Cambiar key" if has_fc else "🔑 Añadir key")
+            self._fc_clear.setVisible(has_fc)
 
         # Estado de la key de Runware (imágenes).
         if hasattr(self, "_runware_status"):
@@ -228,6 +273,35 @@ class CredentialsWidget(QWidget):
                 QMessageBox.warning(self, "Quitar key", f"Error: {e}")
 
     # ── Integración Figma (token MCP) ────────────────────────────────────
+    # ── Modelo de Claude Code ────────────────────────────────────────────
+    def _build_claude_model_row(self) -> QFrame:
+        import app_prefs
+        frame = QFrame()
+        frame.setStyleSheet("QFrame { border-bottom: 1px solid #2a2a33; }")
+        lay = QHBoxLayout(frame)
+        lay.setContentsMargins(4, 4, 4, 4)
+
+        label = QLabel(
+            "🧠 <b>Modelo Claude Code</b> — se usa automáticamente en "
+            "Vibe, Recrear, Galería y multi-agente (flag <code>--model</code>)."
+        )
+        label.setTextFormat(Qt.TextFormat.RichText)
+        label.setWordWrap(True)
+        lay.addWidget(label, 1)
+
+        combo = QComboBox()
+        for model_id, desc in aip.CLAUDE_MODELS:
+            combo.addItem(desc, model_id)
+        current = app_prefs.claude_model(aip.CLAUDE_MODEL_DEFAULT)
+        idx = combo.findData(current)
+        combo.setCurrentIndex(idx if idx >= 0 else 0)
+        combo.currentIndexChanged.connect(
+            lambda _i: (app_prefs.set_claude_model(combo.currentData() or ""),
+                        self.changed.emit()))
+        lay.addWidget(combo)
+        self._claude_model_combo = combo
+        return frame
+
     def _build_figma_row(self) -> QFrame:
         frame = QFrame()
         frame.setStyleSheet("QFrame { border-top: 1px solid #2a2a33; }")
@@ -278,6 +352,109 @@ class CredentialsWidget(QWidget):
                 self.changed.emit()
             except Exception as e:
                 QMessageBox.warning(self, "Figma", f"Error: {e}")
+
+    # ── 21st.dev (MCP Magic — componentes UI) ────────────────────────────
+    def _build_21st_row(self) -> QFrame:
+        frame = QFrame()
+        frame.setStyleSheet("QFrame { border-top: 1px solid #2a2a33; }")
+        lay = QHBoxLayout(frame)
+        lay.setContentsMargins(4, 8, 4, 4)
+        self._t21_status = QLabel("…")
+        self._t21_status.setTextFormat(Qt.TextFormat.RichText)
+        self._t21_status.setWordWrap(True)
+        lay.addWidget(self._t21_status, 1)
+        self._t21_set = QPushButton("🔑 Añadir key")
+        self._t21_set.clicked.connect(self._set_21st_key)
+        self._t21_clear = QPushButton("🚪 Quitar")
+        self._t21_clear.clicked.connect(self._remove_21st_key)
+        lay.addWidget(self._t21_set)
+        lay.addWidget(self._t21_clear)
+        return frame
+
+    def _set_21st_key(self):
+        import os
+        text, ok = QInputDialog.getText(
+            self, "API key de 21st.dev",
+            "Pega tu API key de 21st.dev\n"
+            "(GRATIS: 21st.dev → Sign up → Settings → API · 100 créditos/mes):",
+            echo=QLineEdit.EchoMode.Password,
+        )
+        if ok and text.strip():
+            try:
+                aip.save_key("twentyfirst", text.strip())
+                os.environ["TWENTYFIRST_API_KEY"] = text.strip()
+                self.refresh()
+                self.changed.emit()
+                QMessageBox.information(
+                    self, "21st.dev",
+                    "Key guardada (chmod 0600). En los proyectos React el agente "
+                    "podrá usar `/ui <descripción>` para traer componentes "
+                    "profesionales de 21st.dev (el MCP `magic` se cablea solo).")
+            except Exception as e:
+                QMessageBox.warning(self, "21st.dev", f"Error guardando: {e}")
+
+    def _remove_21st_key(self):
+        import os
+        r = QMessageBox.question(self, "Quitar key", "¿Quitar la key de 21st.dev?")
+        if r == QMessageBox.StandardButton.Yes:
+            try:
+                aip.delete_key("twentyfirst")
+                os.environ.pop("TWENTYFIRST_API_KEY", None)
+                self.refresh()
+                self.changed.emit()
+            except Exception as e:
+                QMessageBox.warning(self, "21st.dev", f"Error: {e}")
+
+    # ── Firecrawl (búsqueda web avanzada de locales) ─────────────────────
+    def _build_firecrawl_row(self) -> QFrame:
+        frame = QFrame()
+        frame.setStyleSheet("QFrame { border-top: 1px solid #2a2a33; }")
+        lay = QHBoxLayout(frame)
+        lay.setContentsMargins(4, 8, 4, 4)
+        self._fc_status = QLabel("…")
+        self._fc_status.setTextFormat(Qt.TextFormat.RichText)
+        self._fc_status.setWordWrap(True)
+        lay.addWidget(self._fc_status, 1)
+        self._fc_set = QPushButton("🔑 Añadir key")
+        self._fc_set.clicked.connect(self._set_firecrawl_key)
+        self._fc_clear = QPushButton("🚪 Quitar")
+        self._fc_clear.clicked.connect(self._remove_firecrawl_key)
+        lay.addWidget(self._fc_set)
+        lay.addWidget(self._fc_clear)
+        return frame
+
+    def _set_firecrawl_key(self):
+        import os
+        text, ok = QInputDialog.getText(
+            self, "API key de Firecrawl",
+            "Pega tu API key de Firecrawl (empieza por fc-)\n"
+            "GRATIS: firecrawl.dev → Sign up → API Keys (500 búsquedas/mes):",
+            echo=QLineEdit.EchoMode.Password,
+        )
+        if ok and text.strip():
+            try:
+                aip.save_key("firecrawl", text.strip())
+                os.environ["FIRECRAWL_API_KEY"] = text.strip()
+                self.refresh()
+                self.changed.emit()
+                QMessageBox.information(
+                    self, "Firecrawl",
+                    "Key guardada (chmod 0600). En 🔑 Locales, «🌐 todo internet» "
+                    "usará Firecrawl para buscar+scrapear anuncios reales.")
+            except Exception as e:
+                QMessageBox.warning(self, "Firecrawl", f"Error guardando: {e}")
+
+    def _remove_firecrawl_key(self):
+        import os
+        r = QMessageBox.question(self, "Quitar key", "¿Quitar la key de Firecrawl?")
+        if r == QMessageBox.StandardButton.Yes:
+            try:
+                aip.delete_key("firecrawl")
+                os.environ.pop("FIRECRAWL_API_KEY", None)
+                self.refresh()
+                self.changed.emit()
+            except Exception as e:
+                QMessageBox.warning(self, "Firecrawl", f"Error: {e}")
 
     # ── Imágenes Runware (API key) ───────────────────────────────────────
     def _build_runware_row(self) -> QFrame:

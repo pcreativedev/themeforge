@@ -343,6 +343,24 @@ def compose_is_infra_only(compose_path: Path) -> bool:
     return True
 
 
+def _compose_published_port(compose_path: Path) -> int | None:
+    """Extrae el primer puerto de HOST publicado en el docker-compose
+    (p.ej. `"8080:80"` → 8080), saltando puertos típicos de BD/cache.
+    Sirve para que el preview cargue la URL al puerto real de la app."""
+    try:
+        text = compose_path.read_text(errors="ignore", encoding="utf-8")
+    except Exception:
+        return None
+    import re
+    _infra_ports = {3306, 5432, 6379, 27017, 11211, 9200, 5672}
+    # formatos: - "8080:80"  / - 8080:80  / - "127.0.0.1:8080:80"
+    for m in re.finditer(r'-\s*["\']?(?:\d{1,3}(?:\.\d{1,3}){3}:)?(\d{2,5}):\d{2,5}', text):
+        p = int(m.group(1))
+        if p not in _infra_ports:
+            return p
+    return None
+
+
 def has_wp_env(path: Path) -> bool:
     # 1. Marcador directo: existe .wp-env.json
     if (path / ".wp-env.json").is_file():
@@ -644,14 +662,20 @@ def _detect_base_profile(project_path: Path) -> PreviewProfile | None:
     #    seguimos buscando la app real en mono-repo/package.json.
     compose_path = has_docker_compose(project_path)
     if compose_path and not compose_is_infra_only(compose_path):
+        _port = _compose_published_port(compose_path) or 8080
+        # La app ya corre en Docker (auto-provisionada): perfil `no_server`,
+        # se carga la URL directa al puerto REAL publicado en el compose. Sin
+        # esto, el preview reasignaba el puerto (8080 ocupado → 8081) y se
+        # quedaba esperando un puerto que nunca respondía.
         return {
             "name": "Docker Compose",
             "command": ["docker", "compose", "up", "-d"],
             "stop": ["docker", "compose", "down"],
-            "url": "http://localhost:8080",
-            "default_port": 8080,
+            "url": f"http://localhost:{_port}",
+            "default_port": _port,
             "port_inject": None,
-            "note": "Revisa el compose para ver el puerto real.",
+            "no_server": True,
+            "note": f"App en Docker (puerto {_port}); se carga la URL directamente.",
         }
 
     # 2. WordPress — el preview lo monta wp_provisioner (Docker), detectado al

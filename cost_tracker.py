@@ -46,7 +46,11 @@ from pathlib import Path
 # tier "estándar"; el extra se documenta en el UI como aviso.
 
 PRICING: dict[str, tuple[float, float, float, float]] = {
+    # Anthropic — Claude 5 (jun 2026)
+    "claude-fable-5":    (10.00, 50.00, 12.50, 1.00),
+    "claude-mythos-5":   (10.00, 50.00, 12.50, 1.00),
     # Anthropic — Claude 4.x
+    "claude-opus-4-8":   ( 5.00, 25.00,  6.25, 0.50),
     "claude-opus-4-7":   (15.00, 75.00, 18.75, 1.50),
     "claude-opus-4-6":   (15.00, 75.00, 18.75, 1.50),
     "claude-opus-4":     (15.00, 75.00, 18.75, 1.50),
