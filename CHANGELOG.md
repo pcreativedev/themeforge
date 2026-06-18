@@ -5,6 +5,42 @@ All notable changes to ThemeForge will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.8.0] - 2026-06-18
+
+### Added — ThemeForge móvil (cliente fino + motor remoto)
+
+- **El motor de ThemeForge se puede usar desde el móvil.** Nuevo `api_gateway.py`
+  (FastAPI) que expone el puente nativo como API remota (JSON-RPC + WebSocket para
+  streaming + subida de ficheros), con autenticación por *bearer token* (variable
+  de entorno o fichero en `~/.config/themeforge`). Pensado para vivir detrás de una
+  VPN/red privada, no expuesto crudo a internet.
+- **PWA + envoltorio Capacitor** (`webui/mobile/`, `mobile/`): instala ThemeForge
+  como app en el teléfono. `webui/remote/tfbridge-remote.js` reimplementa
+  `window.tfBridge` sobre la API, así la misma Web UI funciona contra un motor
+  remoto sin cambios.
+- **Notificaciones push** (`push_service.py`, FCM HTTP v1) para avisar al teléfono
+  cuando termina un build. Las credenciales se leen de un *service-account* fuera
+  del repositorio.
+
+### Added — Stacks e-commerce self-hosted
+
+- **ForgeCommerce** (`forge-commerce`): stack headless basado en **Medusa 2 +
+  Next.js**, self-hosted, multi-pasarela, con búsqueda semántica (pgvector) y
+  scaffold no-interactivo (Docker para Postgres/Redis). Variante
+  `forge-commerce-growshop` con guía de negocio para catálogos especializados
+  (control de edad, avisos legales).
+
+### Changed
+
+- **Recomendación de MCPs por stack más fina.** Los MCP de UI para JS/React
+  (Magic/Magic UI/shadcn) ya no se sugieren en stacks que no son JavaScript
+  (PHP/Smarty/Ruby, etc.). El cableado de `.mcp.json` y la guía de animaciones
+  (framer-motion / 21st.dev) se aplican solo en frontends Node/React, incluidos
+  los monorepos.
+- **Galería**: al abrir un tema React se asegura `UI-MOTION.md`, el MCP de 21st.dev
+  y `framer-motion`. Portapapeles del terminal embebido y arreglo del conmutador de
+  *viewport* (móvil / tablet / escritorio) en la ventana de proyecto.
+
 ## [1.7.1] - 2026-06-04
 
 ### Fixed
