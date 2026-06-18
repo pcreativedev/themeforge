@@ -1,0 +1,25 @@
+{
+  "name": "themeforge-mobile",
+  "version": "0.1.0",
+  "private": true,
+  "description": "App nativa (Capacitor) que envuelve la PWA de ThemeForge: CRM Leads + generador con cámara/OCR + push.",
+  "scripts": {
+    "sync-web": "node scripts/sync-web.mjs",
+    "sync": "npm run sync-web && cap sync",
+    "add:android": "npm run sync-web && cap add android",
+    "add:ios": "npm run sync-web && cap add ios",
+    "android": "npm run sync && cap open android",
+    "ios": "npm run sync && cap open ios"
+  },
+  "dependencies": {
+    "@capacitor/android": "^6.2.0",
+    "@capacitor/core": "^6.2.0",
+    "@capacitor/ios": "^6.2.0",
+    "@capacitor/push-notifications": "^6.0.4",
+    "@capacitor/splash-screen": "^6.0.3"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^6.2.0",
+    "typescript": "^5.9.3"
+  }
+}

@@ -1,0 +1,9 @@
+node_modules/
+www/
+android/
+ios/
+*.keystore
+*.jks
+google-services.json
+GoogleService-Info.plist
+.DS_Store
