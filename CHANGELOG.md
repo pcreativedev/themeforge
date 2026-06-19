@@ -5,6 +5,19 @@ All notable changes to ThemeForge will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.8.1] - 2026-06-19
+
+### Fixed
+
+- **El modo Vibe (y cualquier función de IA "one-shot") ya no falla con un
+  escueto «exit 1».** El modelo de Claude por defecto era `claude-fable-5`, que
+  no está disponible en todas las cuentas (devuelve `404 model_not_found`), así
+  que el comando salía con error nada más usarlo. Ahora el **modelo por defecto
+  es «Auto»** (el que tu cuenta del CLI use por defecto), que siempre funciona;
+  Fable 5 y los demás siguen siendo elegibles en **Credenciales** para quien
+  tenga acceso. Además, el diálogo del Vibe ahora **muestra el motivo real** del
+  fallo (antes el error llegaba en la salida del CLI y no se veía).
+
 ## [1.8.0] - 2026-06-18
 
 ### Added — ThemeForge móvil (cliente fino + motor remoto)
