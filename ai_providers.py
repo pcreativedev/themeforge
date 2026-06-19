@@ -33,14 +33,17 @@ KEYS_PATH = CONFIG_DIR / "keys.json"
 # en Credenciales, guardado en app_prefs) se pasa con --model en todos los
 # modos: vibe one-shot, terminal interactiva y multi-agente. El valor ""
 # significa "no pasar --model" (usa el default de la cuenta del CLI).
-CLAUDE_MODEL_DEFAULT = "claude-fable-5"
+# Default = "" (Auto): SIEMPRE funciona, sea cual sea el plan/acceso del usuario.
+# Modelos concretos como Fable 5 pueden no estar disponibles en todas las cuentas
+# (devuelven 404 model_not_found), así que no se usan como default.
+CLAUDE_MODEL_DEFAULT = ""
 CLAUDE_MODELS: list[tuple[str, str]] = [
+    ("",                 "Auto — default de tu cuenta (recomendado)"),
     ("claude-fable-5",   "Fable 5 — el más capaz ($10/$50)"),
     ("claude-opus-4-8",  "Opus 4.8 ($5/$25)"),
     ("claude-opus-4-6",  "Opus 4.6"),
     ("claude-sonnet-4-6", "Sonnet 4.6 — rápido ($3/$15)"),
     ("claude-haiku-4-5", "Haiku 4.5 — barato ($1/$5)"),
-    ("",                 "Auto (default del CLI)"),
 ]
 
 

@@ -59,7 +59,7 @@ def mark_onboarding_done() -> None:
 
 
 # ── Modelo del CLI de Claude Code ───────────────────────────────────────
-def claude_model(fallback: str = "claude-fable-5") -> str:
+def claude_model(fallback: str = "") -> str:
     """Modelo que se pasa con --model al lanzar `claude` en cualquier modo.
     Cadena vacía = no pasar --model (usar el default de la cuenta)."""
     v = get("claude_model", fallback)

@@ -357,10 +357,50 @@ class VibeDialog(QDialog):
             self.out.insertPlainText(chunk)
             self.out.moveCursor(self.out.textCursor().MoveOperation.End)
 
+    def _extract_error(self) -> str:
+        """Saca el motivo real del fallo del buffer stream-json del CLI.
+        Los errores de Claude Code (p.ej. modelo no disponible) llegan en el
+        JSON de stdout, no en stderr — por eso antes solo se veía 'exit N'."""
+        import json as _json
+        msg = ""
+        for line in (self._buf or "").splitlines():
+            line = line.strip()
+            if not line.startswith("{"):
+                continue
+            try:
+                obj = _json.loads(line)
+            except Exception:
+                continue
+            # El objeto `result` final trae el texto del error si is_error.
+            if obj.get("type") == "result" and obj.get("result"):
+                msg = str(obj["result"])
+            # O el contenido de texto del assistant.
+            elif obj.get("type") == "assistant":
+                for part in (obj.get("message", {}) or {}).get("content", []) or []:
+                    if isinstance(part, dict) and part.get("type") == "text" and part.get("text"):
+                        msg = part["text"]
+        # stderr como último recurso.
+        if not msg and self.proc is not None:
+            try:
+                err = self.proc.readAllStandardError().data().decode(errors="replace").strip()
+                if err:
+                    msg = err
+            except Exception:
+                pass
+        return (msg or "").strip()
+
     def _on_finished(self, code, _status):
         elapsed = time.time() - self._t0
         if code != 0:
-            self.status_lbl.setText(f"❌ exit {code} ({elapsed:.1f}s)")
+            reason = self._extract_error()
+            short = (reason[:160] + "…") if len(reason) > 160 else reason
+            self.status_lbl.setText(
+                f"❌ exit {code} ({elapsed:.1f}s)" + (f" — {short}" if short else "")
+            )
+            if reason:
+                # Vuelca el motivo completo en el panel de salida para que se lea.
+                self.out.moveCursor(self.out.textCursor().MoveOperation.End)
+                self.out.insertPlainText(f"\n\n⚠️ {reason}\n")
             self.btn_cancel.setText("Cerrar")
             return
 
