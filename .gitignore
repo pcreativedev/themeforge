@@ -129,6 +129,8 @@ api_gateway_private.py
 web_shell_private.py
 # --- App nativo: integraciones privadas (pestañas Leads/Catálogo + Galería) ---
 themeforge_private.py
+# --- Panel privado: administración de las webs del VPS (Plesk) ---
+vps_panel_private.py
 # --- Scraper de catálogo de productos ---
 product_scraper.py
 catalog_panel.py
@@ -147,3 +149,5 @@ mobile/android/app/google-services.json
 google-services.json
 *.keystore
 *.jks
+templates/pcreative-commerce/
+medusa_update.py

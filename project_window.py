@@ -713,7 +713,15 @@ class ProjectWindow(QWidget):
     # ── Auto-arranque del agente al abrir desde galería ──────────────
     def _project_has_skills(self) -> bool:
         """¿El proyecto tiene skills instaladas por autoskills / UI-UX Pro?
-        Mira la raíz y, en mono-repos, apps/* y packages/*."""
+
+        OJO: NO cuenta skills genéricas que trae un fork (p. ej. las de Medusa
+        —reviewing-prs, writing-docs…— en `.claude/skills/`), solo las que
+        ThemeForge instala: autoskills escribe en `.agents/skills/` y crea
+        SYMLINKS en `.claude/skills/`; uipro-cli crea una carpeta `ui-ux-pro-max`.
+        Detectar cualquier `.claude/skills/*` daba un falso positivo y hacía que
+        el prompt afirmara skills que el agente luego no encontraba.
+        Mira raíz y, en mono-repos, apps/* y packages/*."""
+        _UIPRO_HINTS = ("ui-ux-pro", "uiux-pro", "uipro")
         roots = [self.project_path]
         for sub in ("apps", "packages"):
             d = self.project_path / sub
@@ -723,12 +731,20 @@ class ProjectWindow(QWidget):
                 except OSError:
                     pass
         for r in roots:
-            for sk in (r / ".claude" / "skills", r / ".agents" / "skills"):
-                try:
-                    if sk.is_dir() and any(sk.iterdir()):
+            # autoskills instala aquí: fuente de la verdad.
+            ag = r / ".agents" / "skills"
+            try:
+                if ag.is_dir() and any(ag.iterdir()):
+                    return True
+            except OSError:
+                pass
+            # En `.claude/skills/` solo cuentan symlinks (autoskills) o la de uipro.
+            try:
+                for e in (r / ".claude" / "skills").iterdir():
+                    if e.is_symlink() or any(h in e.name.lower() for h in _UIPRO_HINTS):
                         return True
-                except OSError:
-                    continue
+            except OSError:
+                continue
         return False
 
     def _build_open_project_prompt(self, provider_key: str) -> str:

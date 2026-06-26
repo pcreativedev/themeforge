@@ -2912,58 +2912,26 @@ STACKS = {
         "skills": [],
         "notes": "Medusa 2 (admin + backend) + Next.js storefront en el mismo proyecto. Alternativa OSS a Shopify. Vendible como template.",
     },
-    "forge-commerce": {
-        "name": "ForgeCommerce — Medusa 2 + Next.js (headless, multi-pasarela, IA, self-hosted)",
+    "pcreative-commerce": {
+        "name": "pcreative Commerce — Medusa 2 + Next.js (headless, multi-pasarela, IA, self-hosted)",
         "category": "E-commerce",
         "language": "TypeScript + Medusa + Next.js",
         "scaffold": [
-            "echo '→ ForgeCommerce: Medusa 2 + Next.js + Postgres(pgvector) + Redis (self-hosted)…'",
-            "echo '→ create-medusa-app (backend + storefront Next.js — descarga grande, varios min)…'",
-            'npx --yes create-medusa-app@latest backend --db-url "postgres://medusa:medusa@localhost:5433/medusa" --with-nextjs-starter --no-migrations --no-browser --use-npm </dev/null || echo "  ⚠️ create-medusa-app falló (necesita Node 20+ y red)"',
-            "echo '→ docker-compose: Postgres(pgvector) + Redis…'",
-            'cat > docker-compose.yml <<THEMEFORGE_EOF\n'
-            'services:\n'
-            '  db:\n'
-            '    image: pgvector/pgvector:pg16\n'
-            '    environment:\n'
-            '      POSTGRES_USER: medusa\n'
-            '      POSTGRES_PASSWORD: medusa\n'
-            '      POSTGRES_DB: medusa\n'
-            '    ports:\n'
-            '      - "5433:5432"\n'
-            '    volumes:\n'
-            '      - fc-db:/var/lib/postgresql/data\n'
-            '    restart: unless-stopped\n'
-            '  redis:\n'
-            '    image: redis:7-alpine\n'
-            '    ports:\n'
-            '      - "6380:6379"\n'
-            '    restart: unless-stopped\n'
-            'volumes:\n'
-            '  fc-db:\n'
-            'THEMEFORGE_EOF',
-            'if command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then '
-            'docker compose up -d || echo "  ⚠️ docker compose up falló"; '
-            'echo "  ⏳ Esperando a Postgres…"; '
-            'for i in $(seq 1 40); do if docker compose exec -T db pg_isready -U medusa >/dev/null 2>&1; then echo "  ✅ Postgres listo"; break; fi; sleep 2; done; '
-            'docker compose exec -T db psql -U medusa -d medusa -c "CREATE EXTENSION IF NOT EXISTS vector;" >/dev/null 2>&1 && echo "  ✅ pgvector habilitado (búsqueda semántica IA)"; '
-            'if [ -d backend ]; then echo "  → migraciones + admin…"; (cd backend && (npx medusa db:migrate || true) && (npx medusa user -e admin@forge.local -p forgecommerce123 || true)); fi; '
-            'else echo "  ⚠️ Docker no disponible: arranca db/redis con docker compose up -d y luego (cd backend && npx medusa db:migrate && npx medusa user -e admin@forge.local -p forgecommerce123)"; fi',
-            'python3 -c "import sys; sys.path.insert(0, \'__TFDIR__\'); import web_enhancements as we; we.ensure_mcps(\'.\')" 2>/dev/null && echo "  ✅ MCPs cableados en .mcp.json (magic, magicui, shadcn, fetch, playwright)" || echo "  ⚠️ no se pudo cablear .mcp.json"',
-            'echo ""',
-            'echo "✅ ForgeCommerce base lista (falta que el agente añada seguridad + multi-pasarela + IA según CLAUDE.md)."',
-            'echo "   🧩 Backend Medusa:  cd backend && npm run dev  → admin http://localhost:9000/app  (admin@forge.local / forgecommerce123)"',
-            'echo "   🛍  Storefront:      cd backend-storefront && npm run dev  → http://localhost:8000"',
-            'echo "   🗄  Postgres+pgvector :5433 · Redis :6380 (Docker)"',
+            "echo '-> pcreative Commerce: backend Medusa + admin Aurora + storefront (animaciones)...'",
+            # Logica en la plantilla privada templates/pcreative-commerce/scaffold.sh
+            # (clona backend Medusa, copia admin Aurora + storefront Dulce Obrador,
+            #  genera .env, docker pg+redis, migra, crea admin, instala deps). NO-fatal.
+            'bash "__TFDIR__/templates/pcreative-commerce/scaffold.sh" || echo "  scaffold pcreative Commerce incompleto (revisa Node 20+/Docker/red)"',
+            'python3 -c "import sys; sys.path.insert(0, \'__TFDIR__\'); import web_enhancements as we; we.ensure_mcps(\'./storefront\')" 2>/dev/null && echo "  MCPs cableados en storefront/.mcp.json" || true',
         ],
         "min_version": "Medusa 2 / Node 20+ / Next.js 15 / Postgres 16 (pgvector) / Redis 7",
         "skills": ["anthropics/skills/frontend-design", "vercel/skills/nextjs-best-practices"],
-        "ux_pack": "forge-commerce",
+        "ux_pack": "pcreative-commerce",
         "notes": (
-            "🏗️ ForgeCommerce = e-commerce PROPIO super-avanzado y super-seguro, productizado para la agencia: "
+            "🏗️ pcreative Commerce = e-commerce PROPIO super-avanzado y super-seguro, productizado para la agencia: "
             "el CLIENTE LO POSEE, 0% comisión, self-hosted, headless (sirve web Y app móvil), con LIBERTAD TOTAL de "
             "pasarela (incluida alto riesgo cannabis/CBD que Stripe/Shopify rechazan) e IA nativa. Base: Medusa 2 "
-            "(Node/TS, MIT) en `backend/` + storefront Next.js en `backend-storefront/`, Postgres(pgvector)+Redis por Docker.\n\n"
+            "(Node/TS, MIT) en `backend/` (dashboard de Medusa OFF) + **admin Aurora branded** en `admin/` (panel servido en /admin) + **storefront Vite/React con animaciones** (framer-motion, efectos, Quick View) en `storefront/`, Postgres(pgvector)+Redis por Docker. Arranca TODO con `bash start.sh` (unifica / + /admin + /medusa bajo un puerto, sin CORS).\n\n"
             "## 🔒 SEGURIDAD — OBLIGATORIO (es 'super seguro' o no es)\n"
             "- **PCI = SAQ-A:** la captura de tarjeta SIEMPRE en página alojada del proveedor por REDIRECT (no iframe, no server-to-server). NUNCA toques ni almacenes datos de tarjeta. El redirect además esquiva bugs del ciclo de pago server-to-server de Medusa.\n"
             "- **OWASP API #1 = BOLA:** autoriza POR OBJETO en cada endpoint (carrito/pedido/cliente) — comprueba propiedad, no basta con estar logueado.\n"
@@ -2984,17 +2952,17 @@ STACKS = {
             "Multi-idioma + multi-moneda + IVA vía Regions de Medusa; promociones/cupones, inventario, envíos por zonas, carrito abandonado, reseñas. Admin de Medusa (+ widgets custom). API headless para web + la app móvil de ThemeForge.\n\n"
             "## 📦 LICENCIAS\n"
             "Integra el sistema de licencias pcreative (el cliente lo posee pero el producto va protegido/licenciado) siguiendo el patrón anti-nulled de la agencia (JWT RS256 + verify offline).\n\n"
-            "Estructura: `backend/` (Medusa) + `backend-storefront/` (Next.js) + `docker-compose.yml`. Admin: admin@forge.local / forgecommerce123. Lo que el scaffold deja listo: Medusa+Next.js+Postgres(pgvector)+Redis corriendo y migrado. Tu trabajo: TODO lo de arriba (seguridad, multi-pasarela, IA, licencias).\n\n"
+            "Estructura: `backend/` (Medusa, dashboard OFF) + `admin/` (panel Aurora branded por env `NEXT_PUBLIC_STORE_*`) + `storefront/` (Vite/React con framer-motion + efectos) + `docker-compose.yml` + `start.sh`. El panel es **/admin** (admin@forge.local / forgecommerce123), NUNCA el dashboard de Medusa (/app está desactivado). El scaffold deja el sistema ENTERO corriendo y migrado. Tu trabajo: re-tematizar el storefront por nicho (theme.config.ts + demo data) + TODO lo de arriba (seguridad, multi-pasarela, IA, licencias).\n\n"
             "## 🎨 UI / DISEÑO (monorepo)\n"
-            "El storefront `backend-storefront/` es Next.js/React: aplica AHÍ todo lo de UI. Los MCP de diseño **21st.dev (`magic`, `magicui`, `shadcn`)** están cableados en `.mcp.json` — úsalos para los componentes del storefront. **framer-motion** para las animaciones: instálalo en el storefront (`cd backend-storefront && npm install framer-motion`) — ThemeForge no lo auto-instala porque está en subcarpeta. El admin de Medusa (`backend/`) NO lleva framer-motion (es su propio panel)."
+            "El storefront `storefront/` es Vite/React y YA trae **framer-motion + efectos** (Quick View, transiciones de página, banner animado, catálogo) — aplica AHÍ todo lo de UI y **re-tematiza por nicho** (`storefront/client/src/lib/theme.config.ts` + demo data en `storefront/client/src/data/`). Los MCP **21st.dev (`magic`, `magicui`, `shadcn`)** están cableados en `storefront/.mcp.json`. El panel `admin/` (Aurora) ya es pro; su marca se cambia por env (`NEXT_PUBLIC_STORE_NAME`/`_TAGLINE`/`_ACCENT`, **hex ENTRECOMILLADO** o dotenv lo lee como comentario). El backend (`backend/`) no lleva UI propia (su dashboard está OFF)."
         ),
     },
-    "forge-commerce-growshop": {
-        "name": "ForgeCommerce Growshop — tienda cannabis (Medusa 2 + Next.js · alto riesgo · age-gate)",
+    "pcreative-commerce-growshop": {
+        "name": "pcreative Commerce Growshop — tienda cannabis (Medusa 2 + Next.js · alto riesgo · age-gate)",
         "category": "E-commerce",
         "language": "TypeScript + Medusa + Next.js",
         "scaffold": [
-            "echo '→ ForgeCommerce Growshop: Medusa 2 + Next.js + Postgres(pgvector) + Redis…'",
+            "echo '→ pcreative Commerce Growshop: Medusa 2 + Next.js + Postgres(pgvector) + Redis…'",
             "echo '→ create-medusa-app (backend + storefront Next.js — descarga grande, varios min)…'",
             'npx --yes create-medusa-app@latest backend --db-url "postgres://medusa:medusa@localhost:5433/medusa" --with-nextjs-starter --no-migrations --no-browser --use-npm </dev/null || echo "  ⚠️ create-medusa-app falló (necesita Node 20+ y red)"',
             "echo '→ docker-compose: Postgres(pgvector) + Redis…'",
@@ -3028,16 +2996,16 @@ STACKS = {
             'else echo "  ⚠️ Docker no disponible: arranca db/redis con docker compose up -d y luego (cd backend && npx medusa db:migrate && npx medusa user -e admin@forge.local -p forgecommerce123)"; fi',
             'python3 -c "import sys; sys.path.insert(0, \'__TFDIR__\'); import web_enhancements as we; we.ensure_mcps(\'.\')" 2>/dev/null && echo "  ✅ MCPs cableados en .mcp.json (magic, magicui, shadcn, fetch, playwright)" || echo "  ⚠️ no se pudo cablear .mcp.json"',
             'echo ""',
-            'echo "✅ Base ForgeCommerce lista — el agente construye el GROWSHOP completo según CLAUDE.md."',
+            'echo "✅ Base pcreative Commerce lista — el agente construye el GROWSHOP completo según CLAUDE.md."',
             'echo "   🧩 Backend Medusa:  cd backend && npm run dev  → admin http://localhost:9000/app  (admin@forge.local / forgecommerce123)"',
             'echo "   🛍  Storefront:      cd backend-storefront && npm run dev  → http://localhost:8000"',
             'echo "   🗄  Postgres+pgvector :5433 · Redis :6380 (Docker)"',
         ],
         "min_version": "Medusa 2 / Node 20+ / Next.js 15 / Postgres 16 (pgvector) / Redis 7",
         "skills": ["anthropics/skills/frontend-design", "vercel/skills/nextjs-best-practices"],
-        "ux_pack": "forge-commerce",
+        "ux_pack": "pcreative-commerce",
         "notes": (
-            "🌱 GROWSHOP COMPLETO sobre ForgeCommerce (Medusa 2 + Next.js, self-hosted, el cliente lo posee, 0% comisión). "
+            "🌱 GROWSHOP COMPLETO sobre pcreative Commerce (Medusa 2 + Next.js, self-hosted, el cliente lo posee, 0% comisión). "
             "Construye la tienda ENTERA de una sentada, multipágina, con datos demo realistas, sin pedir confirmación. "
             "Base en `backend/` (Medusa) + `backend-storefront/` (Next.js).\n\n"
             "## 🛒 EL NEGOCIO (growshop en España — cultivo de cannabis)\n"

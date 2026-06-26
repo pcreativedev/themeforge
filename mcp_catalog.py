@@ -228,6 +228,52 @@ CATALOG: list[MCPEntry] = [
         install={"command": "npx", "args": ["shadcn@latest", "mcp"]},
     ),
     MCPEntry(
+        key="reactbits",
+        name="React Bits — componentes animados",
+        license="MIT",
+        repo="https://github.com/DavidHDev/react-bits",
+        description=(
+            "React Bits: 135+ componentes React ANIMADOS e interactivos (text "
+            "animations, fondos/backgrounds, efectos, hover, transiciones). El "
+            "agente busca, ve código + demos y los integra. También por shadcn CLI "
+            "(npx shadcn add https://reactbits.dev/r/<Componente>-TS-TW). SIN API key."
+        ),
+        relevance=["web-frontend", "design"],
+        install={"command": "npx", "args": ["-y", "reactbits-dev-mcp-server"]},
+    ),
+    MCPEntry(
+        key="chakra-ui",
+        name="Chakra UI — design system React (MCP oficial)",
+        license="MIT",
+        repo="https://chakra-ui.com/docs/get-started/ai/mcp-server",
+        description=(
+            "Chakra UI: design system React COMPLETO (no copy-paste). MCP oficial "
+            "@chakra-ui/react-mcp expone list_components, get_component_props/example, "
+            "get_theme, customize_theme, migración v2→v3. ÚSALO SOLO si el proyecto usa "
+            "Chakra (es ALTERNATIVA a Tailwind+shadcn, no se mezclan). SIN key lo básico "
+            "(templates premium = CHAKRA_PRO_API_KEY). NO va en auto: cablear si el stack es Chakra."
+        ),
+        relevance=["web-frontend", "design"],
+        install={"command": "npx", "args": ["-y", "@chakra-ui/react-mcp"]},
+        env_hint="Sin key para lo básico. Templates premium: CHAKRA_PRO_API_KEY.",
+    ),
+    MCPEntry(
+        key="heroui",
+        name="HeroUI (ex-NextUI) — design system React Tailwind (MCP oficial)",
+        license="MIT",
+        repo="https://heroui.com/docs/react/getting-started/mcp-server",
+        description=(
+            "HeroUI v3 (antes NextUI): component library React production-ready sobre "
+            "Tailwind v4 + React Aria (accesible, React 19/Next). MCP oficial @heroui/react-mcp "
+            "(+ llms.txt + agent skills): el agente consulta componentes/props/ejemplos e "
+            "instalación. ÚSALO si el stack es HeroUI (stack nextjs-heroui). Es alternativa a "
+            "shadcn/ui pero al ser Tailwind, React Bits/21st.dev/framer-motion funcionan "
+            "encima sin conflicto. SIN API key."
+        ),
+        relevance=["web-frontend", "design"],
+        install={"command": "npx", "args": ["-y", "@heroui/react-mcp"]},
+    ),
+    MCPEntry(
         key="higgsfield",
         name="Higgsfield — imágenes/vídeo IA (DE PAGO)",
         license="Proprietary (SaaS)",
@@ -463,7 +509,7 @@ def recommend_for_stack(stack_key: str, stack_meta: dict | None = None) -> list[
         "php", "smarty", "ruby", "java", "kotlin", "go", "golang", "rust",
         "elixir", "phoenix", "swift", "dart", "flutter", "c#", ".net", "blazor", "python"))
     if non_js and not is_js_react:
-        _REACT_UI_MCPS = {"magic", "magicui", "shadcn"}
+        _REACT_UI_MCPS = {"magic", "magicui", "shadcn", "reactbits"}
         result = [e for e in result if e.key not in _REACT_UI_MCPS]
 
     return result

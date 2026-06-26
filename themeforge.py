@@ -207,6 +207,140 @@ _OPEN_PROJECT_WINDOWS: list = []
 _MAIN_APP = None  # ref a la ThemeForgeApp principal (para enfocarla desde otras ventanas)
 
 
+# Skills que ThemeForge instala (autoskills → `.agents/skills/` + symlinks en
+# `.claude/skills/`; uipro-cli → carpeta `ui-ux-pro-max`). Una skill genérica de
+# un fork (Medusa: reviewing-prs, writing-docs…) NO cuenta.
+_UIPRO_HINTS = ("ui-ux-pro", "uiux-pro", "uipro")
+# Señales de que hay un stack escaffoldeado (mismo set que el script de setup).
+_STACK_MARKERS = (
+    "package.json", "composer.json", "pubspec.yaml", "Cargo.toml", "go.mod",
+    "pyproject.toml", "Gemfile", "theme.json", "style.css", "build.gradle",
+)
+
+
+def _has_real_skills(root: Path) -> bool:
+    """¿Hay skills de autoskills/uipro (no genéricas de un fork)? Raíz + apps/* + packages/*."""
+    roots = [root]
+    for sub in ("apps", "packages"):
+        d = root / sub
+        if d.is_dir():
+            try:
+                roots += [p for p in d.iterdir() if p.is_dir()]
+            except OSError:
+                pass
+    for r in roots:
+        ag = r / ".agents" / "skills"
+        try:
+            if ag.is_dir() and any(ag.iterdir()):
+                return True
+        except OSError:
+            pass
+        try:
+            for e in (r / ".claude" / "skills").iterdir():
+                if e.is_symlink() or any(h in e.name.lower() for h in _UIPRO_HINTS):
+                    return True
+        except OSError:
+            continue
+    return False
+
+
+def _maybe_bootstrap_skills(root: Path) -> bool:
+    """Si el proyecto tiene stack pero NO las skills de ThemeForge (autoskills/uipro),
+    lánzalas en segundo plano (detached) — así un proyecto adoptado en la galería sin
+    pasar por el setup deja de quejarse. Idempotente vía marcador (no re-lanza aunque
+    la instalación tarde). NO bloquea la apertura de la ventana."""
+    import subprocess
+    try:
+        if _has_real_skills(root):
+            return False
+        marker = root / ".themeforge" / ".skills-bootstrap"
+        if marker.exists():  # ya lanzado antes (puede seguir corriendo)
+            return False
+        # ¿hay stack escaffoldeado hasta 3 niveles?
+        has_stack = False
+        for m in _STACK_MARKERS:
+            try:
+                if next(root.glob(m), None) or next(root.glob(f"*/{m}"), None) \
+                        or next(root.glob(f"*/*/{m}"), None):
+                    has_stack = True
+                    break
+            except OSError:
+                continue
+        if not has_stack or not shutil.which("npx"):
+            return False
+        marker.parent.mkdir(parents=True, exist_ok=True)
+        marker.write_text("autoskills+uipro lanzados al abrir desde galería\n")
+        log = root / ".themeforge" / "skills-install.log"
+        cmd = ('echo "=== autoskills ==="; npx --yes autoskills -a claude 2>&1; '
+               'echo "=== uipro-cli ==="; npx --yes uipro-cli init --ai claude 2>&1; '
+               'echo "=== DONE ==="')
+        with open(log, "w") as fh:
+            subprocess.Popen(["bash", "-lc", cmd], cwd=str(root),
+                             stdout=fh, stderr=subprocess.STDOUT,
+                             start_new_session=True)
+        return True
+    except Exception as e:
+        print(f"[wiring] bootstrap skills falló: {e}", file=sys.stderr)
+        return False
+
+
+def _ensure_project_wiring(project_path: Path) -> list[str]:
+    """Auto-cablea el wiring que ThemeForge espera (context/, .mcp.json, skills)
+    en proyectos que NO pasaron por el setup — symlinks, adopciones externas,
+    repos clonados a mano. El init-prompt del agente asume que existen; sin esto
+    se queja de que `context/` no existe y las skills/MCP no saltan.
+    NO-fatal, idempotente (solo crea lo que falta), resuelve symlinks."""
+    done: list[str] = []
+    try:
+        root = Path(project_path).resolve()  # sigue symlinks → opera sobre el real
+        if not root.is_dir():
+            return done
+        # Solo proyectos "reales" (señal de que el agente los abrirá con init-prompt)
+        if not any((root / m).exists() for m in ("CLAUDE.md", "AGENTS.md", "package.json")):
+            return done
+        # 1. context/ — poblar con los MDs de contexto (privados preferidos)
+        ctx = root / "context"
+        if not ctx.exists():
+            ctx.mkdir(parents=True, exist_ok=True)
+            n = 0
+            for src_dir in (CONTEXT_PRIVATE_DIR, CONTEXT_DIR):
+                if src_dir and src_dir.is_dir():
+                    for md in sorted(src_dir.glob("*.md")):
+                        dst = ctx / md.name.replace(".template.md", ".md")
+                        if not dst.exists():
+                            try:
+                                shutil.copy(md, dst); n += 1
+                            except Exception:
+                                pass
+            if n:
+                done.append(f"context/ ({n} MDs)")
+        # 2. .mcp.json — MCPs (magic/21st.dev, etc.) si falta
+        if not (root / ".mcp.json").exists():
+            try:
+                import web_enhancements as we
+                we.ensure_mcps(root)
+                if (root / ".mcp.json").exists():
+                    done.append(".mcp.json")
+            except Exception:
+                pass
+        # 3. skills — descubribles en .claude/skills si falta
+        if not (root / ".claude" / "skills").exists():
+            try:
+                import skills_wireup as sw
+                sw.ensure_skills_discoverable(root)
+                if (root / ".claude" / "skills").exists():
+                    done.append("skills")
+            except Exception:
+                pass
+        # 4. autoskills/uipro — si hay stack pero faltan, instalarlas en background
+        #    (proyectos adoptados en la galería sin pasar por el setup).
+        if _maybe_bootstrap_skills(root):
+            done.append("skills-bootstrap (autoskills+uipro en background)")
+    except Exception as e:
+        print(f"[wiring] auto-cableado: {e}", file=sys.stderr)
+    return done
+
+
 def open_project_window(project_path: Path, initial_cmd: str | None = None,
                         provider_key: str | None = None,
                         auto_agent: bool = False) -> None:
@@ -214,6 +348,12 @@ def open_project_window(project_path: Path, initial_cmd: str | None = None,
     no cargar QtWebEngine si nadie la usa. Si se pasa `initial_cmd`,
     se ejecuta en la primera pestaña de la terminal embebida. Si se
     pasa `provider_key`, solo se abre la tab del CLI de ese provider."""
+    # Auto-cablea el wiring faltante (context/skills/MCP) antes de lanzar el
+    # agente — así un proyecto que entró a la galería sin pasar por el setup
+    # (symlink/adopción) se abre listo sin quejarse de `context/`.
+    _wired = _ensure_project_wiring(project_path)
+    if _wired:
+        print(f"[wiring] cableado al abrir {Path(project_path).name}: {', '.join(_wired)}", file=sys.stderr)
     try:
         from project_window import ProjectWindow
     except Exception as e:
@@ -1021,7 +1161,7 @@ _FORMAT_SCRIPT_APP = {
     "nextjs-tailwind", "nextjs-shadcn", "nextjs-mantine", "nextjs-heroui",
     "nuxt-tailwind", "sveltekit-tailwind", "remix-tailwind", "solidstart-tailwind",
     "qwik-tailwind", "tauri-react", "electron-react",
-    "restaurant-saas", "forge-commerce", "forge-commerce-growshop",
+    "restaurant-saas", "pcreative-commerce", "pcreative-commerce-growshop",
 }
 
 
