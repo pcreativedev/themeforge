@@ -495,6 +495,79 @@ UI UX Pro Max is **MIT** licensed and invoked at runtime (never
 bundled), so it imposes no extra licensing constraints on themes
 generated with ThemeForge.
 
+### Visual stack — framer-motion + component libraries (`UI-MOTION.md`)
+
+For every **React** project (any stack whose `package.json` has
+`react` / `next`), ThemeForge wires a third layer on top of
+`autoskills` / `uipro`: a curated set of UI component libraries and
+animation tooling, plus two guide files the agent reads *before*
+writing any UI. This is what makes generated sites look like studio
+work instead of a default template. The single source is
+`web_enhancements.py`, and it runs both for **new** projects and for
+any frontend project **opened from the Gallery**.
+
+What it does, automatically and **non-fatally** (a failure never
+aborts the setup):
+
+- **Installs `framer-motion`** — the React animation standard
+  (renamed `motion` in 2025, same API).
+- **Writes `UI-MOTION.md`** at the project root: the agent's playbook
+  for visual / animation work — scroll-reveal (`whileInView` +
+  `once`), staggered variants, hover/tap micro-interactions,
+  `useReducedMotion`, animating only `transform` / `opacity`,
+  `"use client"` in Next — plus the component-source hierarchy below
+  and a 3D / WebGL section.
+- **Writes `STACK-PREMIUM.md`** — the *functional* companion guide:
+  which library to reach for by capability. Charts (Recharts default
+  + Tremor for dashboards), tables (TanStack + shadcn), rich-text
+  editors (Plate / Tiptap / Lexical), maps (MapLibre + react-map-gl,
+  no key), icons (Lucide + Iconify), forms (react-hook-form + Zod).
+  Rule: *install only what the project needs*.
+- **Pre-configures UI MCP servers** in the project's `.mcp.json`
+  (see §19.2) so the agent can pull production-grade components on
+  demand.
+
+#### Component-source hierarchy
+
+The guide teaches the agent **when** to reach for each source so it
+doesn't stall choosing a "library":
+
+| Source | Access | Needs key | Use for |
+|---|---|---|---|
+| **21st.dev / Magic** | MCP `magic` (`@21st-dev/magic`) | `TWENTYFIRST_API_KEY` | Pro blocks/sections (hero, pricing, testimonials) via `/ui` |
+| **React Bits** | MCP `reactbits` | — (free) | The animated "wow": backgrounds (aurora/beams/particles), text effects, spotlight/tilt |
+| **MagicUI** | MCP `magicui` | — | Animated marketing components |
+| **shadcn (+ registries)** | MCP `shadcn` | — | Base components — also the gateway to Animate UI, shadcn Studio, SmoothUI, Cult UI, Animata (all shadcn-registry: `npx shadcn add <url>`) |
+| **Uiverse · Preline** | context only (no MCP) | — | Tailwind copy-paste: micro-elements (Uiverse), full UI blocks + interactive JS (Preline) |
+| **Chakra UI · HeroUI** | MCP `chakra-ui` / `heroui` (by stack) | — | Full React design systems — wired only when the stack *is* Chakra/HeroUI |
+| **framer-motion · GSAP** | npm | — | framer-motion for day-to-day React UI; GSAP (ScrollTrigger/SplitText/Flip, 100% free since 2025) for cinematic / scroll-advanced |
+
+`magic`, `magicui`, `shadcn` and `reactbits` are written into every
+React project's `.mcp.json` automatically — except `magic`, which is
+**skipped if no `TWENTYFIRST_API_KEY` is set** (to avoid leaving a
+broken MCP); the guides and `framer-motion` are still written. Set
+the 21st.dev key in **Settings → AI providers** (free tier: 100
+credits/month, get it at 21st.dev → Settings → API).
+
+#### 3D / WebGL and the "Awwwards" recipe
+
+`UI-MOTION.md` includes a 3D section, used **only when the niche
+justifies it** (jewellery, eyewear, sneakers, furniture, high-ticket
+tech, product configurators) — **never by default**, since 3D is
+heavy and can tank Lighthouse / Envato scores. Recommended stack:
+`@react-three/fiber` + `@react-three/drei` + `@react-three/postprocessing`,
+with hard rules: lazy-load + poster fallback, respect
+`prefers-reduced-motion`, GLB + Draco, KTX2 textures,
+`frameloop="demand"`, draw calls < 1000. For impact landings /
+portfolios there's an "Awwwards-level" recipe (Three.js + custom
+GLSL shaders + postprocessing + GSAP + Lenis smooth-scroll +
+preloader + page transitions + custom cursor).
+
+Everything above is invoked **at runtime** — MCPs via `npx`, npm
+packages installed into *your* project — never bundled into
+ThemeForge. All sources are MIT / Apache-2.0, so they impose no
+licensing constraint on the themes you generate.
+
 ---
 
 ## 9. Reference analysis (conversational)
@@ -1464,7 +1537,7 @@ Built on Anthropic's official `mcp` Python SDK (FastMCP).
 
 When the **📡 Pre-configurar MCP servers** checkbox in the Setup
 sub-tab is on (default), ThemeForge writes a `.mcp.json` at the root
-of every new project pointing at a curated subset of 12 community
+of every new project pointing at a curated subset of community
 MCP servers, selected based on the stack:
 
 | MCP | License | When it's included |
@@ -1478,8 +1551,16 @@ MCP servers, selected based on the stack:
 | **chrome-devtools** (Google official) | Apache-2.0 | Web frontend / WordPress / Shopify |
 | **figma-context** (GLips) | MIT | Web frontend (design-driven) |
 | **browsermcp** | Apache-2.0 | Web frontend |
+| **magic** (21st.dev) | MIT | React frontend — pro component blocks via `/ui` (only if `TWENTYFIRST_API_KEY` is set) |
+| **magicui** | MIT | React frontend — animated marketing components |
+| **shadcn** | MIT | React frontend — base components + shadcn registries |
+| **reactbits** | MIT | React frontend — animated backgrounds / text / effects (no key) |
+| **chakra-ui** · **heroui** | MIT | Only when the stack *is* Chakra UI / HeroUI |
 | **shopify-dev** (Shopify official) | (Shopify standard) | Shopify only |
 | **postgres** (crystaldba) | MIT | Backend with DB |
+
+The React-frontend UI MCPs (`magic`, `magicui`, `shadcn`,
+`reactbits`) are part of the visual-stack wiring documented in §8.
 
 The catalog lives in `mcp_catalog.py`. Each entry has metadata:
 `key`, `license`, `repo`, `description`, `relevance` tags, and the
@@ -1514,7 +1595,7 @@ The agent will tell you which env vars are missing on first use.
 
 #### License compatibility
 
-All 12 catalog entries are MIT or Apache-2.0 (verified at curation
+All catalog entries are MIT or Apache-2.0 (verified at curation
 time, see `NOTICE.md` for the full table). ThemeForge **never bundles**
 their source — `.mcp.json` is a configuration pointer; the client
 downloads each MCP at runtime via `npx` / `uvx` / `docker`. GPL v3 of

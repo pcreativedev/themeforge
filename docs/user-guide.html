@@ -265,6 +265,11 @@ img { max-width: 100%; border-radius: 6px; }
 <li><a href="#setting-api-keys">Setting API keys</a></li>
 <li><a href="#skills-auto-install-autoskills">Skills auto-install (autoskills)</a></li>
 <li><a href="#design-intelligence-uipro-uiux-pro-max">Design intelligence (uipro — UI/UX Pro Max)</a></li>
+<li><a href="#visual-stack-framer-motion-component-libraries-ui-motionmd">Visual stack — framer-motion + component libraries (UI-MOTION.md)</a><ul>
+<li><a href="#component-source-hierarchy">Component-source hierarchy</a></li>
+<li><a href="#3d-webgl-and-the-awwwards-recipe">3D / WebGL and the "Awwwards" recipe</a></li>
+</ul>
+</li>
 </ul>
 </li>
 <li><a href="#9-reference-analysis-conversational">9. Reference analysis (conversational)</a></li>
@@ -929,6 +934,115 @@ a coherent design system already in mind.</p>
 <p>UI UX Pro Max is <strong>MIT</strong> licensed and invoked at runtime (never
 bundled), so it imposes no extra licensing constraints on themes
 generated with ThemeForge.</p>
+<h3 id="visual-stack-framer-motion-component-libraries-ui-motionmd">Visual stack — framer-motion + component libraries (<code>UI-MOTION.md</code>)<a class="anchor" href="#visual-stack-framer-motion-component-libraries-ui-motionmd" title="Link to this section">#</a></h3>
+<p>For every <strong>React</strong> project (any stack whose <code>package.json</code> has
+<code>react</code> / <code>next</code>), ThemeForge wires a third layer on top of
+<code>autoskills</code> / <code>uipro</code>: a curated set of UI component libraries and
+animation tooling, plus two guide files the agent reads <em>before</em>
+writing any UI. This is what makes generated sites look like studio
+work instead of a default template. The single source is
+<code>web_enhancements.py</code>, and it runs both for <strong>new</strong> projects and for
+any frontend project <strong>opened from the Gallery</strong>.</p>
+<p>What it does, automatically and <strong>non-fatally</strong> (a failure never
+aborts the setup):</p>
+<ul>
+<li><strong>Installs <code>framer-motion</code></strong> — the React animation standard
+  (renamed <code>motion</code> in 2025, same API).</li>
+<li><strong>Writes <code>UI-MOTION.md</code></strong> at the project root: the agent's playbook
+  for visual / animation work — scroll-reveal (<code>whileInView</code> +
+  <code>once</code>), staggered variants, hover/tap micro-interactions,
+  <code>useReducedMotion</code>, animating only <code>transform</code> / <code>opacity</code>,
+  <code>"use client"</code> in Next — plus the component-source hierarchy below
+  and a 3D / WebGL section.</li>
+<li><strong>Writes <code>STACK-PREMIUM.md</code></strong> — the <em>functional</em> companion guide:
+  which library to reach for by capability. Charts (Recharts default</li>
+<li>Tremor for dashboards), tables (TanStack + shadcn), rich-text
+  editors (Plate / Tiptap / Lexical), maps (MapLibre + react-map-gl,
+  no key), icons (Lucide + Iconify), forms (react-hook-form + Zod).
+  Rule: <em>install only what the project needs</em>.</li>
+<li><strong>Pre-configures UI MCP servers</strong> in the project's <code>.mcp.json</code>
+  (see §19.2) so the agent can pull production-grade components on
+  demand.</li>
+</ul>
+<h4 id="component-source-hierarchy">Component-source hierarchy<a class="anchor" href="#component-source-hierarchy" title="Link to this section">#</a></h4>
+<p>The guide teaches the agent <strong>when</strong> to reach for each source so it
+doesn't stall choosing a "library":</p>
+<table>
+<thead>
+<tr>
+<th>Source</th>
+<th>Access</th>
+<th>Needs key</th>
+<th>Use for</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>21st.dev / Magic</strong></td>
+<td>MCP <code>magic</code> (<code>@21st-dev/magic</code>)</td>
+<td><code>TWENTYFIRST_API_KEY</code></td>
+<td>Pro blocks/sections (hero, pricing, testimonials) via <code>/ui</code></td>
+</tr>
+<tr>
+<td><strong>React Bits</strong></td>
+<td>MCP <code>reactbits</code></td>
+<td>— (free)</td>
+<td>The animated "wow": backgrounds (aurora/beams/particles), text effects, spotlight/tilt</td>
+</tr>
+<tr>
+<td><strong>MagicUI</strong></td>
+<td>MCP <code>magicui</code></td>
+<td>—</td>
+<td>Animated marketing components</td>
+</tr>
+<tr>
+<td><strong>shadcn (+ registries)</strong></td>
+<td>MCP <code>shadcn</code></td>
+<td>—</td>
+<td>Base components — also the gateway to Animate UI, shadcn Studio, SmoothUI, Cult UI, Animata (all shadcn-registry: <code>npx shadcn add &lt;url&gt;</code>)</td>
+</tr>
+<tr>
+<td><strong>Uiverse · Preline</strong></td>
+<td>context only (no MCP)</td>
+<td>—</td>
+<td>Tailwind copy-paste: micro-elements (Uiverse), full UI blocks + interactive JS (Preline)</td>
+</tr>
+<tr>
+<td><strong>Chakra UI · HeroUI</strong></td>
+<td>MCP <code>chakra-ui</code> / <code>heroui</code> (by stack)</td>
+<td>—</td>
+<td>Full React design systems — wired only when the stack <em>is</em> Chakra/HeroUI</td>
+</tr>
+<tr>
+<td><strong>framer-motion · GSAP</strong></td>
+<td>npm</td>
+<td>—</td>
+<td>framer-motion for day-to-day React UI; GSAP (ScrollTrigger/SplitText/Flip, 100% free since 2025) for cinematic / scroll-advanced</td>
+</tr>
+</tbody>
+</table>
+<p><code>magic</code>, <code>magicui</code>, <code>shadcn</code> and <code>reactbits</code> are written into every
+React project's <code>.mcp.json</code> automatically — except <code>magic</code>, which is
+<strong>skipped if no <code>TWENTYFIRST_API_KEY</code> is set</strong> (to avoid leaving a
+broken MCP); the guides and <code>framer-motion</code> are still written. Set
+the 21st.dev key in <strong>Settings → AI providers</strong> (free tier: 100
+credits/month, get it at 21st.dev → Settings → API).</p>
+<h4 id="3d-webgl-and-the-awwwards-recipe">3D / WebGL and the "Awwwards" recipe<a class="anchor" href="#3d-webgl-and-the-awwwards-recipe" title="Link to this section">#</a></h4>
+<p><code>UI-MOTION.md</code> includes a 3D section, used <strong>only when the niche
+justifies it</strong> (jewellery, eyewear, sneakers, furniture, high-ticket
+tech, product configurators) — <strong>never by default</strong>, since 3D is
+heavy and can tank Lighthouse / Envato scores. Recommended stack:
+<code>@react-three/fiber</code> + <code>@react-three/drei</code> + <code>@react-three/postprocessing</code>,
+with hard rules: lazy-load + poster fallback, respect
+<code>prefers-reduced-motion</code>, GLB + Draco, KTX2 textures,
+<code>frameloop="demand"</code>, draw calls &lt; 1000. For impact landings /
+portfolios there's an "Awwwards-level" recipe (Three.js + custom
+GLSL shaders + postprocessing + GSAP + Lenis smooth-scroll +
+preloader + page transitions + custom cursor).</p>
+<p>Everything above is invoked <strong>at runtime</strong> — MCPs via <code>npx</code>, npm
+packages installed into <em>your</em> project — never bundled into
+ThemeForge. All sources are MIT / Apache-2.0, so they impose no
+licensing constraint on the themes you generate.</p>
 <hr />
 <h2 id="9-reference-analysis-conversational">9. Reference analysis (conversational)<a class="anchor" href="#9-reference-analysis-conversational" title="Link to this section">#</a></h2>
 <p>In <code>recrear</code> or <code>adopt</code> mode, the form shows a <strong>🔍 Analizar
@@ -2041,7 +2155,7 @@ Built on Anthropic's official <code>mcp</code> Python SDK (FastMCP).</p>
 <h3 id="192-themeforge-configures-community-mcps-in-each-scaffolded-project">19.2 ThemeForge configures community MCPs in each scaffolded project<a class="anchor" href="#192-themeforge-configures-community-mcps-in-each-scaffolded-project" title="Link to this section">#</a></h3>
 <p>When the <strong>📡 Pre-configurar MCP servers</strong> checkbox in the Setup
 sub-tab is on (default), ThemeForge writes a <code>.mcp.json</code> at the root
-of every new project pointing at a curated subset of 12 community
+of every new project pointing at a curated subset of community
 MCP servers, selected based on the stack:</p>
 <table>
 <thead>
@@ -2098,6 +2212,31 @@ MCP servers, selected based on the stack:</p>
 <td>Web frontend</td>
 </tr>
 <tr>
+<td><strong>magic</strong> (21st.dev)</td>
+<td>MIT</td>
+<td>React frontend — pro component blocks via <code>/ui</code> (only if <code>TWENTYFIRST_API_KEY</code> is set)</td>
+</tr>
+<tr>
+<td><strong>magicui</strong></td>
+<td>MIT</td>
+<td>React frontend — animated marketing components</td>
+</tr>
+<tr>
+<td><strong>shadcn</strong></td>
+<td>MIT</td>
+<td>React frontend — base components + shadcn registries</td>
+</tr>
+<tr>
+<td><strong>reactbits</strong></td>
+<td>MIT</td>
+<td>React frontend — animated backgrounds / text / effects (no key)</td>
+</tr>
+<tr>
+<td><strong>chakra-ui</strong> · <strong>heroui</strong></td>
+<td>MIT</td>
+<td>Only when the stack <em>is</em> Chakra UI / HeroUI</td>
+</tr>
+<tr>
 <td><strong>shopify-dev</strong> (Shopify official)</td>
 <td>(Shopify standard)</td>
 <td>Shopify only</td>
@@ -2109,6 +2248,8 @@ MCP servers, selected based on the stack:</p>
 </tr>
 </tbody>
 </table>
+<p>The React-frontend UI MCPs (<code>magic</code>, <code>magicui</code>, <code>shadcn</code>,
+<code>reactbits</code>) are part of the visual-stack wiring documented in §8.</p>
 <p>The catalog lives in <code>mcp_catalog.py</code>. Each entry has metadata:
 <code>key</code>, <code>license</code>, <code>repo</code>, <code>description</code>, <code>relevance</code> tags, and the
 install command (<code>npx</code> / <code>uvx</code> / <code>docker run</code>). Adding new MCPs to
@@ -2138,7 +2279,7 @@ the catalog is a pure-Python edit — see the module docstring.</p>
 </ul>
 <p>The agent will tell you which env vars are missing on first use.</p>
 <h4 id="license-compatibility">License compatibility<a class="anchor" href="#license-compatibility" title="Link to this section">#</a></h4>
-<p>All 12 catalog entries are MIT or Apache-2.0 (verified at curation
+<p>All catalog entries are MIT or Apache-2.0 (verified at curation
 time, see <code>NOTICE.md</code> for the full table). ThemeForge <strong>never bundles</strong>
 their source — <code>.mcp.json</code> is a configuration pointer; the client
 downloads each MCP at runtime via <code>npx</code> / <code>uvx</code> / <code>docker</code>. GPL v3 of
