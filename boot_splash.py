@@ -41,7 +41,7 @@ GRID_RGBA = (120, 160, 255, 12)   # rgba(120,160,255,0.045) ≈ alpha 12/255
 
 # Líneas del boot log — idénticas al prototipo (atmosphere.jsx · BootSequence).
 BOOT_LINES = [
-    "> themeforge.core // 鍛造エンジン",
+    "> pcreative_studio.core // 鍛造エンジン",
     "> mounting neon kernel ............ OK",
     "> loading agents [claude·codex·gemini·opencode] .. OK",
     "> calibrating glow matrix ......... OK",

@@ -5,7 +5,7 @@ Plantilla pública. Stub neutro.
 Si quieres inyectar TU lista de ideas/nichos al CLAUDE.md de los
 proyectos que generes, crea tu versión privada en:
 
-    ~/.config/themeforge/context-private/IDEAS.md
+    ~/.config/pcreative-studio/context-private/IDEAS.md
 
 Pcreative Studio la usará en vez de este stub.
 

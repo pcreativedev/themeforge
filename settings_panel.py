@@ -117,7 +117,7 @@ class SettingsPanel(QWidget):
 
             self.theme_help = QLabel(
                 "<small>Aplicación inmediata · sin reinicio. Los themes "
-                "custom van en <code>~/.config/themeforge/themes/*.json</code>.</small>"
+                "custom van en <code>~/.config/pcreative-studio/themes/*.json</code>.</small>"
             )
             self.theme_help.setTextFormat(Qt.TextFormat.RichText)
             self.theme_help.setWordWrap(True)
@@ -219,12 +219,12 @@ class SettingsPanel(QWidget):
         pixel_box.setLayout(pbox)
 
         # Atajos
-        self.btn_open_themeforge = QPushButton("📁 Open ~/Proyectos/themeforge")
+        self.btn_open_themeforge = QPushButton("📁 Open ~/Proyectos/pcreative-studio")
         self.btn_open_themeforge.clicked.connect(
-            lambda: pc.open_in_file_manager(Path.home() / "Proyectos" / "themeforge"))
+            lambda: pc.open_in_file_manager(Path.home() / "Proyectos" / "pcreative-studio"))
         self.btn_open_context = QPushButton("📚 Open context/")
         self.btn_open_context.clicked.connect(
-            lambda: pc.open_in_file_manager(Path.home() / "Proyectos" / "themeforge" / "context"))
+            lambda: pc.open_in_file_manager(Path.home() / "Proyectos" / "pcreative-studio" / "context"))
         self.btn_edit_stacks = QPushButton("📝 Edit stacks.py")
         self.btn_edit_stacks.clicked.connect(self._edit_stacks)
 
@@ -521,7 +521,7 @@ class SettingsPanel(QWidget):
 
     def _on_theme_changed(self, idx: int):
         """Aplica el tema seleccionado al QApplication en caliente,
-        persiste la elección en `~/.config/themeforge/settings.json`
+        persiste la elección en `~/.config/pcreative-studio/settings.json`
         y emite la señal `theme_signals.theme_changed` para que el
         resto de widgets que dependen del color (iconos en tabs, etc.)
         se refresquen sin reinicio."""
@@ -539,7 +539,7 @@ class SettingsPanel(QWidget):
             print(f"[settings_panel] failed to apply theme {name}: {e}")
 
     def _edit_stacks(self):
-        path = Path.home() / "Proyectos" / "themeforge" / "stacks.py"
+        path = Path.home() / "Proyectos" / "pcreative-studio" / "stacks.py"
         # Prefer VSCode-family (handles macOS .app fallback)
         argv = pc.vscode_argv(path)
         if argv:

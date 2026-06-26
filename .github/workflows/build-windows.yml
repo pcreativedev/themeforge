@@ -52,7 +52,7 @@ jobs:
         shell: pwsh
         run: |
           # Node.js y git portables van DENTRO del instalador. Al arrancar,
-          # themeforge.py añade vendor/node y vendor/git al PATH. Así el
+          # pcreative_studio.py añade vendor/node y vendor/git al PATH. Así el
           # usuario final no descarga las 2 dependencias pesadas; solo los
           # CLIs de IA (que cambian cada semana) se instalan al vuelo.
           New-Item -ItemType Directory -Force -Path vendor | Out-Null
@@ -93,7 +93,7 @@ jobs:
         run: |
           # PowerShell no soporta heredocs (<<'PY'); el script va en un .py real.
           python packaging/windows/make_ico.py
-          Get-Item assets/themeforge.ico
+          Get-Item assets/pcreative-studio.ico
 
       - name: Build .exe with PyInstaller
         shell: pwsh
@@ -116,7 +116,7 @@ jobs:
             --noconsole `
             --python-option "X utf8" `
             --name Pcreative Studio `
-            --icon assets/themeforge.ico `
+            --icon assets/pcreative-studio.ico `
             --add-data "assets;assets" `
             --add-data "context;context" `
             --add-data "themes/presets;themes/presets" `
@@ -131,7 +131,7 @@ jobs:
             --exclude-module PyQt6.Qt3DRender `
             --exclude-module PyQt6.Qt3DInput `
             --exclude-module PyQt6.QtBluetooth `
-            themeforge.py
+            pcreative_studio.py
           Get-ChildItem dist/
 
       - name: Build Inno Setup installer
@@ -148,7 +148,7 @@ jobs:
           # Extract the version from the git tag (v1.3.0 → 1.3.0), or use 0.0.0 for manual runs
           $version = if ($env:GITHUB_REF -match 'refs/tags/v(.+)') { $matches[1] } else { '0.0.0' }
           Write-Host "Building installer for version $version"
-          & $iscc /Q "/DAppVersion=$version" packaging/windows/themeforge.iss
+          & $iscc /Q "/DAppVersion=$version" packaging/windows/pcreative_studio.iss
           Get-ChildItem dist/installer/
 
       - name: Upload installer as workflow artifact

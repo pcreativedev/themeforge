@@ -11,7 +11,7 @@ Cada provider mapea a un CLI subyacente + método de autenticación.
   · opencode            → `opencode` (multi-provider, `opencode auth login`)
   · openrouter          → `opencode` (OPENROUTER_API_KEY, modelo `openrouter/...`)
 
-Keys de API se guardan en ~/.config/themeforge/keys.json (chmod 0600).
+Keys de API se guardan en ~/.config/pcreative-studio/keys.json (chmod 0600).
 """
 from __future__ import annotations
 

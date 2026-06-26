@@ -5,7 +5,7 @@ AI agents **without forking the repo**. Each plugin is a `.py` file
 placed under:
 
 ```
-~/.config/themeforge/plugins/
+~/.config/pcreative-studio/plugins/
 ```
 
 Pcreative Studio auto-loads every `*.py` from that directory at startup
@@ -17,17 +17,17 @@ plugins directory.
 ## How to use
 
 ```bash
-mkdir -p ~/.config/themeforge/plugins
-cp examples/plugins/my-custom-vite.py ~/.config/themeforge/plugins/
+mkdir -p ~/.config/pcreative-studio/plugins
+cp examples/plugins/my-custom-vite.py ~/.config/pcreative-studio/plugins/
 # Edit the copy with your own stack details, then restart Pcreative Studio.
 ```
 
 ## Public API
 
-Your plugin can import from `themeforge_plugins`:
+Your plugin can import from `pcreative_studio_plugins`:
 
 ```python
-from themeforge_plugins import (
+from pcreative_studio_plugins import (
     register_stack,            # add a new stack to the picker
     register_template_type,    # add an entry to the "Tipo" dropdown
     register_agent,            # add a new AI provider option

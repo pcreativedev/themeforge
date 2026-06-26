@@ -418,10 +418,10 @@ CATALOG: list[MCPEntry] = [
         },
     ),
     MCPEntry(
-        key="themeforge",
+        key="pcreative-studio",
         name="Pcreative Studio (this repo)",
         license="GPL-3.0",
-        repo="https://github.com/pcreativedev/themeforge",
+        repo="https://github.com/pcreativedev/pcreative-studio",
         description=(
             "Pcreative Studio's own MCP server: list_stacks, list_themes, "
             "estimate_cost, run_preflight, build_zip, suggest_stack, "
@@ -528,7 +528,7 @@ def by_key(key: str) -> MCPEntry | None:
 def generate_mcp_json(
     entries: list[MCPEntry],
     project_path: Path,
-    themeforge_home: Path | None = None,
+    pcreative_studio_home: Path | None = None,
 ) -> dict:
     """Builds the `.mcp.json` file content for a scaffolded project.
 
@@ -538,7 +538,7 @@ def generate_mcp_json(
     server entry points at the right `mcp_server.py`).
     """
     project_str = str(Path(project_path).resolve())
-    tf_home_str = str(Path(themeforge_home or Path(__file__).parent).resolve())
+    tf_home_str = str(Path(pcreative_studio_home or Path(__file__).parent).resolve())
 
     def _substitute(value):
         if isinstance(value, str):
@@ -560,13 +560,13 @@ def generate_mcp_json(
 def write_mcp_json(
     project_path: Path,
     entries: list[MCPEntry],
-    themeforge_home: Path | None = None,
+    pcreative_studio_home: Path | None = None,
 ) -> Path:
     """Writes `.mcp.json` to project_path. Returns the file path."""
     project_path = Path(project_path).resolve()
     project_path.mkdir(parents=True, exist_ok=True)
     target = project_path / ".mcp.json"
-    payload = generate_mcp_json(entries, project_path, themeforge_home)
+    payload = generate_mcp_json(entries, project_path, pcreative_studio_home)
     target.write_text(json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8")
     return target
 

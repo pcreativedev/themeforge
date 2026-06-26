@@ -2,10 +2,10 @@
 Example plugin: register a custom Vite + React stack with your
 organisation's preset.
 
-Copy to `~/.config/themeforge/plugins/my-custom-vite.py` and edit
+Copy to `~/.config/pcreative-studio/plugins/my-custom-vite.py` and edit
 `@my-org/preset` to your real package. Restart Pcreative Studio to load.
 """
-from themeforge_plugins import register_stack, register_template_type
+from pcreative_studio_plugins import register_stack, register_template_type
 
 
 register_stack(

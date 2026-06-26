@@ -18,7 +18,7 @@ Si quieres que el agente IA del proyecto entienda TU sistema concreto
 (URL del endpoint, formato de keys, tipos de licencia, slugs en uso,
 panel admin), crea tu versión privada en:
 
-    ~/.config/themeforge/context-private/LICENSING-SYSTEM.md
+    ~/.config/pcreative-studio/context-private/LICENSING-SYSTEM.md
 
 Pcreative Studio la priorizará. Tu versión privada va a quedar fuera del repo
 público (`.gitignore`).

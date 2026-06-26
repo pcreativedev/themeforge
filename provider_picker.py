@@ -114,7 +114,7 @@ class ProviderPicker(QWidget):
         self.btn_login.clicked.connect(self._on_login)
 
         self.btn_key = QPushButton("🔑 API key…")
-        self.btn_key.setToolTip("Configura la API key (se guarda en ~/.config/themeforge/keys.json 0600)")
+        self.btn_key.setToolTip("Configura la API key (se guarda en ~/.config/pcreative-studio/keys.json 0600)")
         self.btn_key.clicked.connect(self._on_key)
 
         self.btn_refresh = QPushButton("↻")

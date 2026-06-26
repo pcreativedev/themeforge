@@ -3,16 +3,16 @@ licensing_scaffold.py — emite comandos bash que dropean los archivos
 de integración con un sistema de licencias propio (verify-license
 endpoint + setup wizard) en un proyecto recién scaffoldeado.
 
-Lo consume `write_setup_script()` en themeforge.py: si el usuario ha
+Lo consume `write_setup_script()` en pcreative_studio.py: si el usuario ha
 marcado el checkbox del sistema de licencias en el formulario, las
 funciones de este módulo añaden las líneas necesarias al script de
 setup tras el scaffold del stack base.
 
 URL del endpoint y otros valores sensibles se leen en runtime de
-`~/.config/themeforge/licensing.json` vía `licensing_config.load()`.
+`~/.config/pcreative-studio/licensing.json` vía `licensing_config.load()`.
 
 Spec canónico: `context/LICENSING-SYSTEM.template.md` (estructura
-genérica) + `~/.config/themeforge/context-private/LICENSING-SYSTEM.md`
+genérica) + `~/.config/pcreative-studio/context-private/LICENSING-SYSTEM.md`
 (versión real del usuario, fuera del repo).
 """
 from __future__ import annotations
@@ -62,7 +62,7 @@ def _load_known_slugs() -> set[str]:
     usuario (uno por línea, '#' = comentario). Si no existe, devuelve
     set vacío — el código público NO contiene nombres de productos.
 
-    Crea `~/.config/themeforge/known-product-slugs.txt` con tus slugs
+    Crea `~/.config/pcreative-studio/known-product-slugs.txt` con tus slugs
     si quieres que el checkbox del sistema de licencias se auto-marque
     al detectar uno de ellos en el nombre del proyecto nuevo.
     """
@@ -91,7 +91,7 @@ def detect_family(stack_key: str) -> str | None:
 def likely_known_product(slug: str) -> bool:
     """¿El slug aparece en la lista de productos conocidos del usuario?
     Útil para preseleccionar el checkbox en la UI. La lista se lee de
-    `~/.config/themeforge/known-product-slugs.txt` — si el archivo no
+    `~/.config/pcreative-studio/known-product-slugs.txt` — si el archivo no
     existe, esta función devuelve False y no hay auto-detección."""
     return slug in KNOWN_PRODUCT_SLUGS
 

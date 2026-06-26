@@ -243,7 +243,7 @@ function NewProjectScreen({ onLaunch, onAnalyze }) {
           <div className="panel" style={{ padding: '6px 20px 14px' }}>
             <CheckRow label="npx autoskills" jp="技能" sub="auto-instala skills del stack (a11y/SEO/design) en .claude/skills/" on={opts.autoskills} onToggle={() => tog('autoskills')} />
             <CheckRow label="UI/UX Pro Max" jp="高級UI" sub="shadcn/ui · Aceternity · Magic UI + sistema de diseño (67 estilos / 161 paletas)" on={opts.uipro} onToggle={() => tog('uipro')} />
-            <CheckRow label="Pre-configurar MCP servers" jp="接続" sub="genera .mcp.json (filesystem · github · playwright · figma-context · themeforge…)" on={opts.mcp} onToggle={() => tog('mcp')} />
+            <CheckRow label="Pre-configurar MCP servers" jp="接続" sub="genera .mcp.json (filesystem · github · playwright · figma-context · pcreative-studio…)" on={opts.mcp} onToggle={() => tog('mcp')} />
             <CheckRow label="Documentación" jp="文書" sub="documentation/ con guía de instalación + changelog" on={opts.docs} onToggle={() => tog('docs')} />
           </div>
         </div>

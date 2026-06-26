@@ -83,7 +83,7 @@ See `docs/USER_GUIDE.md` §10 for full details.
   - Surge: deploy directly to `<chosen>.example.com` if CNAME exists
 - **Deploy history per project.** Persist every deploy (timestamp,
   provider, URL, build duration, dist size) in
-  `~/.config/themeforge/deploys.json`. Show in a sub-tab of the
+  `~/.config/pcreative-studio/deploys.json`. Show in a sub-tab of the
   ProjectWindow with rollback links (Netlify/Vercel preserve old
   deploys for free).
 - **Multi-provider parallel deploy.** "Deploy to all" button that
@@ -120,7 +120,7 @@ hard-coded for common models. See §12 of USER_GUIDE.
 - **OpenCode scanner.** opencode-ai (v1.15+) stores session data
   but the schema is unstable. Implement once the format is documented.
 - **Pricing refresh from a remote manifest.** Optional `pricing.json`
-  in `~/.config/themeforge/` overrides `cost_tracker.PRICING`. Long
+  in `~/.config/pcreative-studio/` overrides `cost_tracker.PRICING`. Long
   term, fetch from a community-maintained manifest with consent.
 - **Ephemeral 1h cache pricing.** Differentiate 5-min vs 1-hour cache
   rates per Anthropic's tiered cache pricing.
@@ -162,7 +162,7 @@ Current state (v1.0): 13 automated checks for marketplace readiness.
 ### Future updates
 
 - **Customizable check list.** YAML-driven check definitions in
-  `~/.config/themeforge/preflight.yaml` so users can disable / add
+  `~/.config/pcreative-studio/preflight.yaml` so users can disable / add
   custom checks without editing `preflight.py`.
 - **Automatic fix suggestions.** For some warns (missing LICENSE,
   missing README, .env tracked) offer a one-click "fix it" action.
@@ -195,7 +195,7 @@ session, archive toggle, command palette (Ctrl+K).
 
 ## 🧩 Plugin system
 
-Current state (v1.0): user plugins at `~/.config/themeforge/plugins/*.py`
+Current state (v1.0): user plugins at `~/.config/pcreative-studio/plugins/*.py`
 can register stacks / template types / agents.
 
 ### Future updates
@@ -204,7 +204,7 @@ can register stacks / template types / agents.
   (`on_project_created`, `pre_deploy`, `post_deploy`,
   `before_zip_build`) for advanced customisation.
 - **Plugin marketplace.** Optional plugin browser that pulls from a
-  community git repo (`themeforge-plugins/awesome-plugins`).
+  community git repo (`pcreative-studio-plugins/awesome-plugins`).
 - **Sandboxing.** Currently plugins have full Python access. For
   shared / community plugins, add a permission model (filesystem,
   network, subprocess).
@@ -252,7 +252,7 @@ per agent. See §13 of USER_GUIDE.
 - **Per-agent system prompt / temperature.** Configure prompt
   variations per agent for A/B testing.
 - **Prompt history.** Persist last N prompts in
-  `~/.config/themeforge/multi_agent_history.json` for quick recall.
+  `~/.config/pcreative-studio/multi_agent_history.json` for quick recall.
 - **Markdown rendering pane toggle.** Toggle between raw text and
   rendered markdown view per pane.
 - **Concurrent prompt template variables.** Run the same template
@@ -286,7 +286,7 @@ USER_GUIDE.
   swatches with QColorDialog pickers, 5 shape sliders, 6 component
   dropdowns, metadata fields. Every edit re-applies the working
   ThemePack to the whole app (the app IS the preview). Save writes
-  to `~/.config/themeforge/themes/<slug>.json`.
+  to `~/.config/pcreative-studio/themes/<slug>.json`.
 - ✅ **Sprint 5** — Figma DTCG import (`themes/figma_import.py` +
   `figma_import_dialog.py`). Two paths: paste/load DTCG JSON from
   Tokens Studio (free Figma) or call REST API `/variables/local`
@@ -306,7 +306,7 @@ USER_GUIDE.
   cache the blurred pixmap once per resize). Neumorphism via double
   shadow (inset + drop). Optional per-theme; off by default.
 - **Sprint 8 — Theme marketplace.** Read-only browser of a community
-  themes repo (e.g. `pcreativedev/themeforge-themes-community`),
+  themes repo (e.g. `pcreativedev/pcreative-studio-themes-community`),
   one-click install. Optional `share-via-gist` button.
 - **Sprint 9 — Per-tab accent variations.** Each main tab gets a
   slight color shift (Builder=accent_blue, Gallery=teal,
@@ -365,14 +365,14 @@ Anthropic / OpenAI / Google / cursor / windsurf in 2025-2026).
   entry shows: license, repo link, env vars required.
 - **Auth manager** — for MCPs that need tokens (GitHub, Figma,
   Postgres), surface a one-click "configure token" flow in
-  Settings that writes to `~/.config/themeforge/mcp-secrets.json`
+  Settings that writes to `~/.config/pcreative-studio/mcp-secrets.json`
   (chmod 0600) and injects into env at MCP launch time.
 - **Per-project MCP overrides** — let users edit a project's
   `.mcp.json` from the ProjectWindow without dropping to the
   filesystem.
 - **HTTP/SSE transport for `mcp_server`** — Phase 2 of the MCP
   server: expose it over HTTP for remote / cloud clients. Tied to
-  [[project-themeforge-cloud]] (the future SaaS direction).
+  [[project-pcreative-studio-cloud]] (the future SaaS direction).
 - **More MCPs in the catalog**: WordPress MCP (when one stabilises),
   Lemon Squeezy / Polar / Paddle (for licensing flow), Vercel /
   Netlify (deploy automation), Linear / Notion (ticket import).
@@ -389,7 +389,7 @@ Anthropic / OpenAI / Google / cursor / windsurf in 2025-2026).
 Current state (v1.0): GitHub Actions builds **AppImage** (universal),
 **.deb** (Debian/Ubuntu), **.rpm** (Fedora/RHEL/openSUSE) and
 **.app** (macOS) on every `v*` tag, attached to a draft Release.
-PKGBUILDs for **AUR** (`themeforge` + `themeforge-git`) live in
+PKGBUILDs for **AUR** (`pcreative-studio` + `pcreative-studio-git`) live in
 `packaging/aur/`. Source tarball auto-generated by GitHub.
 
 ### Future updates
@@ -399,9 +399,9 @@ PKGBUILDs for **AUR** (`themeforge` + `themeforge-git`) live in
   first launch. Add `xcrun notarytool submit` to the macOS workflow.
 - **AUR publish automation.** GitHub Actions job that pushes the
   bumped PKGBUILD to AUR on each tagged release using `ssh-aur-bot`.
-- **Homebrew tap.** `homebrew-themeforge` tap with a cask that
+- **Homebrew tap.** `homebrew-pcreative-studio` tap with a cask that
   installs the macOS .app and the necessary deps via brew.
-- **PyPI package.** `pip install themeforge` for users who want to
+- **PyPI package.** `pip install pcreative-studio` for users who want to
   vendor it in their own venv. Tricky because PyQt6 versioning is
   not fully consistent across PyPI / distro packages.
 - **Flatpak.** FlatHub manifest for sandboxed installation across
@@ -519,7 +519,7 @@ Current state (v1.0):
 - 🪟 **Windows:** alpha. PyInstaller `--onedir` + Inno Setup
   installer built on every release tag. All filesystem paths
   migrated to `pc.app_config_dir()` / `pc.app_cache_dir()` so
-  config lands in `%APPDATA%/themeforge`. Shell calls and process
+  config lands in `%APPDATA%/pcreative-studio`. Shell calls and process
   control go through helpers. **Not yet validated on real Windows
   hardware** — looking for beta testers.
 
@@ -531,10 +531,10 @@ What's left to graduate from alpha to beta:
   `Pcreative Studio-macOS.zip`, drags to `/Applications`, confirms the
   .app launches and the main tabs render. Report issues. This is
   the single biggest unknown.
-- **Migrate paths to `~/Library/Application Support/themeforge/`.**
+- **Migrate paths to `~/Library/Application Support/pcreative-studio/`.**
   Currently `platform_compat.app_config_dir()` returns the right
   Mac path, but most of the codebase still writes to
-  `~/.config/themeforge/` directly. Mass replace once Mac is
+  `~/.config/pcreative-studio/` directly. Mass replace once Mac is
   validated.
 - **Code-signing + notarization.** $99/year Apple Developer ID.
   Without it, Gatekeeper warning on first launch (workable for
@@ -574,9 +574,9 @@ What's left to graduate from alpha to beta:
 ### Cross-platform infrastructure (apply to all)
 
 - ✅ ~~Cross-platform `platform_compat.py` module~~ — done in v1.0.
-- ✅ ~~Replace direct `~/.config/themeforge/` with `pc.app_config_dir()`~~
+- ✅ ~~Replace direct `~/.config/pcreative-studio/` with `pc.app_config_dir()`~~
   — done in v1.3 (all functional sites migrated).
-- ✅ ~~Replace direct `~/.cache/themeforge/` with `pc.app_cache_dir()`~~
+- ✅ ~~Replace direct `~/.cache/pcreative-studio/` with `pc.app_cache_dir()`~~
   — done in v1.3.
 - ✅ ~~Wrap `pkill` / `chmod 0600` in cross-platform helpers~~ —
   done in v1.3 (`kill_processes_under_path`, `secure_file_chmod`,

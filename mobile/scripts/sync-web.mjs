@@ -9,7 +9,7 @@ import { fileURLToPath } from 'url';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(here, '..');                 // mobile/
-const REPO = path.resolve(ROOT, '..');                 // themeforge/
+const REPO = path.resolve(ROOT, '..');                 // pcreative-studio/
 const SRC = path.join(REPO, 'webui', 'mobile');
 const SHIM = path.join(REPO, 'webui', 'remote', 'tfbridge-remote.js');
 const WWW = path.join(ROOT, 'www');

@@ -37,7 +37,7 @@ visualizer is fetched from:
 
 Neither the upstream nor the fork is bundled in this repository. They
 are cloned at install time into
-`~/.local/share/themeforge/pixel-office-openclaw/` from the user's
+`~/.local/share/pcreative-studio/pixel-office-openclaw/` from the user's
 machine.
 
 ## Invoked as external subprocesses (NOT bundled)
@@ -129,7 +129,7 @@ network-use obligations do not attach to Pcreative Studio.
 ### Premium — referenced by name only, NEVER bundled
 
 The following premium products are referenced in scaffold notes,
-README templates, and the (gitignored) `~/.config/themeforge/wp_packs.json`
+README templates, and the (gitignored) `~/.config/pcreative-studio/wp_packs.json`
 schema. **Pcreative Studio never bundles, distributes, or links to copies of
 these products.** Users who want to auto-install one of them must
 declare a path or URL to a copy they have legitimately licensed:
@@ -234,7 +234,7 @@ Implications:
 
 Attribution to midudev is preserved in:
 
-- `themeforge.py` (tooltip of the autoskills checkbox).
+- `pcreative_studio.py` (tooltip of the autoskills checkbox).
 - `docs/USER_GUIDE.md` (§17, "Credits and third-party licenses").
 - This NOTICE file.
 

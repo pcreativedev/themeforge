@@ -32,30 +32,30 @@ python3 -m pip install pyqt6 pyqt6-webengine pyqt6-charts pyinstaller
 echo "▶ generating .icns from PNG sources…"
 rm -rf icon.iconset
 mkdir -p icon.iconset
-cp assets/themeforge-16.png  icon.iconset/icon_16x16.png
-cp assets/themeforge-32.png  icon.iconset/icon_16x16@2x.png
-cp assets/themeforge-32.png  icon.iconset/icon_32x32.png
-cp assets/themeforge-64.png  icon.iconset/icon_32x32@2x.png
-cp assets/themeforge-128.png icon.iconset/icon_128x128.png
-cp assets/themeforge-256.png icon.iconset/icon_128x128@2x.png
-cp assets/themeforge-256.png icon.iconset/icon_256x256.png
-cp assets/themeforge.png     icon.iconset/icon_256x256@2x.png
-cp assets/themeforge.png     icon.iconset/icon_512x512.png
-cp assets/themeforge.png     icon.iconset/icon_512x512@2x.png
-iconutil -c icns icon.iconset -o assets/themeforge.icns
-echo "✓ assets/themeforge.icns"
+cp assets/pcreative-studio-16.png  icon.iconset/icon_16x16.png
+cp assets/pcreative-studio-32.png  icon.iconset/icon_16x16@2x.png
+cp assets/pcreative-studio-32.png  icon.iconset/icon_32x32.png
+cp assets/pcreative-studio-64.png  icon.iconset/icon_32x32@2x.png
+cp assets/pcreative-studio-128.png icon.iconset/icon_128x128.png
+cp assets/pcreative-studio-256.png icon.iconset/icon_128x128@2x.png
+cp assets/pcreative-studio-256.png icon.iconset/icon_256x256.png
+cp assets/pcreative-studio.png     icon.iconset/icon_256x256@2x.png
+cp assets/pcreative-studio.png     icon.iconset/icon_512x512.png
+cp assets/pcreative-studio.png     icon.iconset/icon_512x512@2x.png
+iconutil -c icns icon.iconset -o assets/pcreative-studio.icns
+echo "✓ assets/pcreative-studio.icns"
 
 echo "▶ building .app with PyInstaller…"
 rm -rf build dist
 pyinstaller --noconfirm --clean \
     --windowed \
     --name Pcreative Studio \
-    --icon assets/themeforge.icns \
-    --osx-bundle-identifier dev.pcreative.themeforge \
+    --icon assets/pcreative-studio.icns \
+    --osx-bundle-identifier dev.pcreative.pcreative-studio \
     --add-data "assets:assets" \
     --add-data "context:context" \
     --collect-submodules PyQt6 \
-    themeforge.py
+    pcreative_studio.py
 
 echo "▶ zipping for distribution…"
 ( cd dist && zip -r --symlinks Pcreative Studio-macOS.zip Pcreative Studio.app )

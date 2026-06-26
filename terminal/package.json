@@ -1,5 +1,5 @@
 {
-  "name": "themeforge-terminal",
+  "name": "pcreative-studio-terminal",
   "version": "0.1.0",
   "description": "Servidor local xterm.js + node-pty para Pcreative Studio",
   "main": "server.js",

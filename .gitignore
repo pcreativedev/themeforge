@@ -20,7 +20,7 @@ memory/
 ANTES-DE-PUBLICAR.md
 
 # Configs / state runtime con keys
-~/.config/themeforge/keys.json
+~/.config/pcreative-studio/keys.json
 **/keys.json
 **/.env
 **/.env.*
@@ -29,7 +29,7 @@ ANTES-DE-PUBLICAR.md
 **/.credentials.json
 # licensing.json local-only por si pones la versión real (con tu URL
 # de panel y tu github_org) en el repo dir por error. La versión real
-# va a ~/.config/themeforge/licensing.json (fuera del repo).
+# va a ~/.config/pcreative-studio/licensing.json (fuera del repo).
 **/licensing.json
 !licensing_config.py
 
@@ -41,7 +41,7 @@ build/
 dist/
 *.spec
 icon.iconset/
-assets/themeforge.icns
+assets/pcreative-studio.icns
 # AppImage build outputs
 *.AppImage
 Pcreative Studio.AppDir/
@@ -117,8 +117,8 @@ leads_panel.py
 dossier_dialog.py
 spain_geo.py
 webui/neotokyo/app/screen-leads.jsx
-webui/kawaii/themeforge-kawaii-private.jsx
-webui/matrix/themeforge-matrix-private.jsx
+webui/kawaii/pcreative-studio-kawaii-private.jsx
+webui/matrix/pcreative-studio-matrix-private.jsx
 # --- Generador de webs "x100" (Fase 2 del lead-gen) ---
 web_generator.py
 generator_dialog.py
@@ -128,7 +128,7 @@ api_gateway_private.py
 # --- WebUI: slots privados del puente (Leads/Generador/Scraper) ---
 web_shell_private.py
 # --- App nativo: integraciones privadas (pestañas Leads/Catálogo + Galería) ---
-themeforge_private.py
+pcreative_studio_private.py
 # --- Panel privado: administración de las webs del VPS (Plesk) ---
 vps_panel_private.py
 # --- Scraper de catálogo de productos ---

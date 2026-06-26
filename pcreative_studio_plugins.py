@@ -1,7 +1,7 @@
 """
 Pcreative Studio plugin loader.
 
-User-defined plugins live at `~/.config/themeforge/plugins/*.py`. Each
+User-defined plugins live at `~/.config/pcreative-studio/plugins/*.py`. Each
 plugin imports the registration helpers from this module and calls
 them at import time to add custom stacks / template types / agents
 without touching the Pcreative Studio repo.
@@ -12,9 +12,9 @@ keep loading.
 
 Plugin files starting with `_` are ignored (convention for disabled).
 
-Example: `~/.config/themeforge/plugins/my_custom_stacks.py`
+Example: `~/.config/pcreative-studio/plugins/my_custom_stacks.py`
 
-    from themeforge_plugins import register_stack
+    from pcreative_studio_plugins import register_stack
 
     register_stack(
         key="vite-react-myorg",
@@ -109,7 +109,7 @@ def load_user_plugins() -> tuple[int, list[str]]:
         if plugin_path.name.startswith("_"):
             continue
         try:
-            mod_name = f"themeforge_plugin_{plugin_path.stem}"
+            mod_name = f"pcreative_studio_plugin_{plugin_path.stem}"
             spec = importlib.util.spec_from_file_location(mod_name, plugin_path)
             if spec and spec.loader:
                 module = importlib.util.module_from_spec(spec)
@@ -128,7 +128,7 @@ def list_loaded_plugins() -> list[str]:
     """Devuelve los plugins que están actualmente cargados (sus
     nombres de módulo)."""
     return [
-        name.removeprefix("themeforge_plugin_")
+        name.removeprefix("pcreative_studio_plugin_")
         for name in sys.modules
-        if name.startswith("themeforge_plugin_")
+        if name.startswith("pcreative_studio_plugin_")
     ]

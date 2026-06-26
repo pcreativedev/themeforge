@@ -1,7 +1,7 @@
 """Marketplace submission helper.
 
 Builds marketplace-ready ZIPs in the EXACT structure each marketplace
-expects. The existing `build_marketplace_zip` in themeforge.py produces
+expects. The existing `build_marketplace_zip` in pcreative_studio.py produces
 a generic single-folder ZIP — good for Gumroad / generic uploads but
 gets rejected on stricter marketplaces (ThemeForest, CodeCanyon).
 

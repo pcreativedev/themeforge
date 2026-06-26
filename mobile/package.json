@@ -1,5 +1,5 @@
 {
-  "name": "themeforge-mobile",
+  "name": "pcreative-studio-mobile",
   "version": "0.1.0",
   "private": true,
   "description": "App nativa (Capacitor) que envuelve la PWA de Pcreative Studio: CRM Leads + generador con cámara/OCR + push.",

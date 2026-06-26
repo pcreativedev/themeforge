@@ -34,11 +34,11 @@ rm -rf build dist
 pyinstaller --noconfirm --clean \
     --windowed \
     --name Pcreative Studio \
-    --icon assets/themeforge-256.png \
+    --icon assets/pcreative-studio-256.png \
     --add-data "assets:assets" \
     --add-data "context:context" \
     --collect-submodules PyQt6 \
-    themeforge.py
+    pcreative_studio.py
 
 echo "▶ downloading appimagetool…"
 if [[ ! -x ./appimagetool-x86_64.AppImage ]]; then
@@ -52,18 +52,18 @@ rm -rf "$APPDIR"
 mkdir -p "$APPDIR/usr/bin"
 cp -r dist/Pcreative Studio/* "$APPDIR/usr/bin/"
 
-cp assets/themeforge-256.png "$APPDIR/themeforge.png"
+cp assets/pcreative-studio-256.png "$APPDIR/pcreative-studio.png"
 mkdir -p "$APPDIR/usr/share/icons/hicolor/256x256/apps"
-cp assets/themeforge-256.png "$APPDIR/usr/share/icons/hicolor/256x256/apps/themeforge.png"
+cp assets/pcreative-studio-256.png "$APPDIR/usr/share/icons/hicolor/256x256/apps/pcreative-studio.png"
 
-cat > "$APPDIR/themeforge.desktop" <<'EOF'
+cat > "$APPDIR/pcreative-studio.desktop" <<'EOF'
 [Desktop Entry]
 Type=Application
 Name=Pcreative Studio
 GenericName=Theme Project Builder
 Comment=PyQt6 GUI for scaffolding template projects
 Exec=Pcreative Studio %F
-Icon=themeforge
+Icon=pcreative-studio
 Terminal=false
 Categories=Development;IDE;
 Keywords=template;theme;scaffold;ai;claude;codex;
@@ -71,7 +71,7 @@ StartupNotify=true
 StartupWMClass=Pcreative Studio
 EOF
 mkdir -p "$APPDIR/usr/share/applications"
-cp "$APPDIR/themeforge.desktop" "$APPDIR/usr/share/applications/"
+cp "$APPDIR/pcreative-studio.desktop" "$APPDIR/usr/share/applications/"
 
 cat > "$APPDIR/AppRun" <<'EOF'
 #!/bin/sh

@@ -1,11 +1,11 @@
 # Maintainer: pcreativedev <contact@pcreative.dev>
-pkgname=themeforge-git
-_pkgname=themeforge
+pkgname=pcreative-studio-git
+_pkgname=pcreative-studio
 pkgver=r1.000000
 pkgrel=1
 pkgdesc="PyQt6 GUI for scaffolding template projects (git tip)"
 arch=('any')
-url="https://github.com/pcreativedev/themeforge"
+url="https://github.com/pcreativedev/pcreative-studio"
 license=('GPL3')
 depends=(
     'python'
@@ -23,7 +23,7 @@ optdepends=(
 provides=("$_pkgname")
 conflicts=("$_pkgname")
 makedepends=('git')
-source=("$_pkgname::git+https://github.com/pcreativedev/themeforge.git")
+source=("$_pkgname::git+https://github.com/pcreativedev/pcreative-studio.git")
 sha256sums=('SKIP')
 options=('!strip')
 
@@ -46,19 +46,19 @@ package() {
     install -d "$pkgdir/usr/bin"
     cat > "$pkgdir/usr/bin/$_pkgname" <<EOF
 #!/bin/sh
-cd /opt/$_pkgname && exec python3 themeforge.py "\$@"
+cd /opt/$_pkgname && exec python3 pcreative_studio.py "\$@"
 EOF
     chmod +x "$pkgdir/usr/bin/$_pkgname"
 
     install -d "$pkgdir/usr/share/applications"
     sed "s|__INSTALL_PATH__|/opt/$_pkgname|g" \
-        assets/themeforge.desktop.template \
+        assets/pcreative-studio.desktop.template \
         > "$pkgdir/usr/share/applications/$_pkgname.desktop"
     sed -i "s|^Exec=.*|Exec=$_pkgname %F|" "$pkgdir/usr/share/applications/$_pkgname.desktop"
     sed -i "s|^Icon=.*|Icon=$_pkgname|" "$pkgdir/usr/share/applications/$_pkgname.desktop"
 
     for sz in 16 32 48 64 128 256; do
-        install -Dm644 "assets/themeforge-${sz}.png" \
+        install -Dm644 "assets/pcreative-studio-${sz}.png" \
             "$pkgdir/usr/share/icons/hicolor/${sz}x${sz}/apps/$_pkgname.png"
     done
 

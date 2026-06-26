@@ -11,7 +11,7 @@ Phase 1 tools (read-mostly + safe writes):
   - list_stacks()        — 60+ scaffold targets (Next.js, Astro,
                             Laravel, WordPress, Flutter, …)
   - list_themes()        — 8 builtin app themes
-  - list_recent_projects() — read ~/.config/themeforge/projects-meta.json
+  - list_recent_projects() — read ~/.config/pcreative-studio/projects-meta.json
   - list_supported_providers() — 7 AI providers + their auth status
   - estimate_cost()      — USD cost for (model, in_tokens, out_tokens)
   - suggest_stack()      — natural language → recommended stack
@@ -20,15 +20,15 @@ Phase 1 tools (read-mostly + safe writes):
 
 Run it:
 
-    python3 ~/Proyectos/themeforge/mcp_server.py     # stdio mode
+    python3 ~/Proyectos/pcreative-studio/mcp_server.py     # stdio mode
 
 Register in Claude Code's mcp.json:
 
     {
       "mcpServers": {
-        "themeforge": {
+        "pcreative-studio": {
           "command": "python3",
-          "args": ["/home/<you>/Proyectos/themeforge/mcp_server.py"]
+          "args": ["/home/<you>/Proyectos/pcreative-studio/mcp_server.py"]
         }
       }
     }
@@ -51,7 +51,7 @@ if str(_THIS_DIR) not in sys.path:
 from mcp.server.fastmcp import FastMCP  # noqa: E402
 
 mcp = FastMCP(
-    "themeforge",
+    "pcreative-studio",
     instructions=(
         "Pcreative Studio is a desktop GUI for scaffolding marketplace-ready "
         "template projects (ThemeForest / CodeCanyon / Gumroad / "
@@ -94,7 +94,7 @@ def list_themes() -> list[dict]:
     """List app themes that Pcreative Studio can apply to its own UI.
 
     Themes are JSON token files. Builtin themes ship with the install;
-    user themes live in `~/.config/themeforge/themes/`. Both are
+    user themes live in `~/.config/pcreative-studio/themes/`. Both are
     returned; `is_user=true` marks user-installed entries.
     """
     import themes
@@ -115,11 +115,11 @@ def list_themes() -> list[dict]:
 def list_recent_projects(limit: int = 10, include_archived: bool = False) -> list[dict]:
     """List projects scaffolded with Pcreative Studio, sorted by last-modified.
 
-    Reads `~/.config/themeforge/projects-meta.json`. Returns at most
+    Reads `~/.config/pcreative-studio/projects-meta.json`. Returns at most
     `limit` entries. Set `include_archived=true` to include items moved
     to `~/Proyectos/themes-archive/`.
     """
-    from themeforge import list_projects
+    from pcreative_studio import list_projects
     rows = list_projects(archived=False)
     if include_archived:
         rows = list_projects(archived=False) + list_projects(archived=True)
@@ -327,7 +327,7 @@ def build_zip(
 
     Returns the resulting ZIP path + size, or an error.
     """
-    from themeforge import build_marketplace_zip
+    from pcreative_studio import build_marketplace_zip
     p = Path(project_path).expanduser().resolve()
     if not p.is_dir():
         return {"error": f"Not a directory: {p}"}
@@ -383,7 +383,7 @@ def create_project(
     import subprocess
     from stacks import STACKS
     import ai_providers as aip
-    from themeforge import (
+    from pcreative_studio import (
         write_setup_script, PROJECTS_DIR,
         load_projects_meta, save_projects_meta, slugify,
     )

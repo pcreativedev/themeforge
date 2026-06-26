@@ -67,7 +67,7 @@ import platform_compat as pc
 
 
 def _licensing_github_org() -> str:
-    """Lee el campo `github_org` de `~/.config/themeforge/licensing.json`.
+    """Lee el campo `github_org` de `~/.config/pcreative-studio/licensing.json`.
     Devuelve '' si no hay config o el campo está vacío."""
     try:
         from licensing_config import load as _load_cfg
@@ -173,7 +173,7 @@ class ProjectWindow(QWidget):
                 self._active_sub_idx = 0
 
         self.profile, self._preview_root = self._compute_active_profile()
-        # Asignar puerto único al proyecto (persistido en ~/.config/themeforge/ports.json)
+        # Asignar puerto único al proyecto (persistido en ~/.config/pcreative-studio/ports.json)
         if self.profile and self.profile.get("port_inject") is not None:
             self.preview_port = get_port_for_project(
                 self._port_slug(),
@@ -603,7 +603,7 @@ class ProjectWindow(QWidget):
                     # romper con "No conversation found".
                     if _cmd == "claude":
                         try:
-                            from themeforge import last_ai_activity
+                            from pcreative_studio import last_ai_activity
                             if last_ai_activity(self.project_path) is not None:
                                 extra.append("--continue")
                         except Exception:
@@ -615,13 +615,13 @@ class ProjectWindow(QWidget):
             elif binary:
                 print(f"[project_window] {binary} (provider '{sel_key}') no en PATH — no se añade tab de IA")
         # Tab 🚀 Hermes (Operator) — OPCIONAL: solo si Hermes está instalado.
-        # Corre `hermes -s themeforge-operator` interactivo en el cwd del
+        # Corre `hermes -s pcreative-studio-operator` interactivo en el cwd del
         # proyecto → auto-carga su AGENTS.md/.hermes.md, lo modifica y aprende.
         try:
             _hermes_bin = _sh.which("hermes") or str(Path.home() / ".local" / "bin" / "hermes")
             if Path(_hermes_bin).is_file():
                 self._add_term_tab("🚀 Hermes", _hermes_bin,
-                                   ["-s", "themeforge-operator"])
+                                   ["-s", "pcreative-studio-operator"])
         except Exception as e:
             print(f"[project_window] no se añadió tab Hermes: {e}")
         # Indicador en la barra de status si el server falla
@@ -1017,7 +1017,7 @@ class ProjectWindow(QWidget):
         """Vuelve a 'New project' en la ventana principal (sin cerrar este)."""
         from PyQt6.QtWidgets import QMessageBox
         try:
-            from themeforge import focus_new_project
+            from pcreative_studio import focus_new_project
             if not focus_new_project():
                 QMessageBox.information(
                     self, "Nuevo proyecto",
@@ -1030,7 +1030,7 @@ class ProjectWindow(QWidget):
         """Abre OTRO proyecto en una ventana nueva (sin cerrar este)."""
         from PyQt6.QtWidgets import QMessageBox, QFileDialog
         try:
-            from themeforge import open_project_window, PROJECTS_DIR
+            from pcreative_studio import open_project_window, PROJECTS_DIR
             base = str(PROJECTS_DIR if Path(PROJECTS_DIR).is_dir() else Path.home())
             d = QFileDialog.getExistingDirectory(self, "Abrir otro proyecto", base)
             if d:
@@ -1171,7 +1171,7 @@ class ProjectWindow(QWidget):
             QDialog, QCheckBox, QDialogButtonBox, QVBoxLayout, QLabel,
         )
         try:
-            from themeforge import build_marketplace_zip, BUILDS_DIR
+            from pcreative_studio import build_marketplace_zip, BUILDS_DIR
         except Exception as e:
             QMessageBox.critical(self, "ZIP", f"No se pudo importar el builder: {e}")
             return
@@ -1857,7 +1857,7 @@ class ProjectWindow(QWidget):
                 # en la galería (cards view). Silencioso — si falla, no
                 # afecta a la captura principal.
                 try:
-                    from themeforge import save_project_thumbnail
+                    from pcreative_studio import save_project_thumbnail
                     save_project_thumbnail(self.project_path.name, pix)
                 except Exception:
                     pass

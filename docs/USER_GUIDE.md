@@ -15,7 +15,7 @@ system, and troubleshooting.
 
 ## Table of contents
 
-1. [What is Pcreative Studio](#1-what-is-themeforge)
+1. [What is Pcreative Studio](#1-what-is-pcreative-studio)
    - [The Web UI (Neo-Tokyo · Matrix · Kawaii)](#the-web-ui-neo-tokyo--matrix--kawaii)
 2. [System requirements](#2-system-requirements)
 3. [Installation](#3-installation)
@@ -35,7 +35,7 @@ system, and troubleshooting.
 17. [App themes](#17-app-themes)
 18. [Vibe scaffolder](#18-vibe-scaffolder)
 19. [MCP servers](#19-mcp-servers)
-20. [Pcreative Studio mobile (remote engine)](#20-themeforge-mobile-remote-engine)
+20. [Pcreative Studio mobile (remote engine)](#20-pcreative-studio-mobile-remote-engine)
 21. [Optional licensing system](#21-optional-licensing-system)
 22. [Configuration files](#22-configuration-files)
 23. [Troubleshooting](#23-troubleshooting)
@@ -86,9 +86,9 @@ scaffolding, preview, cost, licensing, Operator… nothing is mocked).
   splash: **Neo-Tokyo** (cyberpunk, default), **Matrix** (green terminal),
   **Kawaii** (pastel). Web themes recolor instantly; choosing a *classic*
   theme restarts the app into the native QWidget UI.
-- **Switching UI mode**: `PCREATIVE STUDIO_CLASSIC=1 themeforge` forces the classic
+- **Switching UI mode**: `PCREATIVE STUDIO_CLASSIC=1 pcreative-studio` forces the classic
   native UI; `PCREATIVE STUDIO_WEB=1` forces the web UI. The choice is saved in
-  `~/.config/themeforge/app_prefs.json` (`ui_mode`).
+  `~/.config/pcreative-studio/app_prefs.json` (`ui_mode`).
 - **Opening a project** pops it in its **own window/modal** (like the native
   ProjectWindow) — it doesn't replace the gallery. When you forge a new
   project, the **setup runs in a real terminal** (the *Setup* tab) and the view
@@ -135,8 +135,8 @@ Pcreative Studio is currently distributed as a Python project that you clone
 and run with `launch.sh`. No PyPI package yet.
 
 ```bash
-git clone https://github.com/pcreativedev/themeforge.git
-cd themeforge
+git clone https://github.com/pcreativedev/pcreative-studio.git
+cd pcreative-studio
 
 # Python dependencies — only PyQt6 needs to be installed.
 # On Arch / CachyOS:
@@ -155,7 +155,7 @@ cd ..
 ```
 
 Alternative: KDE menu entry. After cloning, copy or symlink
-`themeforge.desktop` into `~/.local/share/applications/` (you'll need
+`pcreative-studio.desktop` into `~/.local/share/applications/` (you'll need
 to create it manually pointing at your `launch.sh` location).
 
 ---
@@ -178,17 +178,17 @@ few steps:
 5. **Done.**
 
 The wizard persists a "seen" flag plus your defaults in
-`~/.config/themeforge/app_prefs.json`, so it won't pop up again. You can
+`~/.config/pcreative-studio/app_prefs.json`, so it won't pop up again. You can
 **re-open it any time from Settings**. None of the steps are mandatory —
 you can skip straight through and configure things later.
 
 ### Config files
 
-The first time you launch Pcreative Studio, it creates `~/.config/themeforge/`
+The first time you launch Pcreative Studio, it creates `~/.config/pcreative-studio/`
 with:
 
 ```
-~/.config/themeforge/
+~/.config/pcreative-studio/
 ├── favorites.json          # bookmarked stacks (empty initially)
 ├── ports.json              # per-project port assignments
 └── (you create the rest)
@@ -196,17 +196,17 @@ with:
 
 Optional files you can add to extend Pcreative Studio to your workflow:
 
-- `~/.config/themeforge/keys.json` — API keys for AI providers
+- `~/.config/pcreative-studio/keys.json` — API keys for AI providers
   (Anthropic, OpenAI, Google, OpenRouter). Permissions are auto-set to
   `0600`. The Settings panel offers a UI to populate this.
-- `~/.config/themeforge/licensing.json` — URL of your own license
+- `~/.config/pcreative-studio/licensing.json` — URL of your own license
   verification endpoint, admin panel base, GitHub org, Java/Kotlin
   package ID. See §16.
-- `~/.config/themeforge/known-product-slugs.txt` — one slug per line of
+- `~/.config/pcreative-studio/known-product-slugs.txt` — one slug per line of
   your own product catalogue, used to auto-tick the "🔑 Activar
   sistema de licencias" checkbox when you start a new project with a
   matching name.
-- `~/.config/themeforge/context-private/*.md` — your private versions
+- `~/.config/pcreative-studio/context-private/*.md` — your private versions
   of the context docs (market research, competitor analysis, licensing
   spec) that get injected into each new project's CLAUDE.md. See §16.
 
@@ -338,7 +338,7 @@ stacks** are supported including (non-exhaustive):
   WordPress MCP bridge in `.mcp.json`, and lays down `WORDPRESS-DEV.md`
   + `WORDPRESS-LEGAL.md` + a `./wp` wp-cli helper. Premium plugins or
   parent themes you have licensed are installed if and only if you
-  declare a path or URL in `~/.config/themeforge/wp_packs.json`
+  declare a path or URL in `~/.config/pcreative-studio/wp_packs.json`
   (gitignored, local-only). See [`docs/WORDPRESS.md`](WORDPRESS.md) for
   the full pipeline.
 
@@ -468,7 +468,7 @@ Pcreative Studio invokes external AI agent CLIs as subprocesses. Supported:
 ### Setting API keys
 
 Open the Settings panel (gear icon) and use the provider picker. Keys
-are stored in `~/.config/themeforge/keys.json` with `chmod 0600`. The
+are stored in `~/.config/pcreative-studio/keys.json` with `chmod 0600`. The
 directory is `0700`.
 
 Keys are never logged. The UI shows only `set` / `unset`, never the
@@ -681,7 +681,7 @@ If the project root has more than one stack (e.g. `Files/Laravel/`,
 `Files/Flutter/Driver/`), a **Sub-proyecto** dropdown appears at the
 top. Switching it changes the active preview profile, port and dev
 server commands. Each sub-project gets its own port assigned in
-`~/.config/themeforge/ports.json`.
+`~/.config/pcreative-studio/ports.json`.
 
 ### Terminal tabs
 
@@ -881,7 +881,7 @@ tag:venta tag:aurora        # must have BOTH tags
 aurora tag:venta            # matches 'aurora' in name/stack AND tagged 'venta'
 ```
 
-Tags persist in `~/.config/themeforge/projects-meta.json` (JSON, one
+Tags persist in `~/.config/pcreative-studio/projects-meta.json` (JSON, one
 entry per slug).
 
 ### Last AI session
@@ -919,7 +919,7 @@ the two view modes. State persists between sessions.
 - **🖼️ Cards**: 220×190 cards in a responsive grid with a thumbnail
   (200×120). Visual recognition is faster.
 
-Thumbnails are stored at `~/.cache/themeforge/thumbnails/<slug>.png`.
+Thumbnails are stored at `~/.cache/pcreative-studio/thumbnails/<slug>.png`.
 
 Sources of thumbnails (in priority order):
 
@@ -1153,7 +1153,7 @@ When clicked:
 1. Verifies `gh` is installed and authenticated. If not, prompts to
    install via paru/apt and run `gh auth login`.
 2. Calls `gh repo list` for your active user AND for the
-   organisation listed in `~/.config/themeforge/licensing.json`
+   organisation listed in `~/.config/pcreative-studio/licensing.json`
    (`github_org` field) if configured. Filters by repos whose name
    matches the project folder name (case-insensitive).
 3. Shows a dialog with:
@@ -1194,7 +1194,7 @@ The first time Pcreative Studio launches, if it doesn't find Pixel Office
 installed, it asks:
 
 > Pixel Office no está instalado. ¿Instalar ahora? (clones the repo
-> to `~/.local/share/themeforge/pixel-office-openclaw/`, runs npm
+> to `~/.local/share/pcreative-studio/pixel-office-openclaw/`, runs npm
 > install + npm run build. Takes ~1-2 min.)
 
 If you accept, Pcreative Studio installs and auto-launches `node server.js`
@@ -1266,7 +1266,7 @@ Changes apply **instantly without restart** — Qt repaints the
 entire widget tree.
 
 The active theme persists in
-`~/.config/themeforge/settings.json` under the `theme` key.
+`~/.config/pcreative-studio/settings.json` under the `theme` key.
 
 ### 17.2 Theme tokens — what each theme controls
 
@@ -1308,7 +1308,7 @@ opens a dialog with:
 Every edit re-applies the working ThemePack to the **entire app**
 on the fly — the app itself is the live preview. **💾 Guardar
 como…** prompts for a slug (auto-suggested from the name), writes
-the JSON to `~/.config/themeforge/themes/<slug>.json`, switches the
+the JSON to `~/.config/pcreative-studio/themes/<slug>.json`, switches the
 active theme, and refreshes the dropdown with the new entry tagged
 `(custom)`. **Cancelar** restores whatever was active when the
 dialog opened.
@@ -1402,7 +1402,7 @@ Themes live in two locations:
 - **Builtins** (read-only, shipped with Pcreative Studio):
   `themes/presets/*.json` inside the repo.
 - **User-installed** (read-write):
-  `~/.config/themeforge/themes/*.json`.
+  `~/.config/pcreative-studio/themes/*.json`.
 
 User themes **override** builtins with the same `name`, so you can
 customize Pcreative Studio Dark without forking the repo. Forward-
@@ -1420,7 +1420,7 @@ team.
 ### 17.7 Limitations
 
 - Typography tokens are not yet editable from the visual editor
-  (you can hand-edit the JSON in `~/.config/themeforge/themes/`).
+  (you can hand-edit the JSON in `~/.config/pcreative-studio/themes/`).
 - DTCG `typography` composite tokens (font family + size + weight in
   one) are parsed but not currently mapped to Pcreative Studio slots.
 - Motion / animation tokens are not yet implemented (Sprint 6).
@@ -1529,19 +1529,19 @@ your platform) and add:
 ```json
 {
   "mcpServers": {
-    "themeforge": {
+    "pcreative-studio": {
       "command": "python3",
-      "args": ["/home/<you>/Proyectos/themeforge/mcp_server.py"]
+      "args": ["/home/<you>/Proyectos/pcreative-studio/mcp_server.py"]
     }
   }
 }
 ```
 
-Restart `claude`. The 8 tools appear under `mcp__themeforge__*`.
+Restart `claude`. The 8 tools appear under `mcp__pcreative_studio__*`.
 
 #### Registering in Cursor
 
-`~/.cursor/mcp.json` uses the same JSON shape — drop the `themeforge`
+`~/.cursor/mcp.json` uses the same JSON shape — drop the `pcreative-studio`
 entry there and reload Cursor.
 
 #### Registering in Windsurf
@@ -1568,7 +1568,7 @@ MCP servers, selected based on the stack:
 | **fetch** (modelcontextprotocol) | MIT | Always — web content with HTML→md |
 | **memory** (modelcontextprotocol) | MIT | Always — knowledge-graph persistence |
 | **github** (official) | MIT | Always — issues / PRs / Actions |
-| **themeforge** | GPL-3.0 | Always — Pcreative Studio's own MCP |
+| **pcreative-studio** | GPL-3.0 | Always — Pcreative Studio's own MCP |
 | **playwright** (Microsoft official) | Apache-2.0 | Web frontend / WordPress / Shopify |
 | **chrome-devtools** (Google official) | Apache-2.0 | Web frontend / WordPress / Shopify |
 | **figma-context** (GLips) | MIT | Web frontend (design-driven) |
@@ -1598,7 +1598,7 @@ the catalog is a pure-Python edit — see the module docstring.
 4. On the first invocation of a tool, the client downloads the MCP
    via `npx` or `uvx` (cached afterwards) and launches it.
 5. The agent sees ~9 new tools available (playwright, chrome
-   devtools, github, themeforge, …) and uses them seamlessly.
+   devtools, github, pcreative-studio, …) and uses them seamlessly.
 
 #### Authentication
 
@@ -1636,7 +1636,7 @@ If you don't want `.mcp.json` written:
   before clicking Create.
 
 If you want to remove Pcreative Studio's MCP from your Claude Code config
-later, just delete the `themeforge` entry from
+later, just delete the `pcreative-studio` entry from
 `~/.claude.json` → `mcpServers`.
 
 ---
@@ -1661,7 +1661,7 @@ The gateway lives at the repo root (`api_gateway.py`) and is a
 standard FastAPI app served with `uvicorn`:
 
 ```bash
-cd ~/Proyectos/themeforge
+cd ~/Proyectos/pcreative-studio
 uvicorn api_gateway:app --host 0.0.0.0 --port 8765
 ```
 
@@ -1674,13 +1674,13 @@ Every request is authenticated with a **bearer token**. The gateway
 resolves it in this order:
 
 1. The `PCREATIVE STUDIO_API_TOKEN` environment variable, if set.
-2. Otherwise `~/.config/themeforge/api_token.txt`.
+2. Otherwise `~/.config/pcreative-studio/api_token.txt`.
 3. If neither exists, the gateway **generates a random token on first
-   start**, writes it to `~/.config/themeforge/api_token.txt` and
+   start**, writes it to `~/.config/pcreative-studio/api_token.txt` and
    prints it once to the console:
 
    ```
-   [gateway] token generado → ~/.config/themeforge/api_token.txt
+   [gateway] token generado → ~/.config/pcreative-studio/api_token.txt
    [gateway] PCREATIVE STUDIO_API_TOKEN=<the-token>
    ```
 
@@ -1752,15 +1752,15 @@ To enable it:
 
 1. **Server:** download the **service-account JSON** from your own
    Firebase project and place it at
-   `~/.config/themeforge/fcm-service-account.json` (or point
+   `~/.config/pcreative-studio/fcm-service-account.json` (or point
    `GOOGLE_APPLICATION_CREDENTIALS` at it). The service-account
    credentials are **never committed to the repo** — they're your
-   private Firebase keys, kept only in `~/.config/themeforge/`. Check
+   private Firebase keys, kept only in `~/.config/pcreative-studio/`. Check
    it's wired with `GET /push/status`.
 2. **App:** on launch the Capacitor app requests notification
    permission, obtains its device token and registers it with
    `POST /push/register`. Device tokens are stored locally in
-   `~/.config/themeforge/push_tokens.json`.
+   `~/.config/pcreative-studio/push_tokens.json`.
 3. **Test:** `POST /push/test` should deliver a push to the
    registered device(s).
 
@@ -1801,7 +1801,7 @@ creation form. Optional sub-checkboxes:
   a template that doesn't have them yet.
 
 The checkbox is auto-ticked if the project name matches one of the
-slugs in `~/.config/themeforge/known-product-slugs.txt`.
+slugs in `~/.config/pcreative-studio/known-product-slugs.txt`.
 
 ### What gets dropped per stack family
 
@@ -1819,7 +1819,7 @@ The verify-license URL, the panel base URL, and other host-specific
 values are NOT hardcoded in the templates. They use placeholders
 (`__LICENSE_API_URL__`, `__LICENSE_HOST__`, `__LICENSE_HOST_BARE__`,
 `__ORG_ID__`) which `licensing_scaffold.py` substitutes at scaffold
-time from `~/.config/themeforge/licensing.json`. If the config file
+time from `~/.config/pcreative-studio/licensing.json`. If the config file
 doesn't exist, placeholders (e.g. `https://YOUR_DOMAIN/...`) are
 emitted instead.
 
@@ -1864,7 +1864,7 @@ Paddle MoR, Gumroad license verify, or your own PHP/Node endpoint.
 
 ## 22. Configuration files
 
-Under `~/.config/themeforge/`:
+Under `~/.config/pcreative-studio/`:
 
 | File | Purpose | Permissions |
 |---|---|---|
@@ -1883,22 +1883,22 @@ Pcreative Studio also persists state outside `~/.config/`:
 | `~/Proyectos/themes/` | All active projects you've created with Pcreative Studio. |
 | `~/Proyectos/themes-archive/` | Projects archived from the gallery (§11). Reversible. |
 | `~/Proyectos/themes-builds/` | Marketplace ZIPs produced by **📦 ZIP** in ProjectWindow (§10). |
-| `~/.cache/themeforge/thumbnails/<slug>.png` | Card-view thumbnails for the gallery (200×120). Generated from screenshots or as placeholders. Safe to delete — they regenerate. |
-| `~/.local/share/themeforge/pixel-office-openclaw/` | Auto-installed Pixel Office visualizer (§13). |
+| `~/.cache/pcreative-studio/thumbnails/<slug>.png` | Card-view thumbnails for the gallery (200×120). Generated from screenshots or as placeholders. Safe to delete — they regenerate. |
+| `~/.local/share/pcreative-studio/pixel-office-openclaw/` | Auto-installed Pixel Office visualizer (§13). |
 
 ### Context override pattern
 
 When Pcreative Studio generates a new project, it copies context MDs to
 `<project>/context/`. Discovery is dynamic:
 
-1. Each `*.md` under `~/.config/themeforge/context-private/`.
+1. Each `*.md` under `~/.config/pcreative-studio/context-private/`.
 2. Each `*.md` and `*.template.md` under `<repo>/context/` whose stem
    doesn't already exist in (1).
 
 Templates have a `.template.md` suffix; their `.template` is stripped
 on copy. This means you can ship public neutral stubs in the repo
 (`MARKET-RESEARCH.template.md`) while injecting your real research
-(`~/.config/themeforge/context-private/MARKET-RESEARCH.md`) into every
+(`~/.config/pcreative-studio/context-private/MARKET-RESEARCH.md`) into every
 project you build locally.
 
 The public stubs in `context/` are intentionally neutral — no product
@@ -1938,7 +1938,7 @@ instead. The native browser handles the page natively.
 The auto-detect checks two paths:
 
 ```
-~/.local/share/themeforge/pixel-office-openclaw/
+~/.local/share/pcreative-studio/pixel-office-openclaw/
 ~/Proyectos/pixel-office-openclaw/
 ```
 
@@ -2061,10 +2061,10 @@ Add to `~/.hermes/config.yaml` so Hermes can call Pcreative Studio:
 
 ```yaml
 mcp_servers:
-  themeforge:
+  pcreative-studio:
     command: python3
     args:
-      - /home/<you>/Proyectos/themeforge/mcp_server.py
+      - /home/<you>/Proyectos/pcreative-studio/mcp_server.py
     env:
       QT_QPA_PLATFORM: offscreen
 ```
@@ -2072,18 +2072,18 @@ mcp_servers:
 Verify the bridge:
 
 ```bash
-hermes -z "Use the themeforge MCP list_stacks tool; reply with only the count."
+hermes -z "Use the pcreative-studio MCP list_stacks tool; reply with only the count."
 # → e.g. 62
 ```
 
 ### 24.5 The Operator skill
 
 The orchestration logic lives in a Hermes skill at
-`~/.hermes/skills/themeforge/themeforge-operator/SKILL.md` (it ships with the
+`~/.hermes/skills/pcreative-studio/pcreative-studio-operator/SKILL.md` (it ships with the
 Operator setup). It teaches Hermes the workflow (plan → create/continue → build →
 QA loop → package), how to assign a **distinct UI/UX Pro Max style+palette per
 variant**, when to spawn **parallel subagents** (`delegate_task`), and how to
-**learn** (see 23.8). Load it with `-s themeforge-operator`.
+**learn** (see 23.8). Load it with `-s pcreative-studio-operator`.
 
 ### 24.6 Using it — three entry points
 
@@ -2108,9 +2108,9 @@ and pass preflight”*.
 **C) Terminal.**
 ```bash
 # interactive (you can watch and stop with Ctrl+C)
-hermes -s themeforge-operator
+hermes -s pcreative-studio-operator
 # one-shot
-hermes chat -q "Build ONE Envato-ready ... " -s themeforge-operator
+hermes chat -q "Build ONE Envato-ready ... " -s pcreative-studio-operator
 ```
 
 ### 24.7 What a mission does
@@ -2151,7 +2151,7 @@ token, scope: read). See §19 (MCP servers).
 
 - **No Operator tab / buttons:** Hermes isn't installed (it's optional). Install it
   (23.2) and restart Pcreative Studio.
-- **`list_stacks` count not returned / MCP errors:** the `themeforge` MCP isn't
+- **`list_stacks` count not returned / MCP errors:** the `pcreative-studio` MCP isn't
   registered or `python3` lacks deps. Check `~/.hermes/config.yaml` (23.4) and that
   `python3 mcp_server.py` runs.
 - **Build fails immediately:** the build agent (e.g. `codex`) isn't authenticated.
@@ -2251,7 +2251,7 @@ If you hit a bug:
 
 1. Check §23 (Troubleshooting) first.
 2. Run Pcreative Studio from a terminal so you can capture stack traces:
-   `python3 ~/Proyectos/themeforge/themeforge.py`.
+   `python3 ~/Proyectos/pcreative-studio/pcreative_studio.py`.
 3. Report at the repo's Issues tracker including:
    - Distro + kernel (`uname -a`).
    - Python version, PyQt6 version (`pip show pyqt6`).

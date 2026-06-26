@@ -25,7 +25,7 @@ intent, focus on the technical problem.
    - The mode (scratch / recreate / adopt / existing) and the stack.
    - Steps to reproduce, expected, actual.
    - Relevant log output. Pcreative Studio prints to stderr; run it from
-     a terminal: `python3 themeforge.py` so you capture tracebacks.
+     a terminal: `python3 pcreative_studio.py` so you capture tracebacks.
 
 Sensitive data — API keys, license tokens — should NEVER be pasted
 into an issue. Pcreative Studio's stderr redactor strips known key patterns
@@ -37,20 +37,20 @@ double-check before sharing.
 ### Setup
 
 1. **Fork the repo** on GitHub:
-   <https://github.com/pcreativedev/themeforge/fork>
+   <https://github.com/pcreativedev/pcreative-studio/fork>
 2. **Clone your fork** and add `upstream` so you can pull future
    updates without going through your fork:
 
    ```bash
    # Replace YOUR-USER with your GitHub username
-   git clone https://github.com/YOUR-USER/themeforge.git
-   cd themeforge
-   git remote add upstream https://github.com/pcreativedev/themeforge.git
+   git clone https://github.com/YOUR-USER/pcreative_studio.git
+   cd pcreative-studio
+   git remote add upstream https://github.com/pcreativedev/pcreative-studio.git
 
    # Verify
    git remote -v
-   # origin    git@github.com:YOUR-USER/themeforge.git (fetch/push)
-   # upstream  https://github.com/pcreativedev/themeforge.git (fetch/push)
+   # origin    git@github.com:YOUR-USER/pcreative_studio.git (fetch/push)
+   # upstream  https://github.com/pcreativedev/pcreative-studio.git (fetch/push)
    ```
 3. **Install dependencies.** PyQt6 from distro packages tends to be
    easier than via pip due to the bundled Qt libraries:
@@ -74,15 +74,15 @@ double-check before sharing.
    git checkout -b feat/your-change
    ```
 5. **Push to your fork and open a PR** against
-   `pcreativedev/themeforge:main`:
+   `pcreativedev/pcreative-studio:main`:
 
    ```bash
    git push origin feat/your-change
-   # Then open: https://github.com/pcreativedev/themeforge/compare/main...YOUR-USER:feat/your-change
+   # Then open: https://github.com/pcreativedev/pcreative-studio/compare/main...YOUR-USER:feat/your-change
    ```
    Or with the GitHub CLI:
    ```bash
-   gh pr create --repo pcreativedev/themeforge --base main --fill
+   gh pr create --repo pcreativedev/pcreative-studio --base main --fill
    ```
 
 ### Branch naming

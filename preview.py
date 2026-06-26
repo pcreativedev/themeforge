@@ -415,7 +415,7 @@ def detect_preview_profile(project_path: Path) -> PreviewProfile | None:
     """Heurística → devuelve cómo levantar y dónde ver el preview."""
     # WordPress provisionado por Pcreative Studio en Docker → preview directo al
     # contenedor, sin dev server (no_server). La URL/puerto vienen de
-    # ~/.config/themeforge/wp_provisions.json (keyed por slug = nombre de dir).
+    # ~/.config/pcreative-studio/wp_provisions.json (keyed por slug = nombre de dir).
     try:
         from wp_provisioner import get_provision
         _wp = get_provision(project_path.name)

@@ -1,7 +1,7 @@
 /* ================= NEO-TOKYO · Project Window ================= */
 
 const TERM_SCRIPT = [
-  { t: 'cmd', s: '$ themeforge agent --provider claude --task "build hero + features"' },
+  { t: 'cmd', s: '$ pcreative-studio agent --provider claude --task "build hero + features"' },
   { t: 'sys', s: '✳ Claude Code · session forge-7f2a · model claude-sonnet-4.5' },
   { t: 'out', s: '⟳ reading CLAUDE.md … context loaded (2.4k tokens)' },
   { t: 'out', s: '⟳ scaffolding app/(marketing)/page.tsx' },

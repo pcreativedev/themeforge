@@ -9,7 +9,7 @@ Sin dependencias pesadas: el access-token OAuth2 del service account se firma a
 mano con PyJWT (RS256) y se intercambia en oauth2.googleapis.com. Inerte hasta
 que configures el service account de Firebase:
   - GOOGLE_APPLICATION_CREDENTIALS=/ruta/fcm-service-account.json   (o)
-  - ~/.config/themeforge/fcm-service-account.json
+  - ~/.config/pcreative-studio/fcm-service-account.json
 """
 from __future__ import annotations
 
@@ -22,7 +22,7 @@ try:
     import platform_compat as pc
     _CFG = pc.app_config_dir()
 except Exception:
-    _CFG = Path.home() / ".config" / "themeforge"
+    _CFG = Path.home() / ".config" / "pcreative-studio"
 
 TOKENS_PATH = _CFG / "push_tokens.json"
 _SA_DEFAULT = _CFG / "fcm-service-account.json"

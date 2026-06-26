@@ -46,7 +46,7 @@ const NAV = [
 ];
 
 // Pantallas privadas de agencia (Leads/Generador/Catálogo): se cargan desde el
-// sidecar themeforge-kawaii-private.jsx (gitignore), que las auto-registra en
+// sidecar pcreative-studio-kawaii-private.jsx (gitignore), que las auto-registra en
 // window.TF_PRIVATE_SCREENS. En el repo OSS ese fichero no existe → array vacío.
 function privateNav() { return (typeof window !== 'undefined' && window.TF_PRIVATE_SCREENS) || []; }
 
@@ -56,7 +56,7 @@ const MCP_SERVERS = (typeof window !== 'undefined' && window.__TF_DATA__ && wind
   { id: 'fetch', label: 'fetch', always: true, em: '🌐', desc: 'HTTP / scraping' },
   { id: 'memory', label: 'memory', always: true, em: '🧠', desc: 'Memoria del agente' },
   { id: 'github', label: 'github', always: true, em: '🐙', desc: 'Repos · PRs · push' },
-  { id: 'themeforge', label: 'themeforge', always: true, em: '🌸', desc: '8 tools: create · zip · preflight…' },
+  { id: 'pcreative-studio', label: 'pcreative-studio', always: true, em: '🌸', desc: '8 tools: create · zip · preflight…' },
   { id: 'playwright', label: 'playwright', em: '🎭', desc: 'Navegador automatizado' },
   { id: 'figma', label: 'figma-context', em: '🎨', desc: 'Lee diseños de Figma' },
   { id: 'shopify', label: 'shopify-dev', em: '🛍️', desc: 'GraphQL Admin/Storefront' },
@@ -346,7 +346,7 @@ function NewProject({ onAnalyze, onLaunch }) {
       <div className="panelc" style={{ padding: '6px 20px 14px' }}>
         <KCheck label="✨ npx autoskills" sub="auto-instala skills del stack (a11y/SEO/design) en .claude/skills/" on={opts.autoskills} onToggle={() => tog('autoskills')} />
         <KCheck label="💎 UI/UX Pro Max" sub="shadcn/ui · Aceternity · Magic UI + sistema de diseño" on={opts.uipro} onToggle={() => tog('uipro')} />
-        <KCheck label="📡 Pre-configurar MCP servers" sub="genera .mcp.json (filesystem · github · playwright · figma · themeforge…)" on={opts.mcp} onToggle={() => tog('mcp')} />
+        <KCheck label="📡 Pre-configurar MCP servers" sub="genera .mcp.json (filesystem · github · playwright · figma · pcreative-studio…)" on={opts.mcp} onToggle={() => tog('mcp')} />
         <KCheck label="📚 Documentación" sub="documentation/ con guía de instalación + changelog" on={opts.docs} onToggle={() => tog('docs')} />
         <KCheck label="🐘 PostgreSQL en Docker" sub="contenedor postgres:17 + DATABASE_URL en .env (requiere Docker)" on={opts.postgres} onToggle={() => tog('postgres')} />
         <KCheck label="🔑 Licencias (pcreative anti-nulled)" sub="verify-license + setup wizard según la familia del stack" on={opts.licensing} onToggle={() => tog('licensing')} />
@@ -800,7 +800,7 @@ function KCronTab() {
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
         <input value={f.schedule} onChange={e => setF({ ...f, schedule: e.target.value })} placeholder="cuándo — every 1d · 30m · 0 9 * * 1-5" style={K_FLD} />
         <input value={f.name} onChange={e => setF({ ...f, name: e.target.value })} placeholder="nombre (opcional)" style={K_FLD} />
-        <input value={f.skill} onChange={e => setF({ ...f, skill: e.target.value })} placeholder="skill — ej: themeforge-operator" style={K_FLD} />
+        <input value={f.skill} onChange={e => setF({ ...f, skill: e.target.value })} placeholder="skill — ej: pcreative-studio-operator" style={K_FLD} />
         <select value={f.deliver} onChange={e => setF({ ...f, deliver: e.target.value })} style={K_FLD}>{['local', 'origin', 'telegram', 'discord', 'slack', 'email', 'all'].map(d => <option key={d} value={d}>{d}</option>)}</select>
       </div>
       <textarea value={f.prompt} onChange={e => setF({ ...f, prompt: e.target.value })} placeholder="tarea / prompt… ♡" style={{ ...K_FLD, width: '100%', minHeight: 70, marginTop: 10 }} />
@@ -884,8 +884,8 @@ function KAdvancedTab() {
     </KSec>
     <KSec title="Perfil y bundle 🎀">
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-        <button style={K_GBTN} onClick={() => run('hermes_profile_create')}>Crear perfil themeforge</button>
-        <button style={K_GBTN} onClick={() => run('hermes_bundle_create')}>Crear bundle /themeforge</button>
+        <button style={K_GBTN} onClick={() => run('hermes_profile_create')}>Crear perfil pcreative-studio</button>
+        <button style={K_GBTN} onClick={() => run('hermes_bundle_create')}>Crear bundle /pcreative-studio</button>
         <button style={K_GBTN} onClick={() => run('hermes_profile_list')}>Listar perfiles</button>
       </div>
     </KSec>
@@ -927,7 +927,7 @@ const HTABS_K = [
 ];
 
 /* ===================== Pantallas privadas de agencia (sidecar) =====================
- * Leads · Generador · Catálogo viven en themeforge-kawaii-private.jsx (gitignore)
+ * Leads · Generador · Catálogo viven en pcreative-studio-kawaii-private.jsx (gitignore)
  * y se auto-registran en window.TF_PRIVATE_SCREENS. El público no las contiene.
  */
 
@@ -969,7 +969,7 @@ function Operator() {
         <button className="btn" style={{ float: 'right', color: power ? 'var(--p3)' : 'var(--tx-dim)' }} onClick={() => setPower(p => !p)} disabled={!hs.available}>⏻ {power ? 'Hermes ON ♡' : 'Hermes OFF'}</button></h2>
       <div className="panelc" style={{ display: 'flex', gap: 16, alignItems: 'center', marginBottom: 14, fontSize: 13, fontWeight: 700, flexWrap: 'wrap' }}>
         {chip(hs.available, hs.available ? ('Hermes ' + (hs.version || '')) : 'Hermes no instalado')}
-        {chip(hs.mcp, hs.mcp ? 'MCP themeforge' : 'MCP sin registrar')}
+        {chip(hs.mcp, hs.mcp ? 'MCP pcreative-studio' : 'MCP sin registrar')}
         {chip(hs.provider || hs.model ? true : null, (hs.provider || hs.model) ? ((hs.provider || '?') + ' · ' + (hs.model || '?')) : 'modelo sin configurar')}
         <button className="btn" style={{ marginLeft: 'auto', padding: '4px 12px' }} onClick={refreshHs}>↻</button>
       </div>
@@ -1062,7 +1062,7 @@ function SysAndSetup() {
       </>}
       <h2 className="sec" style={{ margin: '26px 0 14px' }}>↗️ Atajos <span style={{ fontFamily: 'var(--jp)', fontSize: 14, color: 'var(--tx-dim)' }}>近道</span></h2>
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-        {[['themeforge', '📁 Carpeta Pcreative Studio'], ['context', '📚 context/'], ['stacks', '📝 Editar stacks.py']].map(([k, l]) => <button key={k} className="btn" onClick={() => call('open_shortcut', k)}>{l}</button>)}
+        {[['pcreative-studio', '📁 Carpeta Pcreative Studio'], ['context', '📚 context/'], ['stacks', '📝 Editar stacks.py']].map(([k, l]) => <button key={k} className="btn" onClick={() => call('open_shortcut', k)}>{l}</button>)}
       </div>
     </div>
   );
@@ -1111,7 +1111,7 @@ function Settings() {
             <button className="btn" style={{ padding: '6px 12px' }} onClick={() => { if (!(window.tfBridge && window.tfBridge.set_credential)) return; const v = prompt('Pega la ' + cr.label + ' (vacío para borrar):'); if (v === null) return; window.tfBridge.set_credential(cr.id, v).then(() => location.reload()); }}>✎ Editar</button>
           </div>
         ))}
-        <div style={{ fontSize: 11.5, marginTop: 12, color: 'var(--tx-dim)', fontWeight: 600 }}>Las claves se guardan en ~/.config/themeforge/keys.json (chmod 0600) · nunca en el proyecto. ♡</div>
+        <div style={{ fontSize: 11.5, marginTop: 12, color: 'var(--tx-dim)', fontWeight: 600 }}>Las claves se guardan en ~/.config/pcreative-studio/keys.json (chmod 0600) · nunca en el proyecto. ♡</div>
       </div>
 
       <h2 className="sec" style={{ margin: '26px 0 14px' }}>📡 MCP servers <span style={{ fontFamily: 'var(--jp)', fontSize: 14, color: 'var(--tx-dim)' }}>接続</span></h2>
@@ -1139,7 +1139,7 @@ function Settings() {
 
 /* ---- Project Window (preview + terminal kawaii) ---- */
 const TERM_K = [
-  { c: 'var(--accent)', s: '$ themeforge agent --task "build hero + features" ♡' },
+  { c: 'var(--accent)', s: '$ pcreative-studio agent --task "build hero + features" ♡' },
   { c: '#7fb8ff', s: '🩵 Claude-chan · session forge-7f2a' },
   { c: 'var(--tx-dim)', s: '⟳ leyendo CLAUDE.md … contexto cargado' },
   { c: '#7fd9a8', s: '✓ creado Hero.tsx (+148 −0) 🌸' },

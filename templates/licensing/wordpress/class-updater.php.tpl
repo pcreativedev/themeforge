@@ -136,7 +136,7 @@ class Updater
 
     private function cache_key(): string
     {
-        return 'themeforge_update_' . $this->product;
+        return 'pcreative_studio_update_' . $this->product;
     }
 
     private function host(): string

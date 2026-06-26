@@ -218,7 +218,7 @@ function SysAndSetup() {
       <div className="panel" style={{ padding: 20 }}>
         <div className="eyebrow" style={{ marginBottom: 12 }}>ATAJOS · 近道</div>
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-          {[['themeforge', 'folderOpen', 'Carpeta Pcreative Studio'], ['context', 'folderOpen', 'context/'], ['stacks', 'penTool', 'Editar stacks.py']].map(([k, ic, l]) => <Btn key={k} icon={ic} variant="ghost" onClick={() => call('open_shortcut', k)}>{l}</Btn>)}
+          {[['pcreative-studio', 'folderOpen', 'Carpeta Pcreative Studio'], ['context', 'folderOpen', 'context/'], ['stacks', 'penTool', 'Editar stacks.py']].map(([k, ic, l]) => <Btn key={k} icon={ic} variant="ghost" onClick={() => call('open_shortcut', k)}>{l}</Btn>)}
         </div>
       </div>
     </div>
@@ -338,7 +338,7 @@ function SettingsScreen() {
               }}>Editar</Btn>
             </div>
           ))}
-          <div className="faint" style={{ fontSize: 11.5, marginTop: 14 }}>Las claves se guardan en <span className="mono">~/.config/themeforge/keys.json</span> (chmod 0600) · nunca en el proyecto.</div>
+          <div className="faint" style={{ fontSize: 11.5, marginTop: 14 }}>Las claves se guardan en <span className="mono">~/.config/pcreative-studio/keys.json</span> (chmod 0600) · nunca en el proyecto.</div>
         </div>
       )}
 
@@ -424,7 +424,7 @@ function LicensingScreen() {
         <div className="panel" style={{ padding: 16, marginBottom: 18, display: 'flex', alignItems: 'center', gap: 14 }}>
           <span style={{ width: 9, height: 9, borderRadius: 99, background: st ? (st.configured ? (st.reachable ? 'var(--codex)' : 'var(--gemini)') : 'var(--tx-faint)') : 'var(--tx-faint)', boxShadow: st && st.reachable ? '0 0 8px var(--codex)' : 'none' }} />
           <span className="mono" style={{ fontSize: 12.5 }}>
-            {!st ? 'consultando…' : !st.configured ? 'Sin backend configurado — pon tu endpoint en ~/.config/themeforge/licensing.json (los usuarios de GitHub usan el suyo).'
+            {!st ? 'consultando…' : !st.configured ? 'Sin backend configurado — pon tu endpoint en ~/.config/pcreative-studio/licensing.json (los usuarios de GitHub usan el suyo).'
               : st.reachable ? ('Backend operativo · ' + (st.licenses ? st.licenses.length : 0) + ' licencias · ' + (st.products ? st.products.length : 0) + ' productos') : 'Configurado pero el backend no responde.'}
           </span>
           <div style={{ flex: 1 }} />

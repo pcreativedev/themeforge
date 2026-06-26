@@ -25,7 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **El motor de Pcreative Studio se puede usar desde el móvil.** Nuevo `api_gateway.py`
   (FastAPI) que expone el puente nativo como API remota (JSON-RPC + WebSocket para
   streaming + subida de ficheros), con autenticación por *bearer token* (variable
-  de entorno o fichero en `~/.config/themeforge`). Pensado para vivir detrás de una
+  de entorno o fichero en `~/.config/pcreative-studio`). Pensado para vivir detrás de una
   VPN/red privada, no expuesto crudo a internet.
 - **PWA + envoltorio Capacitor** (`webui/mobile/`, `mobile/`): instala Pcreative Studio
   como app en el teléfono. `webui/remote/tfbridge-remote.js` reimplementa
@@ -177,8 +177,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added — WordPress expansion
 
-- **5 WordPress stacks** in the selector: `wordpress-block` (FSE), `wordpress-bricks` (Bricks Builder child theme), `wordpress-elementor` (Hello Elementor child theme), `wordpress-divi`, `wordpress-breakdance`. Auto-installs the FREE plugin/theme pack per stack from WordPress.org via wp-cli, plus Novamira free from its official GitHub release (AGPL v3). Premium plugins/themes (Bricks, Elementor Pro, Divi, Breakdance Pro, JetEngine, Novamira Pro, ACF Pro, Motion.page, etc.) are referenced by name only — never bundled — and auto-install if and only if the user supplies a path in `~/.config/themeforge/wp_packs.json` (gitignored, local-only).
-- **Market analysis tab** ("Market" between Compare and Operator) — six AI-driven analyses via OpenRouter (Gemini 2.5 Pro by default + 7 alternative models): `🌍 Mercado 2026 (general)`, `📊 Análisis de stacks`, `🎯 Por nicho concreto`, `⚖️ Comparar 2 nichos`, `🏪 Por marketplace`, `🔮 Predicción 2027`. Output rendered as markdown, persistent history at `~/.config/themeforge/market_analyses/`, "🚀 Crear proyecto desde este análisis" button that feeds the analysis into a new scratch project's `CLAUDE.md`. Yellow banner if `OPENROUTER_API_KEY` is missing, with deep-link to Settings → Credentials.
+- **5 WordPress stacks** in the selector: `wordpress-block` (FSE), `wordpress-bricks` (Bricks Builder child theme), `wordpress-elementor` (Hello Elementor child theme), `wordpress-divi`, `wordpress-breakdance`. Auto-installs the FREE plugin/theme pack per stack from WordPress.org via wp-cli, plus Novamira free from its official GitHub release (AGPL v3). Premium plugins/themes (Bricks, Elementor Pro, Divi, Breakdance Pro, JetEngine, Novamira Pro, ACF Pro, Motion.page, etc.) are referenced by name only — never bundled — and auto-install if and only if the user supplies a path in `~/.config/pcreative-studio/wp_packs.json` (gitignored, local-only).
+- **Market analysis tab** ("Market" between Compare and Operator) — six AI-driven analyses via OpenRouter (Gemini 2.5 Pro by default + 7 alternative models): `🌍 Mercado 2026 (general)`, `📊 Análisis de stacks`, `🎯 Por nicho concreto`, `⚖️ Comparar 2 nichos`, `🏪 Por marketplace`, `🔮 Predicción 2027`. Output rendered as markdown, persistent history at `~/.config/pcreative-studio/market_analyses/`, "🚀 Crear proyecto desde este análisis" button that feeds the analysis into a new scratch project's `CLAUDE.md`. Yellow banner if `OPENROUTER_API_KEY` is missing, with deep-link to Settings → Credentials.
 - **5 gaming sub-niches** added to `TEMPLATE_NICHES`: indie game dev / pixel studio, mobile games, game assets / marketplace, game launcher / storefront, tournament / ladder platform.
 - **Legal hardening**: new `TRADEMARKS.md` (nominative fair use, ownership table, take-down channel), extended `NOTICE.md` with WordPress integration section (free auto-installed + premium referenced only, with AGPL Novamira clarification), `WORDPRESS-LEGAL.md` written into every WP project (free vs premium, marketplace rules, GPL obligations).
 
@@ -328,7 +328,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     `windows-latest` via GitHub Actions. Installs to `Program Files`
     (per-machine, UAC) like any normal app, with an entry in *Add/remove
     programs*, Start Menu + optional desktop shortcuts, App Paths registry
-    (launch `themeforge` from Win+R), and a clean uninstaller that keeps
+    (launch `pcreative-studio` from Win+R), and a clean uninstaller that keeps
     your config.
   - **Bundled Node.js + git (PortableGit)** inside the installer — no
     separate downloads or admin needed for the two heavy runtimes.
@@ -366,8 +366,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Cross-platform path handling.** All config/cache writes go through
   `platform_compat.app_config_dir()` / `app_cache_dir()` (→
-  `%APPDATA%/themeforge` on Windows, `~/Library/Application Support` on
-  macOS, `~/.config/themeforge` on Linux). Shell calls, process control
+  `%APPDATA%/pcreative-studio` on Windows, `~/Library/Application Support` on
+  macOS, `~/.config/pcreative-studio` on Linux). Shell calls, process control
   and `chmod` now route through cross-platform helpers.
 - All file I/O uses explicit `encoding="utf-8"` (Windows defaulted to
   cp1252 and choked on emoji-rich files like `CLAUDE.md`).
@@ -400,7 +400,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
   Catalog (license-verified at curation time):
     - **Universal (any stack):** filesystem (MIT), fetch (MIT),
-      memory (MIT), github (MIT), themeforge (GPL-3.0).
+      memory (MIT), github (MIT), pcreative-studio (GPL-3.0).
     - **Web frontend / CMS:** playwright (Apache-2.0), chrome-devtools
       (Apache-2.0), figma-context (MIT), browsermcp (Apache-2.0).
     - **Shopify:** Shopify/dev-mcp (official).
@@ -510,7 +510,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   The whole app re-paints on every edit because the dialog calls
   `apply_theme()` after each change — there's no separate preview
   pane, the app itself IS the preview. **💾 Guardar como…** writes
-  the working pack to `~/.config/themeforge/themes/<slug>.json` and
+  the working pack to `~/.config/pcreative-studio/themes/<slug>.json` and
   switches the active theme to the new custom. **Cancelar** restores
   the theme that was active when the dialog opened.
 - **🎨 App theme system Sprint 3 — Lucide iconography.** Tabs of the
@@ -564,10 +564,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Tokyo Night** — deep blues with neon accents.
   Each theme is ~20 lines of JSON exposing color, typography,
   spacing and shape tokens. User themes go in
-  `~/.config/themeforge/themes/*.json` and override builtins with
+  `~/.config/pcreative-studio/themes/*.json` and override builtins with
   the same name. Theme picker in Settings → 🎨 Tema de la app, with
   instant hot-reload (no restart). Selection persists in
-  `~/.config/themeforge/settings.json`. Architecture inspired by
+  `~/.config/pcreative-studio/settings.json`. Architecture inspired by
   qt-material + PyQtDarkTheme but written from scratch to give full
   control over future component-variant + motion + effects layers
   (deferred to later sprints).
@@ -618,11 +618,11 @@ Initial public release.
 
 - **Gallery: card view with thumbnails.** Toggle between dense list
   and 220×190 cards with project thumbnails (200×120). Thumbnails are
-  cached at `~/.cache/themeforge/thumbnails/<slug>.png` and generated
+  cached at `~/.cache/pcreative-studio/thumbnails/<slug>.png` and generated
   either from screenshots captured with 📸 or as branded placeholders
   (vertical gradient with stack colour + project initials).
 - **Gallery: custom tags per project.** Edit with **🏷️ Tags…**.
-  Stored in `~/.config/themeforge/projects-meta.json`. Filter the
+  Stored in `~/.config/pcreative-studio/projects-meta.json`. Filter the
   gallery with `tag:<name>` in the search bar (chainable:
   `tag:venta tag:aurora`).
 - **Gallery: last AI session indicator.** Each project row shows the
@@ -649,7 +649,7 @@ Initial public release.
   documentation/, screenshots/, source/. Output:
   `~/Proyectos/themes-builds/<slug>-<ts>.zip`.
 - **Plugin system.** User-defined plugins at
-  `~/.config/themeforge/plugins/*.py` can register custom stacks,
+  `~/.config/pcreative-studio/plugins/*.py` can register custom stacks,
   template types and AI agents without forking. Files starting with
   `_` are ignored (convention for disabled). Examples shipped in
   `examples/plugins/`.
@@ -677,7 +677,7 @@ Initial public release.
   from a single PyInstaller bundle on every tagged release:
   AppImage (universal), `.deb` (Debian/Ubuntu) and `.rpm`
   (Fedora/RHEL/openSUSE) — all via `fpm`. PKGBUILDs for AUR
-  (`packaging/aur/themeforge` stable + `themeforge-git` git tip)
+  (`packaging/aur/pcreative-studio` stable + `pcreative-studio-git` git tip)
   to publish to the Arch User Repository. Local build script:
   `scripts/build-linux-appimage.sh`.
 - **🖥️ Cross-platform refactor + macOS alpha.** New
@@ -691,7 +691,7 @@ Initial public release.
   required for distribution as alpha (Gatekeeper warning expected
   on first launch). Local build script: `scripts/build-macos.sh`.
 - **🎨 App icon + desktop launcher.** Pcreative Studio ships an app icon in
-  `assets/themeforge.png` (anvil + hammer + code/screens — branded for
+  `assets/pcreative-studio.png` (anvil + hammer + code/screens — branded for
   the project) plus pre-rendered sizes (16/32/48/64/128/256). The icon
   is loaded at startup and propagates to titlebar / taskbar / alt-tab
   / dock. A `scripts/install-desktop-entry.sh` script installs a
@@ -732,7 +732,7 @@ Initial public release.
 - Multi-stack mono-repo detection with sub-project dropdown.
 - Stderr secret redactor (sk-…, gho_…, AIza…, glpat-…) so AI keys
   never reach the log panel.
-- Context override system: `~/.config/themeforge/context-private/`
+- Context override system: `~/.config/pcreative-studio/context-private/`
   takes precedence over the repo's `context/` so per-user private
   research / strategy can be injected into every project without
   touching the repo.

@@ -14,7 +14,7 @@ Two-tab interface:
 The mapping table is fully editable: the user can re-target a row
 to a different Pcreative Studio slot, edit the hex value, or uncheck rows
 to exclude them. Save writes the resulting ThemePack to
-`~/.config/themeforge/themes/<slug>.json` and switches the active
+`~/.config/pcreative-studio/themes/<slug>.json` and switches the active
 theme.
 """
 from __future__ import annotations

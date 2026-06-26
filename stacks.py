@@ -93,7 +93,7 @@ STACKS = {
         "min_version": "WordPress 6.7+ / PHP 8.0",
         "skills": ["wordpress/skills/block-theme-development"],
         "ux_pack": "fse",
-        "notes": "Block theme moderno (theme.json v3 + FSE). Pack UX «FSE Pro»: Pcreative Studio auto-instala GenerateBlocks, Spectra, ACF, Pods y Royal MCP (todos gratis). Premium opcionales (GenerateBlocks Pro, ACF Pro, Motion.page) si los declaras en ~/.config/themeforge/wp_packs.json (gitignored). El agente opera WP con wp-cli vía ./wp.",
+        "notes": "Block theme moderno (theme.json v3 + FSE). Pack UX «FSE Pro»: Pcreative Studio auto-instala GenerateBlocks, Spectra, ACF, Pods y Royal MCP (todos gratis). Premium opcionales (GenerateBlocks Pro, ACF Pro, Motion.page) si los declaras en ~/.config/pcreative-studio/wp_packs.json (gitignored). El agente opera WP con wp-cli vía ./wp.",
     },
     "wordpress-bricks": {
         "name": "WordPress (Bricks Child Theme)",
@@ -157,7 +157,7 @@ STACKS = {
         "min_version": "WordPress 6.7+ / PHP 8.0 / Bricks Builder (licencia aparte)",
         "skills": ["wordpress/skills/block-theme-development"],
         "ux_pack": "bricks",
-        "notes": "Child theme de Bricks Builder. Pack UX «Bricks»: Pcreative Studio auto-instala los gratis (GreenShift, ACF, Pods, Royal MCP). Premium (Bricks parent theme, Bricksforge, JetEngine, Novamira Pro, Motion.page) requieren licencia y se autoinstalan si los declaras en ~/.config/themeforge/wp_packs.json (gitignored, NUNCA al repo). Sin la licencia de Bricks, sube bricks.zip a mano y activa el child theme luego.",
+        "notes": "Child theme de Bricks Builder. Pack UX «Bricks»: Pcreative Studio auto-instala los gratis (GreenShift, ACF, Pods, Royal MCP). Premium (Bricks parent theme, Bricksforge, JetEngine, Novamira Pro, Motion.page) requieren licencia y se autoinstalan si los declaras en ~/.config/pcreative-studio/wp_packs.json (gitignored, NUNCA al repo). Sin la licencia de Bricks, sube bricks.zip a mano y activa el child theme luego.",
     },
     "wordpress-elementor": {
         "name": "WordPress (Elementor Child Theme)",
@@ -346,7 +346,7 @@ STACKS = {
             # ── 3. composer.json con PSR-4 autoload ──────────────────
             'cat > composer.json <<\'PCREATIVE STUDIO_EOF\'\n'
             '{\n'
-            '  "name": "themeforge/__SLUG__",\n'
+            '  "name": "pcreative-studio/__SLUG__",\n'
             '  "description": "__PROJECT__ — WordPress plugin",\n'
             '  "type": "wordpress-plugin",\n'
             '  "license": "GPL-2.0-or-later",\n'
@@ -2122,7 +2122,7 @@ STACKS = {
         "language": "PHP + Smarty",
         "scaffold": [
             "echo '→ Provisionando PrestaShop 9 con Docker (MariaDB + PrestaShop, locale ES)…'",
-            "TF_PORT=$(python3 -c \"import json,os;d=json.load(open(os.path.expanduser('~/.config/themeforge/ports.json')));print((d.get('__SLUG__') or {}).get('port') or 8080)\" 2>/dev/null || echo 8080)",
+            "TF_PORT=$(python3 -c \"import json,os;d=json.load(open(os.path.expanduser('~/.config/pcreative-studio/ports.json')));print((d.get('__SLUG__') or {}).get('port') or 8080)\" 2>/dev/null || echo 8080)",
             "echo \"→ Puerto asignado: $TF_PORT\"",
             "mkdir -p themes/__SLUG__/config themes/__SLUG__/assets/css themes/__SLUG__/assets/js themes/__SLUG__/assets/img themes/__SLUG__/templates themes/__SLUG__/modules themes/__SLUG__/_dev",
             'cat > themes/__SLUG__/config/theme.yml <<\'PCREATIVE STUDIO_EOF\'\n'

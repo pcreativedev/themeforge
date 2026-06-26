@@ -59,7 +59,7 @@ function Atmosphere() {
 /* Boot sequence overlay */
 function BootSequence({ onDone }) {
   const lines = [
-    '> themeforge.core // 鍛造エンジン',
+    '> pcreative_studio.core // 鍛造エンジン',
     '> mounting neon kernel ............ OK',
     '> loading agents [claude·codex·gemini·opencode] .. OK',
     '> calibrating glow matrix ......... OK',

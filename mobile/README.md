@@ -33,7 +33,7 @@ npm run ios                  # sync + abre Xcode → Run
 
 ## Push "build terminado" (FCM)
 1. **Servidor:** descarga el *service account* JSON de tu proyecto Firebase y
-   ponlo en `~/.config/themeforge/fcm-service-account.json` (o exporta
+   ponlo en `~/.config/pcreative-studio/fcm-service-account.json` (o exporta
    `GOOGLE_APPLICATION_CREDENTIALS`). Comprueba: `GET /push/status`.
 2. **App:** al abrir, `native.js` pide permiso, registra el token y lo manda a
    `POST /push/register`.
@@ -50,4 +50,4 @@ sin reempaquetar.
 - `www/` — generado por `npm run sync-web` (copia `webui/mobile` + el shim
   `webui/remote/tfbridge-remote.js` + `native.js`). **No se commitea.**
 - `native.js` — registro de push (solo activo en nativo).
-- `capacitor.config.ts` — appId `dev.pcreative.themeforge`, webDir `www`.
+- `capacitor.config.ts` — appId `dev.pcreative.pcreative-studio`, webDir `www`.

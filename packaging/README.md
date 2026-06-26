@@ -11,8 +11,8 @@ Two PKGBUILDs — pick one when uploading to AUR:
 
 | Package | Source | Audience |
 |---|---|---|
-| [`aur/themeforge`](aur/themeforge/PKGBUILD) | Tagged release tarball | Most users — installs the latest stable version |
-| [`aur/themeforge-git`](aur/themeforge-git/PKGBUILD) | Git tip | Bleeding edge — installs whatever's on `main` |
+| [`aur/pcreative-studio`](aur/pcreative-studio/PKGBUILD) | Tagged release tarball | Most users — installs the latest stable version |
+| [`aur/pcreative-studio-git`](aur/pcreative-studio-git/PKGBUILD) | Git tip | Bleeding edge — installs whatever's on `main` |
 
 ### Publishing to AUR
 
@@ -20,14 +20,14 @@ Prerequisites:
 
 - AUR account at <https://aur.archlinux.org/> with your SSH key
   registered.
-- A local clone of the AUR repo: `git clone ssh://aur@aur.archlinux.org/themeforge.git`
-  (or `themeforge-git`).
+- A local clone of the AUR repo: `git clone ssh://aur@aur.archlinux.org/pcreative_studio.git`
+  (or `pcreative-studio-git`).
 
 Steps (stable version, after tagging `v0.1.0`):
 
 ```bash
 # 1. Update version + hash
-cd packaging/aur/themeforge
+cd packaging/aur/pcreative-studio
 # Edit PKGBUILD: bump pkgver to match the git tag
 updpkgsums              # recomputes sha256sums from the source
 
@@ -35,8 +35,8 @@ updpkgsums              # recomputes sha256sums from the source
 makepkg -si
 
 # 3. Copy into your AUR clone and push
-cp PKGBUILD ~/aur-clones/themeforge/
-cd ~/aur-clones/themeforge/
+cp PKGBUILD ~/aur-clones/pcreative-studio/
+cd ~/aur-clones/pcreative-studio/
 makepkg --printsrcinfo > .SRCINFO
 git add PKGBUILD .SRCINFO
 git commit -m "0.1.0-1"
@@ -52,7 +52,7 @@ metadata (deps, build steps).
 If you just want to install on your own machine:
 
 ```bash
-cd packaging/aur/themeforge-git
+cd packaging/aur/pcreative-studio-git
 makepkg -si
 ```
 

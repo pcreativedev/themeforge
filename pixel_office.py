@@ -25,7 +25,7 @@ import subprocess
 from pathlib import Path
 
 HOME = Path.home()
-INSTALL_DIR = HOME / ".local" / "share" / "themeforge" / "pixel-office-openclaw"
+INSTALL_DIR = HOME / ".local" / "share" / "pcreative-studio" / "pixel-office-openclaw"
 REPO_URL = "https://github.com/pcreativedev/pixel-office-openclaw.git"
 DASHBOARD_PORT = 3002
 DASHBOARD_URL = f"http://localhost:{DASHBOARD_PORT}/"

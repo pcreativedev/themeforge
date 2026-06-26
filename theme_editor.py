@@ -4,7 +4,7 @@ change, so the whole app becomes the preview.
 
 Cancel restores the theme that was active when the dialog opened.
 Save asks for a slug and writes the JSON to
-`~/.config/themeforge/themes/<slug>.json`, then emits
+`~/.config/pcreative-studio/themes/<slug>.json`, then emits
 `theme_signals.theme_changed` so the Settings dropdown refreshes.
 """
 from __future__ import annotations
@@ -211,7 +211,7 @@ class _NumericSlider(QWidget):
 class ThemeEditorDialog(QDialog):
     """Visual editor for a ThemePack. Mutates a working copy and
     applies changes to the QApplication on every edit. Save persists
-    to ~/.config/themeforge/themes/<slug>.json; Cancel restores the
+    to ~/.config/pcreative-studio/themes/<slug>.json; Cancel restores the
     theme that was active when the dialog opened."""
 
     def __init__(self, parent=None):

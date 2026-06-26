@@ -8,7 +8,7 @@ professional level out of the gate.
 
 > All third-party WordPress tooling is downloaded from official sources
 > (WordPress.org for free items, the project's own GitHub release for
-> Novamira free, the user's `~/.config/themeforge/wp_packs.json` for
+> Novamira free, the user's `~/.config/pcreative-studio/wp_packs.json` for
 > premium). **Nothing is bundled in this repository.** See
 > [`NOTICE.md`](../NOTICE.md) and [`TRADEMARKS.md`](../TRADEMARKS.md) for
 > the legal layer.
@@ -48,12 +48,12 @@ professional level out of the gate.
 
 Pcreative Studio invokes `wp_provisioner.py`, which:
 
-1. **Starts a dedicated Docker network** (`themeforge-wpnet-<slug>`) so
+1. **Starts a dedicated Docker network** (`pcreative-studio-wpnet-<slug>`) so
    each project is isolated.
-2. **Spins up MariaDB** (`themeforge-wpdb-<slug>`) with a random password
+2. **Spins up MariaDB** (`pcreative-studio-wpdb-<slug>`) with a random password
    on a persisted volume.
-3. **Spins up WordPress** (`themeforge-wp-<slug>`) on a free local port
-   (`127.0.0.1:809x`), mounted as a writable volume `themeforge-wp-<slug>-html`,
+3. **Spins up WordPress** (`pcreative-studio-wp-<slug>`) on a free local port
+   (`127.0.0.1:809x`), mounted as a writable volume `pcreative-studio-wp-<slug>-html`,
    plus your project folder bind-mounted to
    `wp-content/themes/<slug>` (or `wp-content/plugins/<slug>` for the
    plugin stack).
@@ -61,7 +61,7 @@ Pcreative Studio invokes `wp_provisioner.py`, which:
    sets pretty permalinks (`/%postname%/`), installs and activates the
    official **Automattic `wordpress-mcp` plugin**, generates an
    **Application Password** for the MCP bridge.
-5. **Installs the `themeforge-autologin` mu-plugin**: when you visit the
+5. **Installs the `pcreative-studio-autologin` mu-plugin**: when you visit the
    preview URL from `localhost`, you land in the WordPress dashboard
    already logged in as admin. Skipped for REST / XML-RPC / cron / AJAX
    / CLI requests so it doesn't break MCPs or wp-cron.
@@ -70,7 +70,7 @@ Pcreative Studio invokes `wp_provisioner.py`, which:
    install`, with sources `WordPress.org` for the slug-based ones and
    `https://github.com/use-novamira/novamira/releases/latest/download/...`
    for Novamira (resolved via the GitHub public API, no auth, AGPL v3).
-7. **Installs the premium pack** if `~/.config/themeforge/wp_packs.json`
+7. **Installs the premium pack** if `~/.config/pcreative-studio/wp_packs.json`
    has matching `zip:` paths (see §3).
 8. **Activates the child theme** (`bricks` / `elementor` / `divi` /
    `breakdance` packs) once the parent theme is in place. The FSE pack
@@ -101,7 +101,7 @@ and UID. Use it like the regular CLI:
 
 Pcreative Studio auto-installs every **free** WordPress plugin/theme from its
 official source. To extend a stack with **premium** items you have a
-license for, declare them in **`~/.config/themeforge/wp_packs.json`**
+license for, declare them in **`~/.config/pcreative-studio/wp_packs.json`**
 (this file lives in your `$HOME`, **never** in the repo). The schema
 mirrors the five stacks:
 
@@ -223,7 +223,7 @@ one-step wiring on your side (they use API keys generated inside
 ## 5. What the AI knows (the `CLAUDE.md` brain)
 
 Each WordPress stack injects a per-stack context block
-(`_WP_BUILDER_CONTEXT` in `themeforge.py`) plus a common WordPress dev
+(`_WP_BUILDER_CONTEXT` in `pcreative_studio.py`) plus a common WordPress dev
 environment block that lists:
 
 - The container URL, admin credentials, and the autologin behaviour.

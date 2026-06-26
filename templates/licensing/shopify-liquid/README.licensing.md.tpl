@@ -99,5 +99,5 @@ Replace these placeholders in `assets/pcreative-license.js`:
 - `__LICENSE_ISSUER__` — your issuer domain.
 
 For local dev with Pcreative Studio, these come from
-`~/.config/themeforge/licensing.json` automatically. For the public
+`~/.config/pcreative-studio/licensing.json` automatically. For the public
 release, the user replaces them with their own backend.

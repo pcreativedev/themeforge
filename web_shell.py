@@ -101,7 +101,7 @@ _LANG_SHORT = {
 _THEME_JP = {
     "neotokyo": "ネオ東京", "tokyo-night": "東京夜", "dracula": "吸血鬼",
     "nord": "北", "linear": "線形", "brutalism": "粗野", "soft-ui": "柔",
-    "themeforge-dark": "暗", "themeforge-light": "明",
+    "pcreative-studio-dark": "暗", "pcreative-studio-light": "明",
 }
 
 
@@ -134,7 +134,7 @@ def _stacks_data() -> list:
 
 def _projects_data(archived: bool = False) -> list:
     try:
-        from themeforge import list_projects, load_favorites, load_projects_meta
+        from pcreative_studio import list_projects, load_favorites, load_projects_meta
         rows = list_projects(archived=archived)
     except Exception:
         return []
@@ -364,7 +364,7 @@ def _cost_data() -> dict:
     }
 
 
-_ALWAYS_MCP = {"filesystem", "fetch", "memory", "github", "themeforge"}
+_ALWAYS_MCP = {"filesystem", "fetch", "memory", "github", "pcreative-studio"}
 
 
 def _mcp_data() -> list:
@@ -760,7 +760,7 @@ class PcreativeStudioBridge(QObject):
 
     @pyqtSlot(str, result=str)
     def start_hermes(self, path: str) -> str:
-        """Pestaña «Hermes»: corre `hermes -s themeforge-operator` interactivo en
+        """Pestaña «Hermes»: corre `hermes -s pcreative-studio-operator` interactivo en
         el cwd del proyecto (si Hermes está instalado), igual que el tab nativo."""
         import shutil
         from pathlib import Path
@@ -768,7 +768,7 @@ class PcreativeStudioBridge(QObject):
         if not Path(hermes).is_file():
             self.terminal_ready.emit(json.dumps({"path": path, "kind": "hermes", "error": "Hermes no instalado"}))
             return json.dumps({"ok": False, "error": "Hermes no instalado"})
-        return self._start_terminal(path, hermes, ["-s", "themeforge-operator"], "hermes")
+        return self._start_terminal(path, hermes, ["-s", "pcreative-studio-operator"], "hermes")
 
     @pyqtSlot(result=str)
     def start_hermes_chat(self) -> str:
@@ -780,7 +780,7 @@ class PcreativeStudioBridge(QObject):
         if not Path(hermes).is_file():
             self.terminal_ready.emit(json.dumps({"path": "~", "kind": "hermes-chat", "error": "Hermes no instalado"}))
             return json.dumps({"ok": False, "error": "Hermes no instalado"})
-        return self._start_terminal(str(Path.home()), hermes, ["-s", "themeforge-operator"], "hermes-chat")
+        return self._start_terminal(str(Path.home()), hermes, ["-s", "pcreative-studio-operator"], "hermes-chat")
 
     @pyqtSlot(result=str)
     def hermes_admin(self) -> str:
@@ -1232,7 +1232,7 @@ class PcreativeStudioBridge(QObject):
         try:
             from stacks import STACKS
             import ai_providers as aip
-            from themeforge import (write_setup_script, PROJECTS_DIR, slugify,
+            from pcreative_studio import (write_setup_script, PROJECTS_DIR, slugify,
                                     load_projects_meta, save_projects_meta)
         except Exception as e:
             return json.dumps({"ok": False, "error": f"import: {e}"})
@@ -1356,7 +1356,7 @@ class PcreativeStudioBridge(QObject):
         proc.finished.connect(
             lambda code, _s: self.progress.emit(f"\n■ Misión terminada (exit {code}).\n"))
         self.progress.emit(f"▶ Lanzando misión: {brief[:80]}…\n")
-        proc.start(hermes, ["chat", "-q", brief, "-s", "themeforge-operator"])
+        proc.start(hermes, ["chat", "-q", brief, "-s", "pcreative-studio-operator"])
         self._procs.append(proc)
         return json.dumps({"ok": True, "running": True})
 
@@ -1377,14 +1377,14 @@ class PcreativeStudioBridge(QObject):
 
     @pyqtSlot(result=str)
     def hermes_status(self) -> str:
-        """Estado de Hermes para el status strip: versión · MCP themeforge
+        """Estado de Hermes para el status strip: versión · MCP pcreative-studio
         registrado · provider·modelo configurados (igual que la tira nativa)."""
         try:
-            from hermes_panel import hermes_version, _mcp_themeforge_registered, _hermes_model_info
+            from hermes_panel import hermes_version, _mcp_pcreative_studio_registered, _hermes_model_info
             ver = hermes_version()
             prov, model = _hermes_model_info()
             return json.dumps({"available": bool(ver), "version": ver or "",
-                               "mcp": bool(_mcp_themeforge_registered()),
+                               "mcp": bool(_mcp_pcreative_studio_registered()),
                                "provider": prov or "", "model": model or ""})
         except Exception as e:
             return json.dumps({"available": False, "error": str(e)})
@@ -1432,7 +1432,7 @@ class PcreativeStudioBridge(QObject):
         """Operaciones de la Galería sobre un proyecto (datos reales, igual que
         la GalleryPanel nativa): favorite | tags | archive | unarchive | delete."""
         try:
-            from themeforge import (load_favorites, save_favorites,
+            from pcreative_studio import (load_favorites, save_favorites,
                                     load_projects_meta, save_projects_meta,
                                     archive_project, unarchive_project, PROJECTS_DIR)
             if op == "favorite":
@@ -1576,7 +1576,7 @@ class PcreativeStudioBridge(QObject):
                         p = Path(proj["path"]); break
             if not p.is_dir():
                 return json.dumps({"ok": False, "error": f"no existe: {path_or_slug}"})
-            from themeforge import open_project_window
+            from pcreative_studio import open_project_window
             open_project_window(p)
             return json.dumps({"ok": True, "path": str(p)})
         except Exception as e:
@@ -1586,7 +1586,7 @@ class PcreativeStudioBridge(QObject):
     def new_project(self) -> str:
         """Abre el flujo nativo de New project (formulario completo)."""
         try:
-            from themeforge import focus_new_project
+            from pcreative_studio import focus_new_project
             ok = focus_new_project()
             return json.dumps({"ok": bool(ok)})
         except Exception as e:
@@ -2123,7 +2123,7 @@ class PcreativeStudioBridge(QObject):
             import subprocess
             import shutil
             base = Path(__file__).resolve().parent
-            if kind == "themeforge":
+            if kind == "pcreative-studio":
                 target, edit = base, False
             elif kind == "context":
                 target, edit = base / "context", False
@@ -2345,7 +2345,7 @@ class PcreativeStudioBridge(QObject):
             out.append({"name": fm.get("name") or md.parent.name,
                         "description": fm.get("description", ""),
                         "category": fm.get("category") or category,
-                        "path": str(md), "tf": category == "themeforge"})
+                        "path": str(md), "tf": category == "pcreative-studio"})
         return out
 
     @pyqtSlot(bool, result=str)
@@ -2420,9 +2420,9 @@ class PcreativeStudioBridge(QObject):
         nm = ((name or "agente").strip().lower().replace(" ", "-")) or "agente"
         title = (name or "Agente").strip()
         d = (desc or "").strip() or "Describe qué hace y cuándo usarlo."
-        tags = ", ".join([s.strip() for s in (stacks or "").split(",") if s.strip()][:6]) or "themeforge"
+        tags = ", ".join([s.strip() for s in (stacks or "").split(",") if s.strip()][:6]) or "pcreative-studio"
         tmpl = (f"---\nname: {nm}\ndescription: {d}\nversion: 1.0.0\n"
-                f"metadata:\n  hermes:\n    category: themeforge\n    tags: [{tags}]\n---\n\n"
+                f"metadata:\n  hermes:\n    category: pcreative-studio\n    tags: [{tags}]\n---\n\n"
                 f"# {title}\n\n## Cuándo usar\n{d}\n\n## Stacks base\n{stacks or '-'}\n\n"
                 f"## Procedimiento\n1. Lee el contexto del proyecto (CLAUDE.md/AGENTS.md).\n2. …\n")
         return json.dumps({"ok": True, "template": tmpl})
@@ -2689,7 +2689,7 @@ class PcreativeStudioBridge(QObject):
 
     @pyqtSlot(result=str)
     def hermes_profile_create(self) -> str:
-        rc, out = self._h_run(["profile", "create", "themeforge", "--clone"], timeout=30)
+        rc, out = self._h_run(["profile", "create", "pcreative-studio", "--clone"], timeout=30)
         return json.dumps({"ok": rc == 0, "out": out})
 
     @pyqtSlot(result=str)
@@ -2701,10 +2701,10 @@ class PcreativeStudioBridge(QObject):
     def hermes_bundle_create(self) -> str:
         try:
             from hermes_web_agents import web_agent_names
-            skills = ["themeforge-operator"] + list(web_agent_names())
+            skills = ["pcreative-studio-operator"] + list(web_agent_names())
         except Exception:
-            skills = ["themeforge-operator"]
-        args = ["bundles", "create", "themeforge"]
+            skills = ["pcreative-studio-operator"]
+        args = ["bundles", "create", "pcreative-studio"]
         for s in skills:
             args += ["--skill", s]
         rc, out = self._h_run(args, timeout=30)

@@ -1,6 +1,6 @@
 """
 LicensingPanel — pestaña que se conecta al panel admin propio (URL
-configurada en `~/.config/themeforge/licensing.json`, clave
+configurada en `~/.config/pcreative-studio/licensing.json`, clave
 `panel_base`).
 
 Si no hay archivo de config la URL será un placeholder y el panel

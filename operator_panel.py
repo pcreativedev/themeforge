@@ -1,12 +1,12 @@
 """operator_panel.py — Mission Control for the Pcreative Studio Operator (Hermes).
 
 A GUI tab to launch autonomous template-building missions: type a brief, hit
-Launch, and Hermes (the `themeforge-operator` skill + the `themeforge` MCP
+Launch, and Hermes (the `pcreative-studio-operator` skill + the `pcreative-studio` MCP
 tools) plans → creates → builds (via the configured agent) → QA-loops →
 packages, streaming progress here.
 
-Requires Hermes installed (`~/.local/bin/hermes`) with the `themeforge` MCP
-server registered in `~/.hermes/config.yaml` and the `themeforge-operator`
+Requires Hermes installed (`~/.local/bin/hermes`) with the `pcreative-studio` MCP
+server registered in `~/.hermes/config.yaml` and the `pcreative-studio-operator`
 skill enabled. See the Operator setup docs.
 """
 from __future__ import annotations
@@ -22,7 +22,7 @@ from PyQt6.QtWidgets import (
     QSpinBox, QComboBox, QMessageBox, QDialog, QSplitter, QFileDialog, QTabWidget,
 )
 
-OPERATOR_SKILL = "themeforge-operator"
+OPERATOR_SKILL = "pcreative-studio-operator"
 PROJECTS_DIR = Path.home() / "Proyectos" / "themes"
 TERMINAL_DIR = Path(os.environ.get("PCREATIVE STUDIO_TERMINAL_DIR")
                     or (Path(__file__).resolve().parent / "terminal"))
@@ -163,7 +163,7 @@ class ProjectPreviewWidget(QWidget):
 
 
 class HermesTerminal(QWidget):
-    """Terminal embebido que corre `hermes -s themeforge-operator` interactivo
+    """Terminal embebido que corre `hermes -s pcreative-studio-operator` interactivo
     (chat con Hermes) en un cwd dado. Reutiliza terminal/server.js + xterm.js
     (mismo mecanismo que ProjectWindow). Permite conversar con Hermes y pedirle
     que modifique cualquier cosa del proyecto."""
@@ -283,7 +283,7 @@ class HermesTerminal(QWidget):
 class OperatorPanel(QWidget):
     """Mission Control: launch Hermes-orchestrated Pcreative Studio missions."""
 
-    SKILL = "themeforge-operator"
+    SKILL = "pcreative-studio-operator"
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -397,7 +397,7 @@ class OperatorPanel(QWidget):
         return (
             f"Run a Pcreative Studio Operator mission. Build agent (provider): {prov}. "
             f"Number of variants: {n}. Mission brief: {brief}\n\n"
-            "Use the themeforge MCP tools and follow the themeforge-operator skill: "
+            "Use the pcreative-studio MCP tools and follow the pcreative-studio-operator skill: "
             "plan with a DISTINCT UI/UX Pro Max style+palette per variant, then for "
             "each variant call create_project (run_autoskills=true, run_uipro=true), "
             "run_agent_build with a detailed prompt (sections + complete demo data + "
@@ -551,7 +551,7 @@ class OperatorMissionDialog(QDialog):
             f"Work on the EXISTING Pcreative Studio project '{self._name}' "
             f"(path: {self._path}). Build agent (provider): "
             f"{self.provider.currentText()}. Task: {task}\n\n"
-            "Use the themeforge MCP. Locate it with list_recent_projects, work IN "
+            "Use the pcreative-studio MCP. Locate it with list_recent_projects, work IN "
             "its directory (its AGENTS.md/.hermes.md auto-loads), then run_agent_build "
             "for the task and run_preflight to verify (fix issues, max 3). Do NOT "
             "create a new project. Read/update its .hermes.md with what you did and "

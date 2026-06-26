@@ -10,7 +10,7 @@ Reconvierte el puente nativo (window.tfBridge / QWebChannel) en una API:
 El motor headless es la única fuente de verdad; escritorio y móvil hablan esta
 API. Los métodos opcionales se cargan por plugins (ver `_load_plugins`).
 
-Auth: bearer token (env PCREATIVE STUDIO_API_TOKEN, o ~/.config/themeforge/api_token.txt).
+Auth: bearer token (env PCREATIVE STUDIO_API_TOKEN, o ~/.config/pcreative-studio/api_token.txt).
 Pensado para vivir DETRÁS de Tailscale/WireGuard (no exponer crudo a internet).
 
 Arrancar:  uvicorn api_gateway:app --host 0.0.0.0 --port 8765
@@ -32,7 +32,7 @@ try:
     import platform_compat as pc
     _CFG = pc.app_config_dir()
 except Exception:
-    _CFG = Path.home() / ".config" / "themeforge"
+    _CFG = Path.home() / ".config" / "pcreative-studio"
 
 app = FastAPI(title="Pcreative Studio Gateway", version="0.1")
 
@@ -164,7 +164,7 @@ def _stream_create_build(p, emit):
     import ai_providers as aip
     import platform_compat as _pc
     from stacks import STACKS
-    from themeforge import (write_setup_script, PROJECTS_DIR, slugify,
+    from pcreative_studio import (write_setup_script, PROJECTS_DIR, slugify,
                             load_projects_meta, save_projects_meta)
 
     mode = p.get("mode", "scratch")
@@ -284,7 +284,7 @@ _load_plugins()
 # ---------------------------------------------------------------------------
 @app.get("/health")
 def health():
-    return {"ok": True, "service": "themeforge-gateway", "version": "0.1",
+    return {"ok": True, "service": "pcreative-studio-gateway", "version": "0.1",
             "methods": {"sync": sorted(SYNC), "stream": sorted(STREAM)}}
 
 

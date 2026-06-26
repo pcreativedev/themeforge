@@ -1,10 +1,10 @@
 # Maintainer: pcreativedev <contact@pcreative.dev>
-pkgname=themeforge
+pkgname=pcreative-studio
 pkgver=0.1.0
 pkgrel=1
 pkgdesc="PyQt6 GUI for scaffolding template projects across 60+ stacks, driven by AI agents (Claude Code, Codex, Gemini, OpenCode)"
 arch=('any')
-url="https://github.com/pcreativedev/themeforge"
+url="https://github.com/pcreativedev/pcreative-studio"
 license=('GPL3')
 depends=(
     'python'
@@ -19,14 +19,14 @@ optdepends=(
     'gh: GitHub integration (repo create/push)'
     'docker: WordPress wp-env environments'
 )
-source=("$pkgname-$pkgver.tar.gz::https://github.com/pcreativedev/themeforge/archive/refs/tags/v$pkgver.tar.gz")
+source=("$pkgname-$pkgver.tar.gz::https://github.com/pcreativedev/pcreative-studio/archive/refs/tags/v$pkgver.tar.gz")
 sha256sums=('SKIP')  # update with `updpkgsums` once a real release is tagged
 options=('!strip')   # PyQt6 binaries are upstream-stripped
 
 package() {
-    cd "$srcdir/themeforge-$pkgver"
+    cd "$srcdir/pcreative-studio-$pkgver"
 
-    # Install the Python sources to /opt/themeforge
+    # Install the Python sources to /opt/pcreative-studio
     install -d "$pkgdir/opt/$pkgname"
     cp -r --no-preserve=ownership \
         *.py assets context docs examples scripts terminal templates \
@@ -37,14 +37,14 @@ package() {
     install -d "$pkgdir/usr/bin"
     cat > "$pkgdir/usr/bin/$pkgname" <<EOF
 #!/bin/sh
-cd /opt/$pkgname && exec python3 themeforge.py "\$@"
+cd /opt/$pkgname && exec python3 pcreative_studio.py "\$@"
 EOF
     chmod +x "$pkgdir/usr/bin/$pkgname"
 
     # Desktop entry
     install -d "$pkgdir/usr/share/applications"
     sed "s|__INSTALL_PATH__|/opt/$pkgname|g" \
-        assets/themeforge.desktop.template \
+        assets/pcreative-studio.desktop.template \
         > "$pkgdir/usr/share/applications/$pkgname.desktop"
     # System pkg: Exec is the wrapper, not python3 directly
     sed -i "s|^Exec=.*|Exec=$pkgname %F|" "$pkgdir/usr/share/applications/$pkgname.desktop"
@@ -52,7 +52,7 @@ EOF
 
     # Icons (hicolor theme)
     for sz in 16 32 48 64 128 256; do
-        install -Dm644 "assets/themeforge-${sz}.png" \
+        install -Dm644 "assets/pcreative-studio-${sz}.png" \
             "$pkgdir/usr/share/icons/hicolor/${sz}x${sz}/apps/$pkgname.png"
     done
 

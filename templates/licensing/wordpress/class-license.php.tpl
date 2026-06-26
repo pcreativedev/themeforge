@@ -44,7 +44,7 @@ class License
     public function __construct(string $product_slug)
     {
         $this->product    = $product_slug;
-        $this->option_key = "themeforge_license_{$product_slug}";
+        $this->option_key = "pcreative_studio_license_{$product_slug}";
     }
 
     // ── Estado ────────────────────────────────────────────────────────────
@@ -143,7 +143,7 @@ class License
 
     private function maybe_schedule_heartbeat(): void
     {
-        $hook = "themeforge_license_heartbeat_{$this->product}";
+        $hook = "pcreative_studio_license_heartbeat_{$this->product}";
         add_action($hook, [$this, 'heartbeat']);
         if (!wp_next_scheduled($hook)) {
             wp_schedule_single_event(time() + 60, $hook);

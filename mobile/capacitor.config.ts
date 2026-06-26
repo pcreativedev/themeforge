@@ -8,7 +8,7 @@ import type { CapacitorConfig } from '@capacitor/cli';
  * `www/` se genera con `npm run sync-web` (copia webui/mobile + el shim remoto).
  */
 const config: CapacitorConfig = {
-  appId: 'dev.pcreative.themeforge',
+  appId: 'dev.pcreative.pcreative-studio',
   appName: 'Pcreative Studio',
   webDir: 'www',
   plugins: {

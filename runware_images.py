@@ -2,7 +2,7 @@
 
 Sistema de imágenes de Pcreative Studio para los templates: **API key, pay-as-you-go**
 (NO suscripción) → encaja con el modelo de compliance. La key se guarda en el
-mismo almacén que el resto (`~/.config/themeforge/keys.json`, chmod 0600) bajo el
+mismo almacén que el resto (`~/.config/pcreative-studio/keys.json`, chmod 0600) bajo el
 id `runware`, o por env `RUNWARE_API_KEY`.
 
 API: POST https://api.runware.ai/v1 con un array JSON de tareas; auth como primer
@@ -20,7 +20,7 @@ import uuid
 from pathlib import Path
 
 API_URL = "https://api.runware.ai/v1"
-CONFIG_PATH = Path.home() / ".config" / "themeforge" / "runware.json"
+CONFIG_PATH = Path.home() / ".config" / "pcreative-studio" / "runware.json"
 
 # Modelos base conocidos (AIR ids de Runware). El resto (cientos) salen por
 # búsqueda en vivo (search_models). Configurables por llamada.
@@ -140,7 +140,7 @@ def get_api_key() -> str | None:
         return (aip.load_keys().get("runware") or "").strip() or None
     except Exception:
         try:
-            kp = Path.home() / ".config" / "themeforge" / "keys.json"
+            kp = Path.home() / ".config" / "pcreative-studio" / "keys.json"
             return (json.loads(kp.read_text(encoding="utf-8")).get("runware")
                     or "").strip() or None
         except Exception:

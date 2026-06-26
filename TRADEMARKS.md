@@ -41,7 +41,7 @@ neither by us of them nor by them of us.
 |---|---|---|
 | WordPress® | WordPress Foundation | Core CMS that Pcreative Studio auto-provisions in Docker for the WordPress stacks. Independent open-source platform under GPL v2+. |
 | WooCommerce® | Automattic, Inc. | Mentioned as a representative e-commerce plugin for WordPress in scaffold notes and market-analysis prompts. |
-| Bricks Builder™ | Bricks Builder GmbH | Named as the parent theme/builder targeted by the `wordpress-bricks` stack. Bricks itself is NOT bundled — the end user supplies their own purchased ZIP via `~/.config/themeforge/wp_packs.json`. |
+| Bricks Builder™ | Bricks Builder GmbH | Named as the parent theme/builder targeted by the `wordpress-bricks` stack. Bricks itself is NOT bundled — the end user supplies their own purchased ZIP via `~/.config/pcreative-studio/wp_packs.json`. |
 | Elementor® | Elementor Ltd. | Free Elementor (from WordPress.org) is auto-installed for the `wordpress-elementor` stack. Elementor Pro is referenced by name only and requires a license obtained directly from elementor.com. |
 | Hello Elementor | Elementor Ltd. | Auto-installed from WordPress.org (free, GPLv3) as the parent theme of the `wordpress-elementor` stack. |
 | Divi™ | Elegant Themes Inc. | Named as the parent theme of the `wordpress-divi` stack. Divi is NOT bundled — the end user supplies their own purchased ZIP. |
@@ -108,7 +108,7 @@ context, in line with nominative fair use.
 
 If you believe a use in this repository goes beyond what nominative
 fair use allows, please open an issue at
-<https://github.com/pcreativedev/themeforge/issues> describing:
+<https://github.com/pcreativedev/pcreative-studio/issues> describing:
 
 1. The exact file and line where the mark appears.
 2. The legal basis for the request.

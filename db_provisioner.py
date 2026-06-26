@@ -3,8 +3,8 @@ db_provisioner — aprovisiona automáticamente BDs en containers Docker para
 cada proyecto que cree Pcreative Studio.
 
 Detecta si el proyecto necesita Postgres (drizzle/prisma/etc.) y, en ese caso:
-  1. Lanza un container `themeforge-pg-<slug>` con puerto único.
-  2. Persiste las credenciales en ~/.config/themeforge/db_provisions.json.
+  1. Lanza un container `pcreative-studio-pg-<slug>` con puerto único.
+  2. Persiste las credenciales en ~/.config/pcreative-studio/db_provisions.json.
   3. Devuelve un DATABASE_URL listo para inyectar en .env.
 
 Idempotente: si ya hay container para el slug, lo reutiliza (o lo levanta si
@@ -159,7 +159,7 @@ def provision_postgres_for(slug: str) -> Provision:
         raise RuntimeError(f"docker no disponible: {msg}")
 
     provs = _load_provisions()
-    container = f"themeforge-pg-{slug}"
+    container = f"pcreative-studio-pg-{slug}"
     volume = container
 
     existing = provs.get(slug)

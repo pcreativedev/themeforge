@@ -3,9 +3,9 @@
 La pestaña 🤖 Agentes lista las skills de `~/.hermes/skills/`, pero Hermes trae su
 propia librería genérica (apple, gaming, devops…) que NO tiene que ver con diseño
 web. Este módulo siembra un conjunto curado de agentes especializados de Pcreative Studio
-(formato agentskills.io) bajo `~/.hermes/skills/themeforge/<name>/SKILL.md`, todos
+(formato agentskills.io) bajo `~/.hermes/skills/pcreative-studio/<name>/SKILL.md`, todos
 enfocados a construir webs/plantillas premium. Cada uno se apoya en el
-`themeforge-operator` para el pipeline (create/build/QA/auditoría/zip) y aporta su
+`pcreative-studio-operator` para el pipeline (create/build/QA/auditoría/zip) y aporta su
 especialidad de diseño.
 
 Versionado en el repo a través de este módulo (no archivos sueltos). Idempotente:
@@ -15,7 +15,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-TF_SKILLS_DIR = Path.home() / ".hermes" / "skills" / "themeforge"
+TF_SKILLS_DIR = Path.home() / ".hermes" / "skills" / "pcreative-studio"
 VERSION = "1.0.0"
 
 # Cada agente: name, title, desc (when-to-use), tags, expertise (bullets).
@@ -102,7 +102,7 @@ WEB_AGENTS = [
         "expertise": [
             "Define una dirección estética distinta por variante (editorial/brutalist/"
             "glassmorphic/minimal…) coherente con el nicho.",
-            "Logo y marca: usa mcp_themeforge_generate_image con modelo vectorial/flat "
+            "Logo y marca: usa mcp_pcreative_studio_generate_image con modelo vectorial/flat "
             "(Runware) + prompts de logo limpio.",
             "Paleta y pairing tipográfico que transmiten la personalidad de marca.",
             "Imágenes originales on-brand (hero/OG/ilustraciones) en vez de stock genérico.",
@@ -166,9 +166,9 @@ version: {version}
 platforms: [linux, macos, windows]
 metadata:
   hermes:
-    category: themeforge
+    category: pcreative-studio
     tags: [{tags}]
-    related_skills: [themeforge-operator]
+    related_skills: [pcreative-studio-operator]
 ---
 
 # {title}
@@ -176,7 +176,7 @@ metadata:
 ## When to use
 {desc} Use this agent (alone or combined) when a Pcreative Studio mission needs this
 specialty. It runs **inside the Pcreative Studio pipeline** — defer to the
-`themeforge-operator` skill for create_project → build → QA → security audit →
+`pcreative-studio-operator` skill for create_project → build → QA → security audit →
 package, and contribute your expertise to the build prompts and reviews.
 
 ## Expertise
@@ -185,8 +185,8 @@ package, and contribute your expertise to the build prompts and reviews.
 ## How you work
 - Read the project's `AGENTS.md` (incl. the installed autoskills/UI-UX-Pro skills)
   and `.hermes.md`, and follow them.
-- For imagery, use `mcp_themeforge_generate_image` (Runware) with a model fit for the
-  asset (see `mcp_themeforge_list_image_models`). For research, use web_search/browser.
+- For imagery, use `mcp_pcreative_studio_generate_image` (Runware) with a model fit for the
+  asset (see `mcp_pcreative_studio_list_image_models`). For research, use web_search/browser.
 - Build MULTIPAGE, with complete realistic demo data and real images — never a generic
   scaffold. Feed concrete, specific instructions into `run_agent_build`.
 
@@ -221,7 +221,7 @@ def web_agent_names() -> list[str]:
 
 
 def seed_web_agents(force: bool = False) -> list[str]:
-    """Escribe los agentes web en ~/.hermes/skills/themeforge/<name>/SKILL.md.
+    """Escribe los agentes web en ~/.hermes/skills/pcreative-studio/<name>/SKILL.md.
     Idempotente: salta si ya existe a igual/mayor versión y no es user_modified.
     Devuelve los nombres efectivamente escritos."""
     cur = tuple(int(x) for x in VERSION.split("."))

@@ -46,7 +46,7 @@ const NAV = [
 ];
 
 // Pantallas privadas de agencia (Leads/Catálogo/Generador): viven en un sidecar
-// (themeforge-matrix-private.jsx, en .gitignore) que se auto-registra en
+// (pcreative-studio-matrix-private.jsx, en .gitignore) que se auto-registra en
 // window.TF_PRIVATE_SCREENS. Si el fichero no existe (repo OSS), el array queda
 // vacío y no aparece ninguna de esas pantallas.
 function privateNav() { return (typeof window !== 'undefined' && window.TF_PRIVATE_SCREENS) || []; }
@@ -56,7 +56,7 @@ const MCP_SERVERS = (typeof window !== 'undefined' && window.__TF_DATA__ && wind
   { id: 'fetch', label: 'fetch', always: true, em: '⇆', desc: 'HTTP / scraping' },
   { id: 'memory', label: 'memory', always: true, em: '⊟', desc: 'Memoria del agente' },
   { id: 'github', label: 'github', always: true, em: '⎇', desc: 'Repos · PRs · push' },
-  { id: 'themeforge', label: 'themeforge', always: true, em: '鍛', desc: '8 tools: create · zip · preflight…' },
+  { id: 'pcreative-studio', label: 'pcreative-studio', always: true, em: '鍛', desc: '8 tools: create · zip · preflight…' },
   { id: 'playwright', label: 'playwright', em: '◐', desc: 'Navegador automatizado' },
   { id: 'figma', label: 'figma-context', em: '◓', desc: 'Lee diseños de Figma' },
   { id: 'shopify', label: 'shopify-dev', em: '⬡', desc: 'GraphQL Admin/Storefront' },
@@ -360,7 +360,7 @@ function NewProject({ onAnalyze, onLaunch }) {
       <div className="panelc" style={{ padding: '6px 20px 14px' }}>
         <MCheck label="npx autoskills 技能" sub="auto-instala skills del stack (a11y/SEO/design) en .claude/skills/" on={opts.autoskills} onToggle={() => tog('autoskills')} />
         <MCheck label="UI/UX Pro Max 高級UI" sub="shadcn/ui · Aceternity · Magic UI + sistema de diseño" on={opts.uipro} onToggle={() => tog('uipro')} />
-        <MCheck label="Pre-configurar MCP servers 接続" sub="genera .mcp.json (filesystem · github · playwright · figma · themeforge…)" on={opts.mcp} onToggle={() => tog('mcp')} />
+        <MCheck label="Pre-configurar MCP servers 接続" sub="genera .mcp.json (filesystem · github · playwright · figma · pcreative-studio…)" on={opts.mcp} onToggle={() => tog('mcp')} />
         <MCheck label="Documentación 文書" sub="documentation/ con guía de instalación + changelog" on={opts.docs} onToggle={() => tog('docs')} />
         <MCheck label="🐘 PostgreSQL en Docker DB" sub="contenedor postgres:17 + DATABASE_URL en .env (requiere Docker)" on={opts.postgres} onToggle={() => tog('postgres')} />
         <MCheck label="🔑 Licencias (pcreative anti-nulled) 認可" sub="verify-license + setup wizard según la familia del stack" on={opts.licensing} onToggle={() => tog('licensing')} />
@@ -815,7 +815,7 @@ function CronTab() {
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
         <input value={f.schedule} onChange={function(e) { setF(Object.assign({}, f, { schedule: e.target.value })); }} placeholder="cuándo — every 1d · 30m · 0 9 * * 1-5" style={MX_FLD} />
         <input value={f.name} onChange={function(e) { setF(Object.assign({}, f, { name: e.target.value })); }} placeholder="nombre (opcional)" style={MX_FLD} />
-        <input value={f.skill} onChange={function(e) { setF(Object.assign({}, f, { skill: e.target.value })); }} placeholder="skill — ej: themeforge-operator" style={MX_FLD} />
+        <input value={f.skill} onChange={function(e) { setF(Object.assign({}, f, { skill: e.target.value })); }} placeholder="skill — ej: pcreative-studio-operator" style={MX_FLD} />
         <select value={f.deliver} onChange={function(e) { setF(Object.assign({}, f, { deliver: e.target.value })); }} style={MX_FLD}>{['local', 'origin', 'telegram', 'discord', 'slack', 'email', 'all'].map(function(d) { return <option key={d} value={d}>{d}</option>; })}</select>
       </div>
       <textarea value={f.prompt} onChange={function(e) { setF(Object.assign({}, f, { prompt: e.target.value })); }} placeholder="tarea / prompt…" style={{ ...MX_FLD, width: '100%', minHeight: 70, marginTop: 10 }} />
@@ -905,8 +905,8 @@ function AdvancedTab() {
     </MxSec>
     <MxSec title="PERFIL &amp; BUNDLE · 束">
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-        <button style={MX_GBTN} onClick={function() { run('hermes_profile_create'); }}>Crear perfil themeforge</button>
-        <button style={MX_GBTN} onClick={function() { run('hermes_bundle_create'); }}>Crear bundle /themeforge</button>
+        <button style={MX_GBTN} onClick={function() { run('hermes_profile_create'); }}>Crear perfil pcreative-studio</button>
+        <button style={MX_GBTN} onClick={function() { run('hermes_bundle_create'); }}>Crear bundle /pcreative-studio</button>
         <button style={MX_GBTN} onClick={function() { run('hermes_profile_list'); }}>Listar perfiles</button>
       </div>
     </MxSec>
@@ -983,7 +983,7 @@ function Operator() {
         <button className="btn" style={{ float: 'right', color: power ? 'var(--accent)' : 'var(--p3)', borderColor: power ? 'var(--accent)' : 'var(--p3)' }} onClick={function() { setPower(function(p) { return !p; }); }} disabled={!hs.available}>⏻ {power ? 'Hermes ON' : 'Hermes OFF'}</button></h2>
       <div className="panelc" style={{ display: 'flex', gap: 16, alignItems: 'center', marginBottom: 14, fontFamily: 'var(--term)', fontSize: 12.5, flexWrap: 'wrap' }}>
         {chip(hs.available, hs.available ? ('Hermes ' + (hs.version || '')) : 'Hermes no instalado')}
-        {chip(hs.mcp, hs.mcp ? 'MCP themeforge' : 'MCP sin registrar')}
+        {chip(hs.mcp, hs.mcp ? 'MCP pcreative-studio' : 'MCP sin registrar')}
         {chip(hs.provider || hs.model ? true : null, (hs.provider || hs.model) ? ((hs.provider || '?') + ' · ' + (hs.model || '?')) : 'modelo sin configurar')}
         <button className="btn" style={{ marginLeft: 'auto', padding: '4px 10px' }} onClick={refreshHs}>↻</button>
       </div>
@@ -1078,7 +1078,7 @@ function SysAndSetup() {
       </>}
       <h2 className="sec" style={{ margin: '26px 0 14px' }}>↗ Atajos <span style={{ fontFamily: 'var(--term)', fontSize: 13, color: 'var(--tx-dim)' }}>近道</span></h2>
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-        {[['themeforge', '📁 Carpeta Pcreative Studio'], ['context', '📚 context/'], ['stacks', '📝 Editar stacks.py']].map(([k, l]) => <button key={k} className="btn" onClick={() => call('open_shortcut', k)}>{l}</button>)}
+        {[['pcreative-studio', '📁 Carpeta Pcreative Studio'], ['context', '📚 context/'], ['stacks', '📝 Editar stacks.py']].map(([k, l]) => <button key={k} className="btn" onClick={() => call('open_shortcut', k)}>{l}</button>)}
       </div>
     </div>
   );
@@ -1132,7 +1132,7 @@ function Settings() {
             <button className="btn" style={{ padding: '6px 10px' }} onClick={() => { if (!(window.tfBridge && window.tfBridge.set_credential)) return; const v = prompt('Pega la ' + cr.label + ' (vacío para borrar):'); if (v === null) return; window.tfBridge.set_credential(cr.id, v).then(() => location.reload()); }}>✎ Editar</button>
           </div>
         ))}
-        <div style={{ fontSize: 11, marginTop: 12, color: 'var(--tx-dim)', fontFamily: 'var(--term)' }}>Las claves se guardan en ~/.config/themeforge/keys.json (chmod 0600) · nunca en el proyecto.</div>
+        <div style={{ fontSize: 11, marginTop: 12, color: 'var(--tx-dim)', fontFamily: 'var(--term)' }}>Las claves se guardan en ~/.config/pcreative-studio/keys.json (chmod 0600) · nunca en el proyecto.</div>
       </div>
 
       <h2 className="sec" style={{ margin: '26px 0 14px' }}>⇆ MCP servers <span style={{ fontFamily: 'var(--term)', fontSize: 13, color: 'var(--tx-dim)' }}>接続</span></h2>
@@ -1160,7 +1160,7 @@ function Settings() {
 
 /* ---- Project Window (preview + terminal) ---- */
 const TERM_K = [
-  { c: 'var(--accent)', s: '$ themeforge agent --task "build hero + features"' },
+  { c: 'var(--accent)', s: '$ pcreative-studio agent --task "build hero + features"' },
   { c: '#00ff66', s: '◈ claude · session forge-7f2a · pid d4e2' },
   { c: 'var(--tx-dim)', s: '> leyendo CLAUDE.md … contexto cargado' },
   { c: 'var(--accent)', s: '[OK] creado Hero.tsx (+148 −0)' },

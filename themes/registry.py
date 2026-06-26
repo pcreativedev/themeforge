@@ -4,7 +4,7 @@ Themes are JSON files. Two search paths:
 
   1. `themes/presets/*.json` in the repo (builtin themes shipped
      with Pcreative Studio).
-  2. `~/.config/themeforge/themes/*.json` (user-installed / custom
+  2. `~/.config/pcreative-studio/themes/*.json` (user-installed / custom
      themes — take precedence on name collision).
 
 Public API:
@@ -22,7 +22,7 @@ from pathlib import Path
 
 from .tokens import ThemePack
 
-# platform_compat lives at the repo root; the main script (themeforge.py)
+# platform_compat lives at the repo root; the main script (pcreative_studio.py)
 # adds that dir to sys.path, so it imports as a plain top-level module.
 import sys as _sys
 _sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -121,7 +121,7 @@ def save_current_theme(name: str) -> None:
 
 
 def ensure_user_themes_dir() -> Path:
-    """Ensures ~/.config/themeforge/themes/ exists and returns it.
+    """Ensures ~/.config/pcreative-studio/themes/ exists and returns it.
     Useful for the future theme editor when saving custom themes."""
     USER_THEMES_DIR.mkdir(parents=True, exist_ok=True)
     return USER_THEMES_DIR

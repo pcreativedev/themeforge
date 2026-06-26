@@ -12,7 +12,7 @@ Tipos de análisis:
   - marketplace: análisis de UN marketplace (ThemeForest, Gumroad, etc.).
   - prediction:  proyección 2026 → 2027.
 
-El histórico vive en ``~/.config/themeforge/market_analyses/`` (gitignored).
+El histórico vive en ``~/.config/pcreative-studio/market_analyses/`` (gitignored).
 """
 from __future__ import annotations
 
@@ -24,7 +24,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
-CONFIG_DIR = Path.home() / ".config" / "themeforge"
+CONFIG_DIR = Path.home() / ".config" / "pcreative-studio"
 ANALYSES_DIR = CONFIG_DIR / "market_analyses"
 
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
@@ -357,7 +357,7 @@ def call_openrouter(req: AnalysisRequest, api_key: str, timeout: int = 240) -> s
         "Authorization": f"Bearer {api_key}",
         "Content-Type": "application/json",
         # OpenRouter recomienda estos headers para aparecer en su leaderboard.
-        "HTTP-Referer": "https://github.com/pcreativedev/themeforge",
+        "HTTP-Referer": "https://github.com/pcreativedev/pcreative-studio",
         "X-Title": "Pcreative Studio - Market Analyzer",
     }
     request = urllib.request.Request(OPENROUTER_URL, data=data, headers=headers, method="POST")
@@ -397,7 +397,7 @@ def save_analysis(req: AnalysisRequest, content: str) -> Path:
         slug = f"marketplace-{_slugify(req.params.get('marketplace',''))}"
     fn = ANALYSES_DIR / f"{ts}__{slug}.md"
     header = (
-        f"<!-- themeforge-market-analyzer\n"
+        f"<!-- pcreative-studio-market-analyzer\n"
         f"kind: {req.kind}\n"
         f"params: {json.dumps(req.params, ensure_ascii=False)}\n"
         f"model: {req.model}\n"
@@ -428,7 +428,7 @@ def load_analysis(p: Path) -> tuple[dict, str]:
     txt = p.read_text(encoding="utf-8")
     meta: dict = {}
     body = txt
-    if txt.startswith("<!-- themeforge-market-analyzer"):
+    if txt.startswith("<!-- pcreative-studio-market-analyzer"):
         try:
             end = txt.index("-->")
             head = txt[:end]
@@ -447,7 +447,7 @@ def load_analysis(p: Path) -> tuple[dict, str]:
 
 def get_openrouter_key() -> str:
     """Obtiene la key de OPENROUTER. Primero ai_providers.get_env, luego
-    ENV directo, luego ~/.config/themeforge/credentials.json si existiera."""
+    ENV directo, luego ~/.config/pcreative-studio/credentials.json si existiera."""
     try:
         import ai_providers as aip
         env = aip.get_env("openrouter") or {}

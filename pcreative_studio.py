@@ -253,7 +253,7 @@ def _maybe_bootstrap_skills(root: Path) -> bool:
     try:
         if _has_real_skills(root):
             return False
-        marker = root / ".themeforge" / ".skills-bootstrap"
+        marker = root / ".pcreative-studio" / ".skills-bootstrap"
         if marker.exists():  # ya lanzado antes (puede seguir corriendo)
             return False
         # ¿hay stack escaffoldeado hasta 3 niveles?
@@ -270,7 +270,7 @@ def _maybe_bootstrap_skills(root: Path) -> bool:
             return False
         marker.parent.mkdir(parents=True, exist_ok=True)
         marker.write_text("autoskills+uipro lanzados al abrir desde galería\n")
-        log = root / ".themeforge" / "skills-install.log"
+        log = root / ".pcreative-studio" / "skills-install.log"
         cmd = ('echo "=== autoskills ==="; npx --yes autoskills -a claude 2>&1; '
                'echo "=== uipro-cli ==="; npx --yes uipro-cli init --ai claude 2>&1; '
                'echo "=== DONE ==="')
@@ -384,7 +384,7 @@ def focus_new_project() -> bool:
 
 
 HOME = Path.home()
-BUILDER_DIR = HOME / "Proyectos" / "themeforge"
+BUILDER_DIR = HOME / "Proyectos" / "pcreative-studio"
 PROJECTS_DIR = HOME / "Proyectos" / "themes"
 CONTEXT_DIR = BUILDER_DIR / "context"
 CONFIG_DIR = pc.app_config_dir()
@@ -400,7 +400,7 @@ FAVORITES_FILE = CONFIG_DIR / "favorites.json"
 # Locales + filtro de la Galería). Ausente en el repo OSS → esas piezas no
 # aparecen. Todo el naming privado vive en ese módulo (gitignored).
 try:
-    import themeforge_private as _np
+    import pcreative_studio_private as _np
 except Exception:
     _np = None
 
@@ -432,7 +432,7 @@ def collect_context_mds() -> list[Path]:
 
     Discovery dinámico (no hay nombres hardcoded en el código público):
 
-    1. Recoge todos los `*.md` de `~/.config/themeforge/context-private/`
+    1. Recoge todos los `*.md` de `~/.config/pcreative-studio/context-private/`
        (versiones REALES del usuario con secrets / estrategia / etc.).
     2. Completa con los `*.md` y `*.template.md` del repo `context/`
        que NO tengan ya equivalente privado.
@@ -482,7 +482,7 @@ def save_favorites(favs: set[str]) -> None:
 
 
 # ── Metadata por proyecto (tags, archived, etc.) ─────────────────────
-# Persistido en ~/.config/themeforge/projects-meta.json. Estructura:
+# Persistido en ~/.config/pcreative-studio/projects-meta.json. Estructura:
 #   { "<slug>": { "tags": ["foo","bar"], "archived": bool, ... } }
 PROJECTS_META_FILE = CONFIG_DIR / "projects-meta.json"
 
@@ -613,7 +613,7 @@ def _color_for_stack(stack_key: str) -> tuple[int, int, int]:
 def get_or_make_thumbnail(slug: str, stack_key: str, project_name: str):
     """Devuelve un QPixmap THUMB_WIDTH×THUMB_HEIGHT.
 
-    1. Si existe `~/.cache/themeforge/thumbnails/<slug>.png` → lo carga.
+    1. Si existe `~/.cache/pcreative-studio/thumbnails/<slug>.png` → lo carga.
     2. Si no → genera un placeholder dibujado: gradient con el color
        del stack + iniciales del proyecto centradas + label del stack
        abajo.
@@ -759,7 +759,7 @@ def _stop_containers_using_path(target_path) -> list[str]:
 
     Útil para borrar proyectos que tienen docker-compose con servicios
     que escribieron archivos como root (meilisearch, mysql, postgres
-    no-themeforge, etc.) — necesario antes de rmtree.
+    no-pcreative-studio, etc.) — necesario antes de rmtree.
     """
     if not shutil.which("docker"):
         return []
@@ -922,7 +922,7 @@ _ZIP_EXCLUDE_FILES: frozenset[str] = frozenset({
     ".env.test",
     ".DS_Store", "Thumbs.db", "desktop.ini",
     "CLAUDE.md", "AGENTS.md", "GEMINI.md", "MEMORY.md",
-    ".themeforge-init-prompt",  # prompt inicial que Pcreative Studio deja en el proyecto
+    ".pcreative-studio-init-prompt",  # prompt inicial que Pcreative Studio deja en el proyecto
     ".eslintcache",
 })
 _ZIP_EXCLUDE_SUFFIXES: tuple[str, ...] = (
@@ -3290,7 +3290,7 @@ Sin que te lo pida el usuario, como parte de la primera versión:
 >
 > - §A define cómo este theme conecta al sistema de licencias (si lo hay).
 >   Si vas a publicar el theme bajo el sistema configurado en
->   `~/.config/themeforge/licensing.json`, sigue el patrón al pie de la letra.
+>   `~/.config/pcreative-studio/licensing.json`, sigue el patrón al pie de la letra.
 > - §B es el checklist de Envato. No empieces a entregar nada sin haberlo
 >   validado contra esa lista.
 >
@@ -3331,7 +3331,7 @@ Sin que te lo pida el usuario, como parte de la primera versión:
 ## 🛠️ Estás trabajando DENTRO de Pcreative Studio
 
 Este proyecto fue creado por **Pcreative Studio** (un builder GUI Python/PyQt6
-que vive en `~/Proyectos/themeforge/`). Antes de tomar decisiones técnicas
+que vive en `~/Proyectos/pcreative-studio/`). Antes de tomar decisiones técnicas
 que afecten al setup del proyecto, ten en cuenta:
 
 ### Lo que Pcreative Studio gestiona POR TI
@@ -3344,12 +3344,12 @@ que afecten al setup del proyecto, ten en cuenta:
   para su sub-app en mono-repos).
 - **Terminal embebida**: hay un xterm.js vivo en el ProjectWindow donde
   ya estás corriendo. Cuando ejecutes comandos `Bash`, salen ahí.
-- **Puerto único asignado** persistido en `~/.config/themeforge/ports.json`.
+- **Puerto único asignado** persistido en `~/.config/pcreative-studio/ports.json`.
   Para este proyecto se le asignó un puerto específico — si lanzas el
   dev server manualmente con otro puerto, el preview embebido no lo
   detectará.
 - **Postgres del proyecto**: si está provisionado, el container vive en
-  `themeforge-pg-<slug>` con su volumen propio. La URL está en `.env`
+  `pcreative-studio-pg-<slug>` con su volumen propio. La URL está en `.env`
   como `DATABASE_URL`.
 - **Re-detectar perfil**: si el stack cambia (instalas un framework,
   haces scaffold, etc.) el usuario tiene un botón **🔄 Re-detectar**
@@ -3384,7 +3384,7 @@ en el dropdown). Tú no tienes que tocar nada.
 Si detectas que el detector de preview no encajó (lanza puerto incorrecto,
 el stack real es otro, etc.), dile al usuario:
 > "El detector de Pcreative Studio no pillaron este caso. Si quieres lo arreglo
-> editando `~/Proyectos/themeforge/preview.py` o `themeforge.py` y se lo
+> editando `~/Proyectos/pcreative-studio/preview.py` o `pcreative_studio.py` y se lo
 > reportas para futuros proyectos."
 
 Pcreative Studio es código del propio usuario, no es propietario — todo es
@@ -3393,7 +3393,7 @@ editable y los bug fixes se aplican a futuros proyectos creados.
 ## Archivos de contexto
 
 Discovery dinámico: Pcreative Studio copia al proyecto cualquier `*.md` que
-encuentre en `~/.config/themeforge/context-private/` (versiones reales
+encuentre en `~/.config/pcreative-studio/context-private/` (versiones reales
 del usuario) y los `*.template.md` del repo `context/` que no tengan
 equivalente privado.
 
@@ -3401,7 +3401,7 @@ Archivos típicamente presentes en `context/`:
 
 - El **checklist Envato (§B)**, al final de este archivo, es el criterio de aceptación obligatorio.
 - `LICENSING-SYSTEM.md` — arquitectura del sistema de licencias
-  configurado en `~/.config/themeforge/licensing.json` (verify endpoint,
+  configurado en `~/.config/pcreative-studio/licensing.json` (verify endpoint,
   panel admin, integración en el theme). Léelo si vas a publicar este
   theme bajo licencia.
 - `MARKET-RESEARCH.md`, `IDEAS.md`, `COMPETITORS.md` — research del
@@ -3956,7 +3956,7 @@ def write_setup_script(
     parts.append('echo ""')
     parts.append('echo "→ Copiando contexto al proyecto…"')
     parts.append("mkdir -p context")
-    # Discovery dinámico: prioriza ~/.config/themeforge/context-private/
+    # Discovery dinámico: prioriza ~/.config/pcreative-studio/context-private/
     # (versiones reales del usuario) sobre context/ del repo (stubs).
     # NO hay nombres de archivos hardcoded en el código público.
     for src in collect_context_mds():
@@ -4247,16 +4247,16 @@ def write_setup_script(
             f"3. Espera mi OK antes de ejecutar nada."
         )
 
-    # Escribir el prompt a un fichero temporal del proyecto (.themeforge-init-prompt)
+    # Escribir el prompt a un fichero temporal del proyecto (.pcreative-studio-init-prompt)
     # y pasarlo al agente como argumento posicional. Así evitamos problemas
     # de escape de comillas y mantenemos el agente interactivo después.
     parts.append(
-        f"cat > .themeforge-init-prompt <<'PCREATIVE STUDIO_PROMPT_EOF'\n"
+        f"cat > .pcreative-studio-init-prompt <<'PCREATIVE STUDIO_PROMPT_EOF'\n"
         f"{initial_prompt}\n"
         f"PCREATIVE STUDIO_PROMPT_EOF"
     )
     # No queremos versionar ese archivo
-    parts.append('grep -q "^\\.themeforge-init-prompt$" .gitignore 2>/dev/null || echo ".themeforge-init-prompt" >> .gitignore')
+    parts.append('grep -q "^\\.pcreative-studio-init-prompt$" .gitignore 2>/dev/null || echo ".pcreative-studio-init-prompt" >> .gitignore')
 
     # Comando interactivo del provider + prompt inicial. Las API keys
     # se cargan en os.environ al startup de Pcreative Studio (apply_all_known_keys),
@@ -4264,7 +4264,7 @@ def write_setup_script(
     cmd, extra_args = aip.interactive_cmd_args(agent_key)
     extra = (" " + " ".join(shell_quote(a) for a in extra_args)) if extra_args else ""
     if launch_agent:
-        parts.append(f'{cmd}{extra} "$(cat .themeforge-init-prompt)"')
+        parts.append(f'{cmd}{extra} "$(cat .pcreative-studio-init-prompt)"')
     else:
         # Modo headless (MCP create_project): NO lanzar el agente interactivo
         # (fallaría sin TTY). El build autónomo lo hace run_agent_build.
@@ -4892,7 +4892,7 @@ class PcreativeStudio(QWidget):
             "  · playwright · chrome-devtools · figma-context · browsermcp (web/CMS)\n"
             "  · shopify-dev (Shopify only)\n"
             "  · postgres (when a DB is provisioned)\n"
-            "  · themeforge (always — exposes create_project / deploy_demo / etc.)\n\n"
+            "  · pcreative-studio (always — exposes create_project / deploy_demo / etc.)\n\n"
             "Your AI client (Claude Code, Cursor, Windsurf) reads it on startup "
             "and downloads each MCP via npx/uvx on first use. GPL-v3 compatible: "
             "every MCP is MIT/Apache-2.0, never bundled — config only."
@@ -5081,17 +5081,17 @@ class PcreativeStudio(QWidget):
         )
         self.licensing_check.setToolTip(
             "Marca esto si vas a vender el theme bajo tu sistema de licencias "
-            "configurado (ver `~/.config/themeforge/licensing.json`). "
+            "configurado (ver `~/.config/pcreative-studio/licensing.json`). "
             "Drops automáticos según la familia del stack:\n"
             "  · Next.js → /api/verify-license + /setup wizard + Zustand store + middleware\n"
             "  · Laravel → SetupWizardController + middleware + model + migration + Blade view\n"
             "  · WordPress → clase License + página admin de licencia\n"
             "  · Hono/Nest/Bun-Elysia → route stub de verificación\n"
             "Spec en context/LICENSING-SYSTEM.template.md. Versión real "
-            "del usuario en ~/.config/themeforge/context-private/."
+            "del usuario en ~/.config/pcreative-studio/context-private/."
         )
         # Auto-check si el slug aparece en la lista privada del usuario
-        # (~/.config/themeforge/known-product-slugs.txt). Si la lista no
+        # (~/.config/pcreative-studio/known-product-slugs.txt). Si la lista no
         # existe no se preselecciona.
         self.licensing_check.setChecked(False)
 
@@ -5300,7 +5300,7 @@ class PcreativeStudio(QWidget):
             import themes as _t
             theme_names = [t.name for t in _t.list_themes() if not t.is_user]
         except Exception:
-            theme_names = ["themeforge-dark"]
+            theme_names = ["pcreative-studio-dark"]
 
         dlg = VibeDialog(self, text, agent_key, STACKS, TEMPLATE_TYPES, theme_names)
         if dlg.exec() != QDialog.DialogCode.Accepted or not dlg.proposal:
@@ -5618,7 +5618,7 @@ class PcreativeStudio(QWidget):
 
     def _maybe_autodetect_licensing(self, _text: str):
         """Pre-marca el checkbox del sistema de licencias si el slug aparece en la
-        lista privada del usuario (`~/.config/themeforge/known-product-slugs.txt`).
+        lista privada del usuario (`~/.config/pcreative-studio/known-product-slugs.txt`).
         Si esa lista no existe no hay auto-detección. El usuario siempre
         puede marcar/desmarcar el checkbox manualmente."""
         try:
@@ -6001,7 +6001,7 @@ class GalleryPanel(QWidget):
         # Toggle vista lista / cards. Estado persistido en QSettings
         # (no añadimos otro archivo de config para algo tan pequeño).
         from PyQt6.QtCore import QSettings
-        self._settings = QSettings("themeforge", "themeforge")
+        self._settings = QSettings("pcreative-studio", "pcreative-studio")
         self.view_toggle = QPushButton("🖼️ Cards")
         self.view_toggle.setCheckable(True)
         saved_mode = self._settings.value("gallery/view_mode", "list", type=str)
@@ -7692,7 +7692,7 @@ class PcreativeStudioApp(QWidget):
         applies them to the QTabWidget. Called once at startup and
         every time the user switches theme via Settings. For the
         Neo-Tokyo theme it also appends the kanji eyebrow to each tab."""
-        theme_name = "themeforge-dark"
+        theme_name = "pcreative-studio-dark"
         try:
             import themes as _t
             theme_name = _t.current_theme_name()
@@ -7717,20 +7717,20 @@ class PcreativeStudioApp(QWidget):
 def main():
     PROJECTS_DIR.mkdir(parents=True, exist_ok=True)
 
-    # Carga API keys de ~/.config/themeforge/keys.json en os.environ para que
+    # Carga API keys de ~/.config/pcreative-studio/keys.json en os.environ para que
     # las hereden el terminal server y todos los PTYs que arranquen los CLIs.
     try:
         aip.apply_all_known_keys()
     except Exception as e:
         print(f"[ai_providers] error cargando keys: {e}")
 
-    # Carga plugins del usuario (~/.config/themeforge/plugins/*.py).
+    # Carga plugins del usuario (~/.config/pcreative-studio/plugins/*.py).
     # Cada plugin puede registrar stacks, template types o agents extra
-    # vía las helpers de `themeforge_plugins`. Se ejecuta ANTES de
+    # vía las helpers de `pcreative_studio_plugins`. Se ejecuta ANTES de
     # construir la UI para que el form lea STACKS ya con los plugins
     # aplicados.
     try:
-        from themeforge_plugins import load_user_plugins, PLUGINS_DIR
+        from pcreative_studio_plugins import load_user_plugins, PLUGINS_DIR
         loaded, plugin_errors = load_user_plugins()
         if loaded:
             print(f"[plugins] cargados {loaded} plugins de {PLUGINS_DIR}")
@@ -7755,7 +7755,7 @@ def main():
 
     app = QApplication(sys.argv)
 
-    # Apply theme. Reads `~/.config/themeforge/settings.json` for the
+    # Apply theme. Reads `~/.config/pcreative-studio/settings.json` for the
     # saved theme; falls back to default if missing. Applied before
     # any window opens so the splash / first dialog already match.
     try:
@@ -7773,13 +7773,13 @@ def main():
     from PyQt6.QtCore import QSize
     from PyQt6.QtGui import QIcon
     _assets_dir = Path(__file__).parent / "assets"
-    if (_assets_dir / "themeforge.png").is_file():
+    if (_assets_dir / "pcreative-studio.png").is_file():
         _icon = QIcon()
         for sz in (16, 32, 48, 64, 128, 256):
-            p = _assets_dir / f"themeforge-{sz}.png"
+            p = _assets_dir / f"pcreative-studio-{sz}.png"
             if p.is_file():
                 _icon.addFile(str(p), QSize(sz, sz))
-        _icon.addFile(str(_assets_dir / "themeforge.png"))
+        _icon.addFile(str(_assets_dir / "pcreative-studio.png"))
         app.setWindowIcon(_icon)
 
     # Auto-launch del visualizer pixel-art (pixel-office-openclaw fork MIT
@@ -7795,7 +7795,7 @@ def main():
                 "que muestra tus sesiones de Claude Code (y OpenClaw) como "
                 "avatares en una oficina virtual.\n\n"
                 "¿Instalar ahora? (clona el repo en "
-                "~/.local/share/themeforge/pixel-office-openclaw/, ejecuta "
+                "~/.local/share/pcreative-studio/pixel-office-openclaw/, ejecuta "
                 "npm install + build. Tarda ~1-2 min.)",
                 QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
             )

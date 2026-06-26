@@ -4,7 +4,7 @@
 ; de Windows": carpeta en Program Files, entrada en Agregar/quitar
 ; programas (con icono, editor y URLs), accesos directos en el menú
 ; Inicio (+ escritorio opcional), registro App Paths (para lanzarla desde
-; Win+R / cmd como `themeforge`), y desinstalador limpio.
+; Win+R / cmd como `pcreative-studio`), y desinstalador limpio.
 ;
 ; Por defecto instala per-machine (Program Files, pide UAC) como las apps
 ; normales; el usuario puede cambiar a per-user en el diálogo si no tiene
@@ -18,7 +18,7 @@
 
 #define MyAppName      "Pcreative Studio"
 #define MyAppPublisher "pcreativedev"
-#define MyAppURL       "https://github.com/pcreativedev/themeforge"
+#define MyAppURL       "https://github.com/pcreativedev/pcreative-studio"
 #define MyAppExeName   "Pcreative Studio.exe"
 
 [Setup]
@@ -58,7 +58,7 @@ ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 
 ; ── Identidad visual + Agregar/quitar programas ──────────────────────
-SetupIconFile=..\..\assets\themeforge.ico
+SetupIconFile=..\..\assets\pcreative-studio.ico
 UninstallDisplayIcon={app}\{#MyAppExeName}
 UninstallDisplayName={#MyAppName} {#AppVersion}
 LicenseFile=..\..\LICENSE
@@ -96,7 +96,7 @@ Name: "{group}\{cm:UninstallProgram,{#MyAppName}}"; Filename: "{uninstallexe}"
 Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
 
 [Registry]
-; App Paths → permite lanzar "themeforge" desde Win+R, cmd y el buscador.
+; App Paths → permite lanzar "pcreative-studio" desde Win+R, cmd y el buscador.
 ; HKA = HKLM si per-machine, HKCU si per-user (según privilegios).
 Root: HKA; Subkey: "Software\Microsoft\Windows\CurrentVersion\App Paths\{#MyAppExeName}"; ValueType: string; ValueName: ""; ValueData: "{app}\{#MyAppExeName}"; Flags: uninsdeletekey
 Root: HKA; Subkey: "Software\Microsoft\Windows\CurrentVersion\App Paths\{#MyAppExeName}"; ValueType: string; ValueName: "Path"; ValueData: "{app}"
@@ -107,5 +107,5 @@ Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChang
 
 [UninstallDelete]
 ; Limpiar artefactos generados (cache de PyInstaller). El config del
-; usuario (%APPDATA%\themeforge) se conserva — son sus ajustes/keys.
+; usuario (%APPDATA%\pcreative-studio) se conserva — son sus ajustes/keys.
 Type: filesandordirs; Name: "{app}\__pycache__"

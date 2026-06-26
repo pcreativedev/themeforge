@@ -3,13 +3,13 @@ wp_provisioner — levanta un WordPress de desarrollo en Docker (WordPress +
 MariaDB + wp-cli) para los stacks WordPress de Pcreative Studio.
 
 Qué hace (idempotente por slug, análogo a db_provisioner):
-  1. Crea una red `themeforge-wpnet-<slug>` y un MariaDB `themeforge-wpdb-<slug>`.
-  2. Lanza WordPress `themeforge-wp-<slug>` en un puerto libre y monta el
+  1. Crea una red `pcreative-studio-wpnet-<slug>` y un MariaDB `pcreative-studio-wpdb-<slug>`.
+  2. Lanza WordPress `pcreative-studio-wp-<slug>` en un puerto libre y monta el
      directorio del proyecto en `wp-content/themes/<slug>` (theme) o
      `wp-content/plugins/<slug>` (plugin).
   3. Instala WP core con wp-cli (admin/admin, sin asistente) vía un container
      `wordpress:cli` con `--volumes-from` del WP.
-  4. Persiste todo en ~/.config/themeforge/wp_provisions.json y devuelve la URL.
+  4. Persiste todo en ~/.config/pcreative-studio/wp_provisions.json y devuelve la URL.
 
 NO activa el theme/plugin (al provisionar suele estar vacío — lo hace el agente
 con wp-cli cuando ya tiene `style.css`/cabecera). El helper para activarlo se
@@ -154,7 +154,7 @@ Instalados gratis:
 - Themes parent: {_bul(themes_free)}
 - Plugins: {_bul(plugins_free)}
 
-Instalados premium (desde `~/.config/themeforge/wp_packs.json`):
+Instalados premium (desde `~/.config/pcreative-studio/wp_packs.json`):
 - Themes: {_bul(themes_paid)}
 - Plugins: {_bul(plugins_paid)}
 """
@@ -271,7 +271,7 @@ instalados dentro de ese entorno.
   Addons Pro, Divi, Divi Builder, Breakdance Pro, JetEngine, JetSmartFilters,
   Motion.page, Novamira Pro, ACF Pro, GenerateBlocks Pro, Kadence Blocks
   Pro, etc.): se instalan **solo si** declaraste un zip que **tú hayas
-  licenciado legalmente** en `~/.config/themeforge/wp_packs.json`.
+  licenciado legalmente** en `~/.config/pcreative-studio/wp_packs.json`.
   Pcreative Studio ni verifica ni provee licencias.
 
 ## Marcas
@@ -358,7 +358,7 @@ def _wpcli(wp_container: str, net: str, db_pw: str, *args: str, timeout: int = 3
 def _configure_wp(wp: str, net: str, db_pw: str, port: int, slug: str, admin_pw: str, ux_pack: str | None = None) -> dict:
     """Idempotente: instala WP core + permalinks + plugin MCP (activado) + crea un
     application password para el bridge MCP + instala el UX pack (free desde wp.org
-    + premium desde ~/.config/themeforge/wp_packs.json si está). Devuelve
+    + premium desde ~/.config/pcreative-studio/wp_packs.json si está). Devuelve
     {installed, mcp_enabled, app_password, ux_pack}."""
     url = f"http://localhost:{port}"
     _wpcli(wp, net, db_pw, "core", "install", f"--url={url}", f"--title={slug}",
@@ -382,8 +382,8 @@ def _configure_wp(wp: str, net: str, db_pw: str, port: int, slug: str, admin_pw:
     # Application password para el bridge MCP (idempotente: limpia y crea uno).
     app_password = ""
     try:
-        _wpcli(wp, net, db_pw, "user", "application-password", "delete", "admin", "themeforge-mcp")
-        r = _wpcli(wp, net, db_pw, "user", "application-password", "create", "admin", "themeforge-mcp", "--porcelain")
+        _wpcli(wp, net, db_pw, "user", "application-password", "delete", "admin", "pcreative-studio-mcp")
+        r = _wpcli(wp, net, db_pw, "user", "application-password", "create", "admin", "pcreative-studio-mcp", "--porcelain")
         if r.returncode == 0:
             app_password = (r.stdout or "").strip().splitlines()[-1].strip() if r.stdout.strip() else ""
     except Exception:
@@ -422,7 +422,7 @@ def _configure_wp(wp: str, net: str, db_pw: str, port: int, slug: str, admin_pw:
 #      proyecto), igual que haría un usuario manualmente desde wp-admin.
 #   3) Los items "premium" se referencian solo por nombre. NUNCA hay
 #      URLs/zips/secrets reales en este repo. El usuario aporta su copia
-#      con licencia válida en ~/.config/themeforge/wp_packs.json
+#      con licencia válida en ~/.config/pcreative-studio/wp_packs.json
 #      (gitignored — vive fuera del repo, en el HOME del usuario).
 #   4) Las marcas (Bricks, Elementor, Divi, Breakdance, JetEngine,
 #      Motion.page, etc.) son de sus propietarios. Uso nominativo justo;
@@ -500,7 +500,7 @@ WP_PACKS_CONFIG_FILE = CONFIG_DIR / "wp_packs.json"
 
 
 def _load_wp_packs_config() -> dict:
-    """Lee ~/.config/themeforge/wp_packs.json (gitignored, local-only).
+    """Lee ~/.config/pcreative-studio/wp_packs.json (gitignored, local-only).
 
     Esquema esperado::
 
@@ -540,7 +540,7 @@ def _resolve_github_latest_zip(repo: str) -> str | None:
     try:
         req = urllib.request.Request(url, headers={
             "Accept": "application/vnd.github+json",
-            "User-Agent": "themeforge-wp-provisioner",
+            "User-Agent": "pcreative-studio-wp-provisioner",
         })
         with urllib.request.urlopen(req, timeout=20) as r:
             data = json.loads(r.read().decode("utf-8"))
@@ -707,7 +707,7 @@ add_action('plugins_loaded', function () {
 
 def _install_autologin_mu_plugin(wp_container: str) -> None:
     """Escribe el mu-plugin de autologin dentro del contenedor WP."""
-    target = "/var/www/html/wp-content/mu-plugins/themeforge-autologin.php"
+    target = "/var/www/html/wp-content/mu-plugins/pcreative-studio-autologin.php"
     cmd = (
         "set -e; mkdir -p /var/www/html/wp-content/mu-plugins && "
         f"cat > {target} && chown 33:33 {target} && chmod 0644 {target}"
@@ -766,9 +766,9 @@ def provision_wordpress_for(slug: str, project_dir: str, kind: str = "theme", ux
     subdir = "themes" if kind == "theme" else "plugins"
 
     provs = _load()
-    net = f"themeforge-wpnet-{slug}"
-    wp = f"themeforge-wp-{slug}"
-    db = f"themeforge-wpdb-{slug}"
+    net = f"pcreative-studio-wpnet-{slug}"
+    wp = f"pcreative-studio-wp-{slug}"
+    db = f"pcreative-studio-wpdb-{slug}"
     html_vol = f"{wp}-html"
     db_vol = f"{db}-data"
     mount_target = f"/var/www/html/wp-content/{subdir}/{slug}"

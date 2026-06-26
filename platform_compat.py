@@ -178,7 +178,7 @@ def vscode_argv(path: Path | str) -> list[str] | None:
     return None
 
 
-def app_config_dir(app_name: str = "themeforge") -> Path:
+def app_config_dir(app_name: str = "pcreative-studio") -> Path:
     """OS-appropriate per-user config directory for the app.
 
     - Linux: `$XDG_CONFIG_HOME/<app>` or `~/.config/<app>`.
@@ -186,7 +186,7 @@ def app_config_dir(app_name: str = "themeforge") -> Path:
     - Windows: `%APPDATA%/<app>` (Roaming).
 
     Note: until a full migration sweep, most of Pcreative Studio still
-    writes to `~/.config/themeforge/` directly. This helper exists
+    writes to `~/.config/pcreative-studio/` directly. This helper exists
     for new code to do the right thing.
     """
     if IS_MACOS:
@@ -199,7 +199,7 @@ def app_config_dir(app_name: str = "themeforge") -> Path:
     return base / app_name
 
 
-def app_cache_dir(app_name: str = "themeforge") -> Path:
+def app_cache_dir(app_name: str = "pcreative-studio") -> Path:
     """OS-appropriate per-user cache directory."""
     if IS_MACOS:
         return Path.home() / "Library" / "Caches" / app_name

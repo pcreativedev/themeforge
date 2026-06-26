@@ -321,7 +321,7 @@ function CronTab() {
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
         <input value={f.schedule} onChange={e => setF({ ...f, schedule: e.target.value })} placeholder="cuándo — every 1d · 30m · 0 9 * * 1-5" style={FLD} />
         <input value={f.name} onChange={e => setF({ ...f, name: e.target.value })} placeholder="nombre (opcional)" style={FLD} />
-        <input value={f.skill} onChange={e => setF({ ...f, skill: e.target.value })} placeholder="skill — ej: themeforge-operator" style={FLD} />
+        <input value={f.skill} onChange={e => setF({ ...f, skill: e.target.value })} placeholder="skill — ej: pcreative-studio-operator" style={FLD} />
         <select value={f.deliver} onChange={e => setF({ ...f, deliver: e.target.value })} style={FLD}>{['local', 'origin', 'telegram', 'discord', 'slack', 'email', 'all'].map(d => <option key={d} value={d}>{d}</option>)}</select>
       </div>
       <textarea value={f.prompt} onChange={e => setF({ ...f, prompt: e.target.value })} placeholder="tarea / prompt…" style={{ ...FLD, width: '100%', minHeight: 70, marginTop: 10 }} />
@@ -405,8 +405,8 @@ function AdvancedTab() {
     </Sec>
     <Sec title="PERFIL & BUNDLE · 束">
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-        <button style={GBTN} onClick={() => run('hermes_profile_create')}>Crear perfil themeforge</button>
-        <button style={GBTN} onClick={() => run('hermes_bundle_create')}>Crear bundle /themeforge</button>
+        <button style={GBTN} onClick={() => run('hermes_profile_create')}>Crear perfil pcreative-studio</button>
+        <button style={GBTN} onClick={() => run('hermes_bundle_create')}>Crear bundle /pcreative-studio</button>
         <button style={GBTN} onClick={() => run('hermes_profile_list')}>Listar perfiles</button>
       </div>
     </Sec>
@@ -522,7 +522,7 @@ function OperatorScreen() {
 
       <div className="panel" style={{ display: 'flex', gap: 18, alignItems: 'center', padding: '10px 16px', marginBottom: 16, flexWrap: 'wrap' }}>
         {chip(hs.available, hs.available ? ('Hermes ' + (hs.version || '')) : 'Hermes no instalado')}
-        {chip(hs.mcp, hs.mcp ? 'MCP themeforge' : 'MCP sin registrar')}
+        {chip(hs.mcp, hs.mcp ? 'MCP pcreative-studio' : 'MCP sin registrar')}
         {chip(hs.provider || hs.model ? true : null, (hs.provider || hs.model) ? ((hs.provider || '?') + ' · ' + (hs.model || '?')) : 'modelo sin configurar')}
         <button className="btn btn-ghost" style={{ marginLeft: 'auto', padding: '4px 10px' }} onClick={refreshHs}><Icon name="refresh" size={13} /></button>
       </div>

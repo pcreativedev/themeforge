@@ -125,8 +125,8 @@ THEME RULES (pick by user's mood/niche):
 - creative / portfolio / agency / artistic → dracula or brutalism
 - editorial / magazine / fashion → brutalism (raw aesthetic)
 - gaming / cyber / dark / hacker → tokyo-night
-- corporate / clean / minimal → themeforge-light
-- general / unknown → themeforge-dark
+- corporate / clean / minimal → pcreative-studio-light
+- general / unknown → pcreative-studio-dark
 
 OUTPUT FORMAT — Return ONLY a single JSON object exactly matching this
 shape, with no markdown fence, no prose before or after:

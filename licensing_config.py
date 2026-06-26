@@ -2,7 +2,7 @@
 licensing_config.py — config opcional para el sistema de licencias.
 
 Lee URLs y endpoints sensibles de un archivo privado del usuario
-(`~/.config/themeforge/licensing.json`) en vez de hardcodearlos en el
+(`~/.config/pcreative-studio/licensing.json`) en vez de hardcodearlos en el
 código público. Si el archivo no existe se devuelven placeholders
 genéricos que el usuario debe sustituir al usar el sistema.
 

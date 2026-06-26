@@ -118,7 +118,7 @@ The HTTP MCPs are per-store endpoints. **Replace `YOUR-SHOP`** in
 ## 4. What the AI knows (the `CLAUDE.md` brain)
 
 Each stack injects a per-stack context block (`_SHOPIFY_BUILDER_CONTEXT`
-in `themeforge.py`):
+in `pcreative_studio.py`):
 
 ### `shopify-liquid` context (~10.9 KB)
 

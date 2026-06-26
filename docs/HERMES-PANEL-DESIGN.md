@@ -57,15 +57,15 @@ embed Hermes features; we only build the **Pcreative Studio-specific layer**
     `HermesTerminal` chat sub-tab.
   - `OperatorMissionDialog` — "automate an existing gallery project".
   - `ProjectPreviewWidget`, `HermesTerminal`.
-  - Launches `hermes chat -q <prompt> -s themeforge-operator`.
+  - Launches `hermes chat -q <prompt> -s pcreative-studio-operator`.
 - **`mcp_server.py`** — 10 MCP tools (read-mostly + 2 writes):
   `list_stacks`, `list_themes`, `list_recent_projects`,
   `list_supported_providers`, `estimate_cost`, `suggest_stack`,
   `run_preflight`, `build_zip`, `create_project`, `run_agent_build`.
-- **`~/.hermes/skills/themeforge/themeforge-operator/SKILL.md`** — the one
+- **`~/.hermes/skills/pcreative-studio/pcreative-studio-operator/SKILL.md`** — the one
   orchestration skill (references a non-existent `delegate_task` — bug).
 - **Hermes local: v0.14.0** (256 commits behind v0.15.0 → `hermes update`).
-- MCP `themeforge` registered + enabled in `~/.hermes/config.yaml`.
+- MCP `pcreative-studio` registered + enabled in `~/.hermes/config.yaml`.
 
 ### Known gaps / bugs to fix in passing
 - SKILL.md promises `delegate_task` that does not exist → replace with
@@ -93,7 +93,7 @@ A `QTabWidget` with sub-tabs (left-to-right):
 A persistent **status strip** sits above the sub-tabs (always visible):
 
 ```
- [⏻ Encender Hermes] │ Hermes v0.15.0 ✓   MCP themeforge ✓   openrouter · claude-sonnet-4.6      [↻]
+ [⏻ Encender Hermes] │ Hermes v0.15.0 ✓   MCP pcreative-studio ✓   openrouter · claude-sonnet-4.6      [↻]
 ```
 
 - Each chip is green/amber/red. `~/.hermes/config.yaml` + `hermes --version`
@@ -133,7 +133,7 @@ A persistent **status strip** sits above the sub-tabs (always visible):
 ```
 
 Changes vs today:
-- **Agente** dropdown = list of installed `themeforge-*` specialist skills
+- **Agente** dropdown = list of installed `pcreative-studio-*` specialist skills
   (§5) + an "Auto (Hermes elige)" option. Selecting one passes
   `-s <skill>` to Hermes and pre-selects its default stack.
 - **Stack** dropdown = the 77 stacks (grouped by category as in the
@@ -151,7 +151,7 @@ Changes vs today:
 
 ### 4.2 🤖 Agentes — gallery of specialists
 
-Card grid. Each card = one installed `themeforge-*` skill:
+Card grid. Each card = one installed `pcreative-studio-*` skill:
 
 ```
 ┌──────────────────────────┐  ┌──────────────────────────┐
@@ -163,7 +163,7 @@ Card grid. Each card = one installed `themeforge-*` skill:
 └──────────────────────────┘  └──────────────────────────┘
 ```
 
-- Reads `~/.hermes/skills/themeforge/*/SKILL.md`, parses frontmatter
+- Reads `~/.hermes/skills/pcreative-studio/*/SKILL.md`, parses frontmatter
   (`name`, `description`, `metadata.hermes.tags`, `version`, mapped
   stacks).
 - **Usar** → jumps to 🚀 Misión with that agent + its default stack.
@@ -179,7 +179,7 @@ Guided form that writes a valid Hermes SKILL.md:
 
 ```
 Nombre del agente:   [ Webflow-style landing expert        ]
-Slug (auto):         themeforge-webflow-style-landing
+Slug (auto):         pcreative-studio-webflow-style-landing
 Stack(s) base:       [✓ astro-tailwind] [✓ nextjs-shadcn] […]
 Tags:                [ landing, marketing, hero, conversion ]
 Nicho objetivo:      [ SaaS / startups                      ]
@@ -194,16 +194,16 @@ Especialidad (qué sabe / cómo trabaja):
 ```
 
 - **💾 Crear agente** → writes
-  `~/.hermes/skills/themeforge/<slug>/SKILL.md` with proper frontmatter
+  `~/.hermes/skills/pcreative-studio/<slug>/SKILL.md` with proper frontmatter
   (`name`, `description`, `version: 1.0.0`, `platforms`,
-  `metadata.hermes.tags`, `related_skills: [themeforge-operator,
+  `metadata.hermes.tags`, `related_skills: [pcreative-studio-operator,
   popular-web-designs, claude-design]`) → `hermes skills audit` → appears
   in 🤖 Agentes.
 - **🤖 Generar con IA** → calls the MCP tool `draft_specialist_skill`
   (§6) which runs Hermes/agent to write the body, seeded with the
   stack's `_BUILDER_CONTEXT` block(s).
 - Mapping skill→stack stored in the skill frontmatter
-  (`metadata.themeforge.stacks: [...]`) — that's how 🚀 Misión and the
+  (`metadata.pcreative_studio.stacks: [...]`) — that's how 🚀 Misión and the
   gallery know which stacks a specialist covers.
 
 ### 4.4 🧠 Memoria — what Hermes learned
@@ -218,8 +218,8 @@ explains the learning loop ("cada misión añade aquí lo que funcionó").
 
 ### 4.5 📊 Kanban — swarm missions in flight
 
-Wraps `hermes kanban` on a dedicated board `themeforge`:
-- `hermes kanban list --board themeforge` → table (task, assignee,
+Wraps `hermes kanban` on a dedicated board `pcreative-studio`:
+- `hermes kanban list --board pcreative-studio` → table (task, assignee,
   status, model, worktree).
 - `hermes kanban show <id>` → detail + comments + events.
 - Live tail via `hermes kanban tail`.
@@ -248,43 +248,43 @@ Wraps `hermes cron`:
 
 ### 4.8 💬 Chat — interactive Hermes  *(keep current `HermesTerminal`)*
 
-- Already works: embedded xterm running `hermes -s themeforge-operator`.
+- Already works: embedded xterm running `hermes -s pcreative-studio-operator`.
 - Improve: a dropdown to pick which specialist skill the chat loads
   (`-s <skill>`), and auto-follow the project built by the last mission.
 
 ---
 
-## 5. Specialist agents (the `themeforge-*` skills)
+## 5. Specialist agents (the `pcreative-studio-*` skills)
 
 One Hermes skill per stack family. Each is a `SKILL.md` whose body is the
 deep stack knowledge (much of it lifted from the `_*_BUILDER_CONTEXT`
-blocks we already wrote in `themeforge.py`).
+blocks we already wrote in `pcreative_studio.py`).
 
 Proposed initial set (maps onto the 77 stacks / 16 categories):
 
 | Skill slug | Covers stacks | Knowledge source |
 |---|---|---|
-| `themeforge-operator` | (orchestrator, all) | exists — rewrite delegate→swarm |
-| `themeforge-shopify-liquid` | shopify-liquid, shopify-liquid-blank | `_SHOPIFY_BUILDER_CONTEXT` (Liquid 28 KB) |
-| `themeforge-shopify-hydrogen` | shopify-hydrogen | Hydrogen block |
-| `themeforge-shopify-app` | shopify-polaris-app, shopify-checkout-extension | Polaris block |
-| `themeforge-shopify-functions` | shopify-functions | Functions block |
-| `themeforge-shopify-webcomponents` | shopify-storefront-webcomponents | WC block |
-| `themeforge-wordpress` | wordpress-block, -plugin | WORDPRESS.md |
-| `themeforge-wordpress-builders` | -bricks, -elementor, -divi, -breakdance | builder packs |
-| `themeforge-magento-hyva` | magento-hyva | Hyvä + Freento MCP |
-| `themeforge-saleor` | saleor-nextjs | BSD-3 GraphQL |
-| `themeforge-vendure` | vendure | NestJS |
-| `themeforge-bigcommerce` | bigcommerce-stencil | Stencil/Cornerstone |
-| `themeforge-prestashop` | prestashop-theme | Smarty |
-| `themeforge-opencart` | opencart-theme | OC4 Twig |
-| `themeforge-sylius` | sylius | Symfony 7 |
-| `themeforge-medusa` | medusa | Medusa 2 |
-| `themeforge-frontend` | nextjs-*, astro-*, react-*, vue-*, svelte… | generic web-design |
-| `themeforge-mobile` | expo-*, flutter, ionic, kotlin-compose | mobile |
-| `themeforge-backend` | hono, nestjs, fastapi, go-fiber, … | API design |
-| `themeforge-docs` | docusaurus, vitepress, starlight | docs sites |
-| `themeforge-game` | phaser, pixijs, r3f | web games |
+| `pcreative-studio-operator` | (orchestrator, all) | exists — rewrite delegate→swarm |
+| `pcreative-studio-shopify-liquid` | shopify-liquid, shopify-liquid-blank | `_SHOPIFY_BUILDER_CONTEXT` (Liquid 28 KB) |
+| `pcreative-studio-shopify-hydrogen` | shopify-hydrogen | Hydrogen block |
+| `pcreative-studio-shopify-app` | shopify-polaris-app, shopify-checkout-extension | Polaris block |
+| `pcreative-studio-shopify-functions` | shopify-functions | Functions block |
+| `pcreative-studio-shopify-webcomponents` | shopify-storefront-webcomponents | WC block |
+| `pcreative-studio-wordpress` | wordpress-block, -plugin | WORDPRESS.md |
+| `pcreative-studio-wordpress-builders` | -bricks, -elementor, -divi, -breakdance | builder packs |
+| `pcreative-studio-magento-hyva` | magento-hyva | Hyvä + Freento MCP |
+| `pcreative-studio-saleor` | saleor-nextjs | BSD-3 GraphQL |
+| `pcreative-studio-vendure` | vendure | NestJS |
+| `pcreative-studio-bigcommerce` | bigcommerce-stencil | Stencil/Cornerstone |
+| `pcreative-studio-prestashop` | prestashop-theme | Smarty |
+| `pcreative-studio-opencart` | opencart-theme | OC4 Twig |
+| `pcreative-studio-sylius` | sylius | Symfony 7 |
+| `pcreative-studio-medusa` | medusa | Medusa 2 |
+| `pcreative-studio-frontend` | nextjs-*, astro-*, react-*, vue-*, svelte… | generic web-design |
+| `pcreative-studio-mobile` | expo-*, flutter, ionic, kotlin-compose | mobile |
+| `pcreative-studio-backend` | hono, nestjs, fastapi, go-fiber, … | API design |
+| `pcreative-studio-docs` | docusaurus, vitepress, starlight | docs sites |
+| `pcreative-studio-game` | phaser, pixijs, r3f | web games |
 
 > We don't have to ship all at once. **Phase A** = orchestrator rewrite +
 > 5–6 highest-value specialists (shopify-liquid, hydrogen, wordpress,
@@ -295,15 +295,15 @@ Proposed initial set (maps onto the 77 stacks / 16 categories):
 
 ```markdown
 ---
-name: themeforge-shopify-liquid
-description: "Build Shopify Online Store 2.0 themes to Theme Store / ThemeForest quality via the themeforge MCP."
+name: pcreative-studio-shopify-liquid
+description: "Build Shopify Online Store 2.0 themes to Theme Store / ThemeForest quality via the pcreative-studio MCP."
 version: 1.0.0
 platforms: [linux, macos, windows]
 metadata:
   hermes:
-    tags: [themeforge, shopify, liquid, theme-store, envato]
-    related_skills: [themeforge-operator, popular-web-designs, claude-design, dogfood]
-  themeforge:
+    tags: [pcreative-studio, shopify, liquid, theme-store, envato]
+    related_skills: [pcreative-studio-operator, popular-web-designs, claude-design, dogfood]
+  pcreative-studio:
     stacks: [shopify-liquid, shopify-liquid-blank]
     default_stack: shopify-liquid
     marketplace: [theme-store, themeforest]
@@ -318,18 +318,18 @@ metadata:
 ## Verification (Theme Check, Lighthouse CI)
 ```
 
-The `metadata.themeforge.stacks` key is **our** extension — it's how the
+The `metadata.pcreative_studio.stacks` key is **our** extension — it's how the
 GUI maps specialists ↔ stacks. Hermes ignores unknown metadata.
 
 ### Bundle
-`~/.hermes/skill-bundles/themeforge.yaml`:
+`~/.hermes/skill-bundles/pcreative_studio.yaml`:
 ```yaml
-name: themeforge
+name: pcreative-studio
 description: "Full Pcreative Studio web-design workflow."
-skills: [themeforge-operator, popular-web-designs, claude-design, dogfood]
-instruction: "You are building marketplace-ready templates with Pcreative Studio. Use the themeforge MCP tools."
+skills: [pcreative-studio-operator, popular-web-designs, claude-design, dogfood]
+instruction: "You are building marketplace-ready templates with Pcreative Studio. Use the pcreative-studio MCP tools."
 ```
-`/themeforge` in any Hermes chat loads the whole workflow at once.
+`/pcreative-studio` in any Hermes chat loads the whole workflow at once.
 
 ---
 
@@ -342,7 +342,7 @@ So Hermes can *operate* Pcreative Studio fully (not just read):
 | `apply_theme` | `(project_path, theme_key)` | the theme/token system |
 | `setup_licensing` | `(project_path, stack_family)` | `licensing_scaffold` |
 | `analyze_market` | `(niche?, year?)` | `market_analyzer` |
-| `list_themeforge_skills` | `()` → specialists + their stacks | scans skills dir |
+| `list_pcreative_studio_skills` | `()` → specialists + their stacks | scans skills dir |
 | `register_custom_skill` | `(name, body, stacks, tags)` | writes SKILL.md + audit |
 | `draft_specialist_skill` | `(name, stacks, niche, notes)` → SKILL body | seeds from `_BUILDER_CONTEXT` |
 | `learn_from_project` | `(project_path, lesson)` | append to `.hermes.md` |
@@ -360,7 +360,7 @@ N-variant mission, the orchestrator skill does:
 
 ```
 hermes kanban swarm \
-  --board themeforge \
+  --board pcreative-studio \
   --workers N \
   --task "Build variant {i}: <brief> with DISTINCT UI/UX Pro style+palette" \
   --model-per-worker auto         # variant A=sonnet, B=gpt-5, C=gemini…
@@ -394,8 +394,8 @@ Sandbox/remote bits of old Fase #21 remain out of scope for now (Hermes
 | Phase | Deliverable | Touches | Risk |
 |---|---|---|---|
 | **0 ✅** | `hermes update` to v0.15.0; verified swarm/cron/dashboard CLIs | env only | low |
-| **A ✅** | Renamed Operator→Hermes; 8-sub-tab shell; status strip + **master power button** (boots off); embedded Admin dashboard; Misión (with phase indicator) + Chat working | `hermes_panel.py` (new), `operator_panel.py` (+shutdown/relaunch), `themeforge.py` (tab+gallery btn), docs | low |
-| **B** | 🤖 Agentes gallery + 6 starter `themeforge-*` skills + bundle | new skills, gallery widget | med |
+| **A ✅** | Renamed Operator→Hermes; 8-sub-tab shell; status strip + **master power button** (boots off); embedded Admin dashboard; Misión (with phase indicator) + Chat working | `hermes_panel.py` (new), `operator_panel.py` (+shutdown/relaunch), `pcreative_studio.py` (tab+gallery btn), docs | low |
+| **B** | 🤖 Agentes gallery + 6 starter `pcreative-studio-*` skills + bundle | new skills, gallery widget | med |
 | **C** | Misión upgrades: agent/stack/provider/model/QA controls + phase indicator | `hermes_panel.py`, `stream_parsers.py` | med |
 | **D** | New MCP tools (§6) | `mcp_server.py` | med |
 | **E** | ➕ Crear agente (form + AI draft) | gallery + tool `draft_specialist_skill` | med |

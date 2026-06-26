@@ -4,7 +4,7 @@ new agents, schedules missions, and lets Hermes learn across projects.
 
 This is the Fase-A shell (see docs/HERMES-PANEL-DESIGN.md):
 
-    [ status strip: Hermes vX · MCP themeforge · provider/model ]
+    [ status strip: Hermes vX · MCP pcreative-studio · provider/model ]
     🚀 Misión │ 🤖 Agentes │ ➕ Crear │ 🧠 Memoria │ 📊 Kanban │ ⏰ Cron │ ⚙️ Admin │ 💬 Chat
 
 Most heavy widgets (live preview, embedded Hermes chat, the per-project mission
@@ -42,7 +42,7 @@ from operator_panel import (
 
 HERMES_HOME = Path.home() / ".hermes"
 SKILLS_DIR = HERMES_HOME / "skills"          # raíz de skills (categorías dentro)
-TF_SKILLS_DIR = SKILLS_DIR / "themeforge"    # skills creadas desde Pcreative Studio
+TF_SKILLS_DIR = SKILLS_DIR / "pcreative-studio"    # skills creadas desde Pcreative Studio
 MEMORIES_DIR = HERMES_HOME / "memories"
 CRON_JOBS = HERMES_HOME / "cron" / "jobs.json"
 
@@ -176,13 +176,13 @@ def _provider_has_auth(provider: str) -> bool:
     return False
 
 
-def _mcp_themeforge_registered() -> bool:
-    """True si el server MCP `themeforge` está en la config de Hermes."""
+def _mcp_pcreative_studio_registered() -> bool:
+    """True si el server MCP `pcreative-studio` está en la config de Hermes."""
     cfg = HERMES_HOME / "config.yaml"
     if not cfg.is_file():
         return False
     try:
-        return "themeforge" in cfg.read_text(encoding="utf-8")
+        return "pcreative-studio" in cfg.read_text(encoding="utf-8")
     except Exception:
         return False
 
@@ -197,7 +197,7 @@ def _free_port() -> int:
 
 # ───────────────────────── status strip ─────────────────────────────────
 class HermesStatusStrip(QFrame):
-    """Tira de estado siempre visible: versión de Hermes, MCP themeforge,
+    """Tira de estado siempre visible: versión de Hermes, MCP pcreative-studio,
     proveedor/modelo activos. Cada chip verde/ámbar/rojo."""
 
     def __init__(self, parent=None):
@@ -257,9 +257,9 @@ class HermesStatusStrip(QFrame):
         ver = hermes_version()
         self.lbl_hermes.setText(self._chip(
             bool(ver), f"Hermes {ver}" if ver else "Hermes no instalado"))
-        mcp = _mcp_themeforge_registered()
+        mcp = _mcp_pcreative_studio_registered()
         self.lbl_mcp.setText(self._chip(
-            mcp, "MCP themeforge" if mcp else "MCP themeforge sin registrar"))
+            mcp, "MCP pcreative-studio" if mcp else "MCP pcreative-studio sin registrar"))
         prov, model = _hermes_model_info()
         if prov or model:
             # Verde si el provider configurado tiene credenciales (login/API key);
@@ -618,8 +618,8 @@ class MissionTab(QWidget):
                     "trends, top ThemeForest/Dribbble/Awwwards references and 2-3 "
                     "competitors → a short design brief that feeds the build prompts. "
                     if self.cb_research.isChecked() else "")
-        images = ("Generate ORIGINAL imagery with mcp_themeforge_generate_image "
-                  "(Runware): pick a model via mcp_themeforge_list_image_models, then "
+        images = ("Generate ORIGINAL imagery with mcp_pcreative_studio_generate_image "
+                  "(Runware): pick a model via mcp_pcreative_studio_list_image_models, then "
                   "create hero/section/OG/logo assets on-brand with each palette and "
                   "reference them in the markup. "
                   if self.cb_images.isChecked() else "")
@@ -630,7 +630,7 @@ class MissionTab(QWidget):
         return (
             f"Run a Pcreative Studio Operator mission. Build agent (provider): {prov}. "
             f"Number of variants: {n}. {stack_line}Mission brief: {brief}\n\n"
-            "Follow the themeforge-operator skill (web/UX-UI specialized). " + research +
+            "Follow the pcreative-studio-operator skill (web/UX-UI specialized). " + research +
             "Plan a MULTIPAGE web template with a DISTINCT UI/UX Pro Max style+palette "
             "per variant; read & follow the skills listed in the project's AGENTS.md. "
             + images +
@@ -1356,7 +1356,7 @@ class AgentsTab(QWidget):
                 "category": fm.get("category") or category,
                 "path": str(md),
                 "text": text,
-                "tf": category == "themeforge",
+                "tf": category == "pcreative-studio",
             })
         return skills
 
@@ -1495,7 +1495,7 @@ description: {desc}
 version: 1.0.0
 metadata:
   hermes:
-    category: themeforge
+    category: pcreative-studio
     tags: [{tags}]
 ---
 
@@ -1509,7 +1509,7 @@ metadata:
 
 ## Procedimiento
 1. Lee el contexto del proyecto (CLAUDE.md/AGENTS.md) y la referencia si la hay.
-2. Sigue el skill `themeforge-operator` para crear/construir/QA/empaquetar.
+2. Sigue el skill `pcreative-studio-operator` para crear/construir/QA/empaquetar.
 3. Aplica las convenciones del/los stack(s) de arriba.
 
 ## Verificación
@@ -1520,7 +1520,7 @@ metadata:
 
 class CreateAgentTab(QWidget):
     """Crea una skill/agente propio: form → SKILL.md (opción de redactarlo con
-    IA vía `hermes -z`) → guarda en `~/.hermes/skills/themeforge/<name>/`."""
+    IA vía `hermes -z`) → guarda en `~/.hermes/skills/pcreative-studio/<name>/`."""
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -1593,7 +1593,7 @@ class CreateAgentTab(QWidget):
         tags = ", ".join(t.strip() for t in self.in_stacks.text().split(",") if t.strip())
         self.editor.setPlainText(_SKILL_TEMPLATE.format(
             name=name, desc=desc, title=name.replace("-", " ").title(),
-            stacks=stacks, tags=tags or "themeforge"))
+            stacks=stacks, tags=tags or "pcreative-studio"))
         self.status.setText("Plantilla lista. Edítala o pulsa 💾 Guardar.")
 
     def _draft_ai(self):
@@ -1609,7 +1609,7 @@ class CreateAgentTab(QWidget):
         prompt = (
             "Write a Hermes SKILL.md for a Pcreative Studio specialized agent. Output ONLY "
             "the file content (YAML frontmatter + markdown), no commentary. "
-            f"name: {name}. category: themeforge. Base stacks: {stacks or 'any web'}. "
+            f"name: {name}. category: pcreative_studio. Base stacks: {stacks or 'any web'}. "
             f"Specialty: {desc}. Include sections: When to use, Procedure, Pitfalls, "
             "Verification (Envato checklist + Lighthouse). Keep it concise and practical.")
         self.editor.setPlainText("✍️ Redactando con IA… (hermes -z)\n")
@@ -2003,7 +2003,7 @@ class CronTab(QWidget):
         self.in_prompt.setPlaceholderText("Ej: genera una landing del nicho top de la "
                                           "semana y mándame el zip.")
         self.in_skill = QLineEdit()
-        self.in_skill.setPlaceholderText("(opcional) skill, ej: themeforge-operator")
+        self.in_skill.setPlaceholderText("(opcional) skill, ej: pcreative-studio-operator")
         self.in_deliver = QComboBox(); self.in_deliver.addItems(self.DELIVER)
         self.in_name = QLineEdit(); self.in_name.setPlaceholderText("(opcional) nombre")
         form.addRow("Cuándo:", self.in_sched)
@@ -2529,12 +2529,12 @@ class AdvancedTab(QWidget):
         prl = QVBoxLayout(prbox)
         prl.addWidget(QLabel("<b>👤 Perfil + bundle Pcreative Studio</b>"))
         prl.addWidget(QLabel("Perfil Hermes aislado (config/skills/memoria propias) y "
-                            "un bundle <code>/themeforge</code> que agrupa los agentes web."))
+                            "un bundle <code>/pcreative-studio</code> que agrupa los agentes web."))
         prow2 = QHBoxLayout()
-        self.btn_profile = QPushButton("Crear perfil 'themeforge'")
+        self.btn_profile = QPushButton("Crear perfil 'pcreative-studio'")
         self.btn_profile.clicked.connect(self._create_profile)
         prow2.addWidget(self.btn_profile)
-        self.btn_bundle = QPushButton("Crear bundle /themeforge")
+        self.btn_bundle = QPushButton("Crear bundle /pcreative-studio")
         self.btn_bundle.clicked.connect(self._create_bundle)
         prow2.addWidget(self.btn_bundle)
         self.btn_profiles = QPushButton("Listar perfiles")
@@ -2620,27 +2620,27 @@ class AdvancedTab(QWidget):
     def _create_profile(self):
         if not self._hermes:
             return
-        rc, out = run_hermes(["profile", "create", "themeforge", "--clone"], timeout=30)
-        self.log.appendPlainText(f"$ hermes profile create themeforge --clone\n{out}\n"
-                                 + ("✓ perfil creado (úsalo: hermes -p themeforge …)"
+        rc, out = run_hermes(["profile", "create", "pcreative-studio", "--clone"], timeout=30)
+        self.log.appendPlainText(f"$ hermes profile create pcreative-studio --clone\n{out}\n"
+                                 + ("✓ perfil creado (úsalo: hermes -p pcreative-studio …)"
                                     if rc == 0 else f"✗ exit {rc}"))
 
     def _create_bundle(self):
         if not self._hermes:
             return
-        skills = ["themeforge-operator"]
+        skills = ["pcreative-studio-operator"]
         try:
             from hermes_web_agents import web_agent_names
             skills += web_agent_names()
         except Exception:
             pass
-        args = ["bundles", "create", "themeforge"]
+        args = ["bundles", "create", "pcreative-studio"]
         for s in skills:
             args += ["--skill", s]
         rc, out = run_hermes(args, timeout=30)
         self.log.appendPlainText(
-            f"$ hermes bundles create themeforge --skill … ({len(skills)} skills)\n{out}\n"
-            + ("✓ bundle creado → usa /themeforge en el chat" if rc == 0 else f"✗ exit {rc}"))
+            f"$ hermes bundles create pcreative-studio --skill … ({len(skills)} skills)\n{out}\n"
+            + ("✓ bundle creado → usa /pcreative-studio en el chat" if rc == 0 else f"✗ exit {rc}"))
 
     def _fallback_add(self):
         if not self._hermes:
@@ -2696,7 +2696,7 @@ class HermesPanel(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self._powered = False
-        # Distribuye/actualiza el skill themeforge-operator del repo a ~/.hermes.
+        # Distribuye/actualiza el skill pcreative-studio-operator del repo a ~/.hermes.
         try:
             from hermes_operator_skill import ensure_operator_skill_installed
             ensure_operator_skill_installed()

@@ -1,8 +1,8 @@
-"""Distribuye el skill `themeforge-operator` a Hermes.
+"""Distribuye el skill `pcreative-studio-operator` a Hermes.
 
-La fuente versionada vive en el repo (`hermes/skills/themeforge-operator/`). Este
-módulo la instala/actualiza en `~/.hermes/skills/themeforge/themeforge-operator/`
-para que Hermes la cargue con `-s themeforge-operator`. Compara la versión del
+La fuente versionada vive en el repo (`hermes/skills/pcreative-studio-operator/`). Este
+módulo la instala/actualiza en `~/.hermes/skills/pcreative-studio/pcreative-studio-operator/`
+para que Hermes la cargue con `-s pcreative-studio-operator`. Compara la versión del
 frontmatter y solo sobrescribe si la del repo es más nueva (o no hay instalada),
 y nunca pisa una copia que el usuario haya marcado como modificada.
 
@@ -13,8 +13,8 @@ from __future__ import annotations
 import shutil
 from pathlib import Path
 
-REPO_SKILL = Path(__file__).resolve().parent / "hermes" / "skills" / "themeforge-operator"
-DEST_DIR = Path.home() / ".hermes" / "skills" / "themeforge" / "themeforge-operator"
+REPO_SKILL = Path(__file__).resolve().parent / "hermes" / "skills" / "pcreative-studio-operator"
+DEST_DIR = Path.home() / ".hermes" / "skills" / "pcreative-studio" / "pcreative-studio-operator"
 
 
 def _version(skill_md: Path) -> tuple[int, ...]:
@@ -66,5 +66,5 @@ def ensure_operator_skill_installed() -> str | None:
 
 if __name__ == "__main__":
     v = ensure_operator_skill_installed()
-    print(f"  ✓ themeforge-operator instalado/actualizado a v{v}"
-          if v else "  (themeforge-operator ya al día o no disponible)")
+    print(f"  ✓ pcreative-studio-operator instalado/actualizado a v{v}"
+          if v else "  (pcreative-studio-operator ya al día o no disponible)")
